@@ -1,0 +1,19 @@
+# Original game data - copyrighted, never commit
+/img/
+/flac/
+*.bin
+*.iso
+*.cab
+
+# Extracted / converted assets and build output
+/build/
+/extracted/
+/assets/
+
+# Reverse-engineering workspace (contains the original binary)
+/re/ghidra/
+/re/wineprefix/
+
+# Python
+__pycache__/
+*.pyc
