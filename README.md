@@ -30,6 +30,28 @@ This writes `extracted/game/` (the installed game files),
 `extracted/wav/` (sound effects embedded in `ASTRO.exe`) and
 `extracted/manifest.json` (SHA-256 of every file).
 
+## Building the asset package
+
+```bash
+python3 tools/package_assets.py img/Astro_Assembler.cue --flac flac -o assets
+```
+
+Creates `assets/` with everything the port needs: the original `.DAT` files
+(unchanged), the `ASTRO.exe` data section, PNG images, WAV sounds, music as
+`trackNN.flac`, and a manifest. Nothing in it may be committed.
+
+## Inspecting the data files
+
+```bash
+python3 tools/datview.py segment extracted/game/Level1.dat
+```
+
+```bash
+python3 tools/datview.py sheet extracted/game/Level1.dat 0 200 level1.png
+```
+
+See [docs/formats.md](docs/formats.md) for the formats.
+
 ## Running the original (reference)
 
 ```bash

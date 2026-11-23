@@ -41,15 +41,26 @@ Open questions carried forward:
 - Is FLAC NN = CD track NN+1? Check against the `0xF3` script opcode uses
 - `MCI_PLAY` without an end position: music runs on into the next tracks
 
-## Phase 2 — Data formats
+## Phase 2 — Data formats (in progress, see [formats.md](formats.md))
 
-- [ ] `.dat` sprite container: frame split, sizes, hotspots, palette location
+- [x] Runtime memory layout (allocation block, arena, file load offsets)
+- [x] RLE sprite encoding, sprite regions in GAME.DAT / LEVELn.DAT
+- [x] Palettes (in ASTRO.exe, 6-bit, 240 fadeable colours), level palettes
+- [x] Level script location, difficulty variants, opcode lengths (partial)
+- [x] CD track → FLAC mapping confirmed (FLAC NN = track NN+1)
+- [x] RNG located (`Core_Random`)
+- [x] `tools/datview.py`: segment / render sprite sheets / raw views
+- [ ] Sprite descriptor tables (sizes, hotspots), collision masks
+- [ ] Non-sprite regions of the level files, GAME.DAT animation directories
 - [ ] `Menu.dat` format
-- [ ] Large tables in `.data` (~950 KB): level scripts, waves, paths
-- [ ] WAV resource name → usage
-- [ ] CD-audio track number → situation, so the FLACs can be mapped
-- [ ] Python viewer/exporter (PNG sprite sheets) to check formats by eye
-- [ ] Converter to the port's runtime formats
+- [x] WAV resources → sound ids, voices and sets (`sounds.json`)
+- [x] Packaging script `tools/package_assets.py`: CD image + FLACs →
+      standalone `assets/` directory (verified: DATs identical, PNGs
+      pixel-identical to the BMPs)
+
+Decided: the `.DAT` files are packaged **byte-identical**, since the core
+addresses them by hard-coded offsets. Only BMP images, WAV sounds and music are
+converted or renamed. Sprite PNG export (`tools/datview.py`) is for viewing only.
 
 ## Phase 3 — Game logic
 

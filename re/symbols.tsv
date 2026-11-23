@@ -91,6 +91,15 @@
 0040a919	f	Core_Level5Setup
 0040ab7c	f	Core_Level6Setup
 0040ae24	f	Core_RunLevel	Level engine main loop (~172 KB reachable, shared by all levels).
+00408f1e	f	Core_RelocateGameData	Sets frame buffer pointers, builds rotation constants, relocates two GAME.DAT offset tables to arena addresses.
+00408f8c	f	Core_Random	RNG: seed = ror(seed*13, 2) + sum of several game-state words. Result in ax.
+00408cf1	f	Core_GetLevelScript	eax = LevelScriptTable[level-1][section*3 + g_cfgDifficulty].
+00442454	f	Core_DrawSprite	RLE sprite -> g_frameBuffer. dx=x, bx=y, bp=width, cx=height, esi=data. Fast path when fully visible.
+004424f0	f	Core_DrawSpriteClipped	Clipping path of Core_DrawSprite.
+0041f109	f	Script_Run	Level script interpreter (word opcodes 0xEF..0xFD, see docs/formats.md).
+004135ba	f	Palette_StartFade	Fade from current palette to edi over cx frames (240 colours, 8.8 fixed point).
+00413577	f	Palette_StepFade	Advances the 8.8 fade by one frame into g_paletteOut.
+004434c4	f	Math_BuildRotation	3D rotation matrix from three angles (sin/cos table in GAME.DAT, 14-bit fixed point).
 00408ceb	f	Core_Cmd07_Init
 004443ae	f	Core_Cmd09_Menu
 0040b8d5	f	Core_Cmd10_Blit16	320x200x8 -> 16 bpp surface.
@@ -141,6 +150,38 @@
 0046ec0c	l	g_cfgCdVolume
 0055c814	l	g_soundEnabled
 0055c81c	l	g_cdEnabled
+0046ffa6	l	g_rngSeed	16-bit seed of Core_Random.
+004b1f64	l	g_levelScriptPtr	Current position in the level script.
+004c1da4	l	LevelScriptTable	Per level: pointer to 12 script pointers (4 sections x 3 difficulties).
+004be944	l	g_palettePtr	Current 768-byte palette (6-bit RGB).
+004be948	l	g_paletteFadeTarget
+004be94c	l	g_paletteFadeFrames
+004be94e	l	g_paletteFade	720 words current (8.8) + 720 words per-frame delta.
+004bf48e	l	g_paletteOut	Palette produced by the fade (768 bytes).
+004bf78e	l	g_paletteWork	Palette after brightness adjust, input to the output conversion.
+004c0298	l	Palette_Level1
+004c0b98	l	Palette_Level2
+004c1198	l	Palette_Level3
+004c1498	l	Palette_Level4
+004c1798	l	Palette_Level5
+004c1a98	l	Palette_Level6
+00556b2c	l	g_cdTrack	CD track for CD_PlayTrack (word).
+0055b5fc	l	g_imgPortada	Menu images converted to the 640x480 mode's pixel format...
+0055b600	l	g_imgFondo1
+0055b604	l	g_imgFondo2
+0055b608	l	g_imgNaves
+0055b60c	l	g_imgLetras
+0055b610	l	g_imgScreenBackup	Extra 640x480 slot; g_arenaBase follows.
+00556ac4	l	g_allocBase	VirtualAlloc block: MENU.DAT, images, then the arena.
+0046f1d0	l	SoundTable	{char *name; int voices} x 78, indexed by sound id.
+0046ec18	l	SoundSet_Menu	-1-terminated sound id list.
+0046ec28	l	SoundSet_Level1
+0046ed10	l	SoundSet_Level2
+0046ee10	l	SoundSet_Level3
+0046ef08	l	SoundSet_Level4
+0046f000	l	SoundSet_Level5
+0046f0e8	l	SoundSet_Level6
+0055c840	l	g_soundObjects	Sound object per sound id (DirectSound buffers).
 00556aa8	l	g_hwnd
 005569a0	l	g_cfgPath
 0046f490	l	g_cfgMagic	'RHO!' (0x214F4852).
@@ -149,6 +190,6 @@
 0046f444	l	g_cfgControlP1_q
 0046f448	l	g_cfgControlP2_q
 0046ec04	l	g_cfgModeIndex	Selected display mode (index into g_modeTable).
-00556abc	l	g_cfgOption_q	Used by the core as index*3+value (language or difficulty?).
+00556abc	l	g_cfgDifficulty	0..2; selects one of 3 script variants per level section (Core_GetLevelScript).
 0055a7c8	l	g_modeTable	Display modes, stride 0x48.
 00556b4c	l	g_modeCount
