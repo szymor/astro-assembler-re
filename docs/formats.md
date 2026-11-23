@@ -20,6 +20,8 @@ g_arenaBase
   +0x00FA00       second 320x200 buffer
   +0x01FF40       GAME.DAT  (2 960 905 bytes, ends at +0x2F2D49)
   +0x2F2D49       LEVELn.DAT (reloaded at the same place for every level)
+  g_levelDataEnd  level scratch buffers (tile layers, masks), placed by the level
+                  setup right after the level data
 ```
 
 The core addresses this data with **hard-coded arena offsets** (constants added
@@ -67,10 +69,10 @@ LEVEL1.DAT (the other levels have the same kind of layout):
 | Range | Contents |
 |---|---|
 | `0x000000–0x05915e` | 390 sprites: enemy ships with rotation/animation frames |
-| `0x05915e–0x1cf02e` | 1.5 MB, not sprites, not a 320-wide image (unknown) |
+| `0x05915e–0x1cf02e` | 1.5 MB of **background tiles**, 20×20 pixels, 400 bytes each (tile set base `[0x4b1fc8]`, drawn by `0x41ef8b`) |
 | `0x1cf02e–0x1d22f2` | 38 sprites |
 | `0x1d83be–0x266b9f` | 454 sprites; sprite-bank table entries point here |
-| `0x266b9f–0x35dbad` | 1 MB; level setup passes four pointers into it, 64 KB apart (tile maps?) |
+| `0x266b9f–0x35dbad` | 1 MB, including four **64 KB blend tables** (`table[new][old]`, used for translucent particles; addresses patched into `0x413a8x…` by `0x409658`) |
 | `0x35dbad–0x4ef507` | 120 large sprites (asteroids, ~13.7 KB each) |
 
 ## GAME.DAT tables
@@ -164,7 +166,7 @@ so the port has to keep those variables bit-exact.
 
 - Sprite descriptor tables (sizes, hotspots) and the full sprite catalogue
 - Collision masks: which sprites have them
-- Non-sprite regions of the level files (1.5 MB + 1 MB in LEVEL1.DAT)
+- Rest of the non-sprite level data (tile maps, scripts' data)
 - MENU.DAT (66 distinct byte values, mostly 0 and 255, not RLE, not a plain image)
 - Default script handler and the remaining opcodes
 

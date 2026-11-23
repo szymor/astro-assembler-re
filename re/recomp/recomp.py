@@ -341,7 +341,8 @@ class FuncGen:
             self.calls.add(t)
             return f"RT_CALL(f_{t:x}, 0x{ins.fallthrough:x}u);"
         if n == "CALLIND":
-            return f"rt_callind((uint32_t){r(a[0])}, 0x{ins.fallthrough:x}u);"
+            return (f"rt_callind((uint32_t){r(a[0])}, 0x{ins.fallthrough:x}u); "
+                    f"if (cpu.ret_addr != 0x{ins.fallthrough:x}u) return;")
         if n == "BRANCHIND":
             cases = " ".join(f"case 0x{t:x}: {self.goto(t, body)}" for t in ins.flows)
             return f"switch ((uint32_t){r(a[0])}) {{ {cases} default: rt_jumpind((uint32_t){r(a[0])}); return; }}"

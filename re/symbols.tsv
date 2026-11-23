@@ -128,7 +128,7 @@
 00556ac8	l	g_arenaBase
 00556aa4	l	g_loadPtr	Next free byte in the arena for File_LoadList.
 00556acc	l	g_levelLoadBase	Arena position after GAME.DAT; level files load here.
-00556ad0	l	g_levelData	Start of the current LEVELN.DAT.
+00556ad0	l	g_levelDataEnd	End of the current LEVELN.DAT in the arena (load pointer after loading); level scratch buffers start here.
 0055c7f4	l	g_frameBuffer	320x200 8-bit frame the core renders into.
 0055c7fc	l	g_surfacePtr	Locked surface pointer for blit commands.
 0055c800	l	g_surfacePitch

@@ -74,7 +74,9 @@ replacement of generated functions with readable C. See
 - [x] Prototype tests pass (RNG, sprite blitter, dispatcher)
 - [x] Self-modifying instructions read their immediates from memory (texture mapper test passes)
 - [ ] Flag-liveness optimisation
-- [ ] SDL3 host layer for the shell callbacks, then run the menu
+- [x] SDL3 host layer (`src/`, see [port.md](port.md)): logos, title, menus
+      and level 1 gameplay run on the recompiled core
+- [ ] Sound effects, CD music from FLAC, configuration, gamepad, ending
 
 ### Survey that led to the decision
 

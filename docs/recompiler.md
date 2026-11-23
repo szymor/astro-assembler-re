@@ -44,9 +44,13 @@ only maps about 40 p-code operations to C.
   the game's allocation block get fixed addresses chosen by the host. Every
   access is bounds-checked.
 - **Calls**: a direct `CALL` becomes a C call. The x86 return address is still
-  pushed on the emulated stack (by the p-code), and every `RET` is checked
-  against the address its `CALL` pushed, so any return-address trickery would
-  abort with a message rather than misbehave.
+  pushed on the emulated stack (by the p-code). After the call, the address the
+  callee's `RET` popped is compared with this call's return address. If they
+  differ, the callee returned to an outer frame: the core does this on purpose
+  (e.g. `0x41851f` discards its return address to exit from its caller
+  `0x419481` as well). The C function then returns immediately too, and each
+  caller compares again until a frame matches (unwinding). A return to an
+  address no frame expects ends at the outermost caller, which aborts.
 - **Branches**: gotos inside a function; a branch or fall-through into another
   function's entry is a tail call.
 - **Computed calls** (`rt_callind`): generated functions are looked up in a

@@ -44,12 +44,14 @@ rt_func rt_lookup(uint32_t addr)
     return NULL;
 }
 
+/* Computed call. As with RT_CALL, a callee returning to an outer frame leaves
+ * cpu.ret_addr != ret; the generated caller then unwinds (it checks
+ * cpu.ret_addr right after this call). */
 void rt_callind(uint32_t target, uint32_t ret)
 {
     rt_func fn = rt_lookup(target);
     if (fn) {
         fn();
-        if (cpu.ret_addr != ret) rt_bad_return(ret, cpu.ret_addr);
         return;
     }
     if (target >= 0x401000u && target < 0x401244u) {
@@ -73,3 +75,26 @@ void rt_callother(unsigned kind, uint32_t at, ...)
     fprintf(stderr, "recomp: special instruction (CALLOTHER %#x) at %08x\n", kind, at);
     abort();
 }
+
+#ifdef RT_WATCH
+uint32_t rt_watch_lo, rt_watch_hi;
+int rt_watch_byte = -1;
+static struct { void *caller; unsigned long count, first; } watch_tab[128];
+static unsigned long watch_hits;
+static void watch_report(void)
+{
+    fprintf(stderr, "watch summary (%lu hits); resolve with: addr2line -f -e <binary> <offset>\n", watch_hits);
+    for (int i = 0; i < 128 && watch_tab[i].caller; i++)
+        fprintf(stderr, "  caller offset %#lx: %lu writes, first at hit %lu\n",
+                (unsigned long)((char *)watch_tab[i].caller - (char *)rt_watch) , watch_tab[i].count, watch_tab[i].first);
+}
+__attribute__((noinline)) void rt_watch(uint32_t addr, uint64_t value, int size)
+{
+    void *caller = __builtin_return_address(0);
+    if (!watch_hits++) atexit(watch_report);
+    for (int i = 0; i < 128; i++) {
+        if (!watch_tab[i].caller) { watch_tab[i].caller = caller; watch_tab[i].first = watch_hits; }
+        if (watch_tab[i].caller == caller) { watch_tab[i].count++; break; }
+    }
+}
+#endif

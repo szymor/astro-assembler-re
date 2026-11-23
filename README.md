@@ -13,7 +13,7 @@ it into a standalone game that does not need the disc at runtime.
 |---|---|
 | `tools/` | Asset extraction and conversion scripts (Python 3, stdlib only) |
 | `docs/` | Reverse-engineering notes and file format docs |
-| `src/` | The C/SDL3 port (not started yet) |
+| `src/` | The SDL3 platform layer of the port; see [docs/port.md](docs/port.md) |
 | `re/recomp/` | Static recompiler (p-code → C) and its runtime; see [docs/recompiler.md](docs/recompiler.md) |
 | `re/symbols.tsv` | Canonical function/global names for `ASTRO.exe` |
 | `re/scripts/`, `re/ghidra_scripts/` | RE helper scripts (seed finding, symbol import, exports) |
@@ -52,6 +52,11 @@ python3 tools/datview.py sheet extracted/game/Level1.dat 0 200 level1.png
 ```
 
 See [docs/formats.md](docs/formats.md) for the formats.
+
+## Building the port
+
+See [docs/port.md](docs/port.md): package the assets, generate the core
+([docs/recompiler.md](docs/recompiler.md)), then build with CMake (SDL3 needed).
 
 ## Running the original (reference)
 

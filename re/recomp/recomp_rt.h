@@ -62,8 +62,20 @@ static inline uint64_t MEM_RD(uint32_t a, int size) {
     if ((uint64_t)a + (uint64_t)size > RT_MEM_SIZE) rt_bad_access(a, size);
     uint64_t v = 0; memcpy(&v, &mem[a], (size_t)size); return v;
 }
+#ifdef RT_WATCH
+/* Debug builds: rt_watch() is called for writes into [rt_watch_lo, rt_watch_hi)
+ * whose low byte equals rt_watch_byte (if >= 0). Put a debugger breakpoint on it. */
+extern uint32_t rt_watch_lo, rt_watch_hi;
+extern int rt_watch_byte;
+void rt_watch(uint32_t addr, uint64_t value, int size);
+#endif
 static inline void MEM_WR(uint32_t a, int size, uint64_t v) {
     if ((uint64_t)a + (uint64_t)size > RT_MEM_SIZE) rt_bad_access(a, -size);
+#ifdef RT_WATCH
+    if (a < rt_watch_hi && a + (uint32_t)size > rt_watch_lo &&
+        (rt_watch_byte < 0 || memchr(&v, rt_watch_byte, (size_t)size)))
+        rt_watch(a, v, size);
+#endif
     memcpy(&mem[a], &v, (size_t)size);
 }
 
@@ -95,10 +107,14 @@ static inline int64_t RT_SDIV(int64_t a, int64_t b) { if (!b) rt_divide_error();
 static inline int64_t RT_SREM(int64_t a, int64_t b) { if (!b) rt_divide_error(); return a % b; }
 
 /* ---- control flow ------------------------------------------------------------ */
-/* CALL: the p-code has already pushed the return address; check that the
- * callee's RET popped exactly that. */
+/* CALL: the p-code has already pushed the return address. If the callee's RET
+ * popped a different address, it returned to an outer frame (the core does
+ * this on purpose: a routine discards its return address to exit from its
+ * caller too). Unwind: return from this function as well; the caller checks
+ * again, until some frame's return address matches. A RET to an address no
+ * frame expects ends at the outermost caller (rt_bad_return there). */
 _Noreturn void rt_bad_return(uint32_t expected, uint32_t got);
-#define RT_CALL(fn, ret) do { fn(); if (cpu.ret_addr != (ret)) rt_bad_return((ret), cpu.ret_addr); } while (0)
+#define RT_CALL(fn, ret) do { fn(); if (cpu.ret_addr != (ret)) return; } while (0)
 #define RT_RET(addr) (cpu.ret_addr = (addr))
 
 void rt_callind(uint32_t target, uint32_t ret);     /* computed call      */
