@@ -33,8 +33,8 @@ The original project folder was
 - Sections: `.text` 0x69558, `.data` 0xE8600 (large, probably level tables),
   `.rsrc` 0x3BEFE1 (mostly WAVs).
 - Entry `0x00458f30` (CRT start-up) → `WinMain` at `0x004023e0`.
-- Ghidra auto-analysis found 600 functions covering ~95 KB of a 431 KB `.text`.
-  Large parts are still unexplored and need manual or scripted disassembly.
+- A 30 KB C++ shell plus a **250 KB hand-written assembly core** that holds
+  all game logic and rendering. Full structure in [modules.md](modules.md).
 - Strings worth noting: `Cdplayer.cpp`, `aw_env.c`/`aw_map.c`/`aw_str.c`
   (CRT locale), `ONE PLAYER`, `PLAYER 1/2`, `PLAYER X CONTROL`, all asset
   file names in upper case.
@@ -46,8 +46,8 @@ The original project folder was
 - Music was meant to be **CD audio**, played through `mciSendCommandA`
   (`Cdplayer.cpp`). The released disc has no audio tracks, so the game
   never played any music. The 15 FLAC tracks in `flac/` (from the
-  khinsider rip) fill that gap. Which game track plays when is still to be
-  worked out (Phase 2).
+  khinsider rip) fill that gap. The code uses tracks 2–16, which matches
+  15 FLACs as FLAC NN = CD track NN+1 (see modules.md, "Sound and music").
 
 ## `.dat` sprite encoding (first look)
 

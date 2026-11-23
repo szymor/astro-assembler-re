@@ -22,14 +22,24 @@ Ground rules:
 - [x] `tools/run_original.sh`: Wine reference run (starts without crashing;
       rendering not checked by eye yet)
 
-## Phase 1 — Mapping the executable
+## Phase 1 — Mapping the executable ✅
 
-- [ ] Get the remaining `.text` disassembled (see findings: analysis covers
-      only ~95 KB of 431 KB)
-- [ ] Name the C runtime functions (debug CRT, source file names in asserts)
-- [ ] Wrap DirectDraw/DirectInput/DirectSound COM calls with typed vtables
-- [ ] `WinMain` → window procedure → main loop → game state machine
-- [ ] Module map in `docs/modules.md`
+- [x] Disassemble the rest of `.text`: seeds from the ILT, call targets and
+      relocations. 1627 functions; code coverage is now ~97% (99.3% in the core)
+- [x] C runtime: only checked for what matters. MSVC `rand()` is **not** used,
+      so the RNG lives in the core (to find in Phase 3)
+- [~] DirectX COM calls identified by vtable offset in the shell functions;
+      typed vtable structs in Ghidra deferred (the port replaces this layer)
+- [x] `WinMain` → main loop → menu/levels/ending; WndProc; shell ↔ core
+      command and callback interface
+- [x] Module map in [`docs/modules.md`](modules.md); names in `re/symbols.tsv`
+
+Open questions carried forward:
+
+- Target tick rate (speed follows the display refresh rate)
+- Does the core really write to its own code (code range made RWX)?
+- Is FLAC NN = CD track NN+1? Check against the `0xF3` script opcode uses
+- `MCI_PLAY` without an end position: music runs on into the next tracks
 
 ## Phase 2 — Data formats
 
@@ -48,7 +58,8 @@ Ground rules:
 - [ ] Entities: player, ship combining, energy, shields, enemies, bullets,
       capsules/power-ups, ground units, collision
 - [ ] Scrolling, levels, scoring, lives, 2-player rules, input mapping
-- [ ] Resolution option: how it worked and whether to reproduce it
+- [ ] Resolution option: the mechanism is known (see modules.md, "Display").
+      Still to decide how to reproduce the upscaling (filtering, aspect)
 - [ ] Shared struct definitions (Ghidra ⇄ C headers)
 
 ## Phase 4 — Port (C + SDL3)

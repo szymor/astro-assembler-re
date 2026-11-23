@@ -1,0 +1,154 @@
+# Canonical symbol names for ASTRO.exe, applied by re/ghidra_scripts/ApplySymbols.java.
+# Columns (tab-separated): address  kind(f=function, l=label/global)  name  comment
+# Names ending in _q are tentative (meaning inferred, not confirmed).
+
+# ---- C++ shell: entry, config, main loop ------------------------------------
+004023e0	f	WinMain	System checks (RAM >= 12 MB, DX >= 7), core init, DDraw/DInput/DSound init, main loop.
+00402890	f	App_Shutdown	Restores cursor/page protection, stops CD, releases DirectX, frees memory.
+00402900	f	Config_Load	Reads %WINDIR%\ASTRO_CC.CFG (magic 'RHO!').
+00402b30	f	Config_Save	Writes %WINDIR%\ASTRO_CC.CFG.
+00402d10	f	Config_Validate	Increments run counter; defaults mode to 640x480x16 and fixes control assignments.
+00402ec0	f	Game_SetMenuModeAndInit	Sets the 640x480 mode, then core command 22.
+00402ef0	f	Game_RunMenu	Loads menu sound set, runs core command 9 (title/menu).
+00402f60	f	Game_RunLevels	Sets game mode, then for N=1..6: load LEVELN.DAT + sound set, core command N; then ending (cmd 15).
+00403340	f	App_CreateWindow	Registers class and creates the ASTRO ASSEMBLER window.
+00403450	f	DD_Init	Enumerates DirectDraw devices and display modes, builds the mode table.
+00403f50	f	Font_CharToIndex	Maps an ASCII char to a glyph index of the in-game font.
+00403fa0	f	DD_SelectMenuMode	Finds the 640x480 mode with the requested bpp and stores its pixel masks.
+00404b80	f	Video_TestVsync_q	Compares WaitForVerticalBlank and Flip timing to see if vsync blocks.
+00404c40	f	PixelMask_ToShiftWidth	RGB bit masks -> (shift, width) pairs.
+00404fd0	f	DD_SetDisplayMode	SetDisplayMode(w,h,bpp,refresh=0), creates primary/back surfaces, palette for 8 bpp.
+004052f0	f	Video_SetGameMode	Applies the configured mode; chooses 1:1 copy, stretch Blt or Direct3D upscale of the 320x200 frame.
+00405870	f	Video_SetMenuMode	DD_SetDisplayMode(640,480,...).
+004058c0	f	Video_MeasureRefresh	Averages 64 vertical blanks to get the refresh period in ms.
+00405930	f	Video_PresentFrame	Core callback: converts/copies the 320x200x8 frame to the screen (cmds 10-14, 16-21).
+004060e0	f	DD_WaitVBlank	IDirectDraw2::WaitForVerticalBlank(DDWAITVB_BLOCKEND).
+00406120	f	Video_WaitFrame	Waits for vertical blank, bounded by the measured refresh period.
+00406440	f	D3D_InitUpscale_q	Creates the Direct3D device and the two textures used to upscale 320x200.
+00406a50	f	Video_InitStretch_q	Sets up the DirectDraw stretch-Blt upscale path.
+00406b70	f	DI_Init	Creates DirectInput and enumerates joysticks.
+00406c90	f	DI_EnumJoystickCb	Joystick enumeration callback: range -1000..1000, dead zone.
+00406f40	f	Input_PollJoystick	Core callback: polls joystick of player g_shellParam into 2-bit edge histories.
+004072a0	f	DS_Init	Creates DirectSound.
+00407440	f	Sound_LoadSet	Loads a table of WAV resources into DirectSound buffers.
+004074d0	f	Sound_FreeSet	Releases a sound set.
+00407930	f	Sound_StopSet	Stops all buffers of a sound set.
+00407a50	f	CD_PlayTrack	Core callback: plays a CD-audio track via MCI.
+00407a80	f	CD_Stop	Core callback: stops CD audio.
+00407ab0	f	CD_Pause	Called when the app loses focus.
+00407ad0	f	CD_Resume	Called when the app regains focus.
+00407af0	f	CDVol_Detect	Finds a CD-audio aux device (auxGetDevCaps).
+00407be0	f	CDVol_Apply	Applies the game's CD volume.
+00407cf0	f	CDVol_SaveSystem	Saves the system CD volume.
+00407d90	f	CDVol_RestoreSystem	Restores the system CD volume.
+00407e10	f	Mem_AllocArena	VirtualAlloc of the game's data arena.
+00407e50	f	Mem_FreeArena
+00407e80	f	File_LoadList	Loads a list of files into the arena at g_loadPtr, advancing it.
+00407f90	f	WndProc	WM_ACTIVATEAPP pauses/resumes CD and volume; SC_CLOSE quits; SC_KEYMENU suppressed.
+00408150	f	App_PumpMessages
+004081f0	f	Gfx_LoadLogos	LOGO1-3.BMP.
+00408270	f	Gfx_LoadTitleAssets	MENU.DAT (File_LoadList) + PORTADA, FONDO1-2, NAVES, LETRAS .BMP.
+00408360	f	Gfx_LoadEnding	FINAL1-2.BMP.
+004083d0	f	Gfx_LoadBitmap	LoadImage + StretchBlt of a BMP file into a surface/buffer.
+004086e0	f	GetDXVersion	DirectX SDK sample routine.
+004061c0	f	Surface_LockPrimary	Core callback: locks primary surface into g_surfacePtr; g_shellParam=1 on failure.
+00406260	f	Surface_UnlockPrimary	Core callback.
+004063d0	f	Palette_Set	Core callback: SetEntries(0, g_shellParam entries) from g_paletteEntries.
+004071b0	f	Input_PollKeyboard	Core callback: 256-byte DirectInput keyboard state into g_keyState.
+00407540	f	Sound_PrimeMenuSet	Core callback: Lock/Unlock every buffer of the menu sound set (warm-up).
+004075d0	f	Sound_PrimeLevel1Set
+00407660	f	Sound_PrimeLevel2Set
+004076f0	f	Sound_PrimeLevel3Set
+00407780	f	Sound_PrimeLevel4Set
+00407810	f	Sound_PrimeLevel5Set
+004078a0	f	Sound_PrimeLevel6Set
+00407980	f	Sound_Play	Core callback: plays sound g_shellParam; flags g_soundFlags: 1 loop, 2 pan from x (0..640), 4 volume (0..1000).
+00407a20	f	Sound_Stop	Core callback: stops sound g_shellParam.
+00407c80	f	CDVol_Set	Core callback: auxSetVolume to g_cfgCdVolume.
+00401f10	f	DSnd_GetFreeBuffer	Returns a non-playing buffer of a sound object (restores lost ones).
+00401fa0	f	DSnd_Play	Sound object play with optional pan/volume.
+00402080	f	DSnd_StopAll
+004021e0	f	DSnd_TouchBuffer	Lock+Unlock to force the buffer into memory.
+00401c40	f	DS_GetWaveResource	FindResource/LoadResource of a "WAV" resource.
+004022b0	f	DS_ParseWave	Parses a RIFF WAVE in memory.
+
+# ---- Assembly core ------------------------------------------------------------
+00408c44	f	Core_Dispatch	Shell->core entry: pushad, call CoreCommandTable[g_coreCommand].
+00408c59	l	CoreCommandTable	23 dword handlers, indexed by g_coreCommand (entry 8 is null).
+00408cb5	f	Core_CallShell	Core->shell: pushad, call [g_coreCallback] (an ILT slot).
+00408cc2	f	Core_Cmd00_GetRanges	Reports core code range (made RWX by WinMain) and data range.
+00408d06	f	Core_Cmd01_Level1
+00408d58	f	Core_Cmd02_Level2
+00408daa	f	Core_Cmd03_Level3
+00408dfc	f	Core_Cmd04_Level4
+00408e4e	f	Core_Cmd05_Level5
+00408ea0	f	Core_Cmd06_Level6
+00408ef2	f	Core_PrefaultMemory	Reads every dword of core code/data and level data 8 times, calling the shell callback each pass (warm-up only).
+00409067	f	Core_Level1Setup
+00409f77	f	Core_Level2Setup
+0040a306	f	Core_Level3Setup
+0040a5db	f	Core_Level4Setup
+0040a919	f	Core_Level5Setup
+0040ab7c	f	Core_Level6Setup
+0040ae24	f	Core_RunLevel	Level engine main loop (~172 KB reachable, shared by all levels).
+00408ceb	f	Core_Cmd07_Init
+004443ae	f	Core_Cmd09_Menu
+0040b8d5	f	Core_Cmd10_Blit16	320x200x8 -> 16 bpp surface.
+0040cd0f	f	Core_Cmd11_Blit16TexA	Direct3D path, first texture, 16 bpp.
+0040dd09	f	Core_Cmd12_Blit16TexB	Direct3D path, second texture, 16 bpp.
+00408fd2	f	Core_Cmd13_Init16bpp_q	Called after entering a 16 bpp game mode.
+00413797	f	Core_Cmd14_Present8	8 bpp modes: palette upload / copy.
+00446195	f	Core_Cmd15_Ending
+0041103c	f	Core_Cmd16_Blit32
+00412249	f	Core_Cmd17_Blit32TexA
+0041308d	f	Core_Cmd18_Blit32TexB
+0040e24d	f	Core_Cmd19_Blit24
+0040f8ba	f	Core_Cmd20_Blit24TexA
+00410a70	f	Core_Cmd21_Blit24TexB
+0044607a	f	Core_Cmd22_PostModeInit_q
+
+# ---- Globals ----------------------------------------------------------------
+00556ae4	l	g_coreCommand	Command index for Core_Dispatch.
+0046ffb0	l	g_coreCallback	ILT slot called by Core_CallShell.
+00556ae8	l	g_quitGame	Non-zero ends the level/menu loop (1 = quit).
+00556aec	l	g_shellParam	Parameter/result slot for core<->shell calls (sound index, palette count, player, lock-failed flag).
+00556ad4	l	g_coreCodeStart
+00556ad8	l	g_coreCodeSize
+00556adc	l	g_coreDataStart
+00556ae0	l	g_coreDataSize
+00556ac8	l	g_arenaBase
+00556aa4	l	g_loadPtr	Next free byte in the arena for File_LoadList.
+00556acc	l	g_levelLoadBase	Arena position after GAME.DAT; level files load here.
+00556ad0	l	g_levelData	Start of the current LEVELN.DAT.
+0055c7f4	l	g_frameBuffer	320x200 8-bit frame the core renders into.
+0055c7fc	l	g_surfacePtr	Locked surface pointer for blit commands.
+0055c800	l	g_surfacePitch
+0055c374	l	g_screenBpp
+0055c370	l	g_vblankPeriodMs
+00556998	l	g_lastVBlankTime
+00556828	l	g_waitVBlank
+0055c39c	l	g_modeFlag40_q
+0055c3a4	l	g_ddraw	IDirectDraw2*
+0055c3a8	l	g_ddsPrimary
+0055c3ac	l	g_ddsBack
+0055c3c4	l	g_d3dDevice
+0055c3b0	l	g_ddPalette
+0055c3f0	l	g_paletteEntries	256 PALETTEENTRY.
+0055c9b0	l	g_keyState	DirectInput keyboard state (256 bytes).
+00556af0	l	g_soundFlags
+00556af4	l	g_soundPanX
+00556af8	l	g_soundVolume
+0046ec0c	l	g_cfgCdVolume
+0055c814	l	g_soundEnabled
+0055c81c	l	g_cdEnabled
+00556aa8	l	g_hwnd
+005569a0	l	g_cfgPath
+0046f490	l	g_cfgMagic	'RHO!' (0x214F4852).
+0055cbe0	l	g_cfgRunCount
+0046f440	l	g_cfgPlayers_q
+0046f444	l	g_cfgControlP1_q
+0046f448	l	g_cfgControlP2_q
+0046ec04	l	g_cfgModeIndex	Selected display mode (index into g_modeTable).
+00556abc	l	g_cfgOption_q	Used by the core as index*3+value (language or difficulty?).
+0055a7c8	l	g_modeTable	Display modes, stride 0x48.
+00556b4c	l	g_modeCount

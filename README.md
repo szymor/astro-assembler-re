@@ -14,7 +14,9 @@ it into a standalone game that does not need the disc at runtime.
 | `tools/` | Asset extraction and conversion scripts (Python 3, stdlib only) |
 | `docs/` | Reverse-engineering notes and file format docs |
 | `src/` | The C/SDL3 port (not started yet) |
-| `re/` | Local RE workspace: Ghidra project, Wine prefix (git-ignored) |
+| `re/symbols.tsv` | Canonical function/global names for `ASTRO.exe` |
+| `re/scripts/`, `re/ghidra_scripts/` | RE helper scripts (seed finding, symbol import, exports) |
+| `re/ghidra/`, `re/wineprefix/` | Local Ghidra project and Wine prefix (git-ignored) |
 | `img/`, `flac/` | Your original CD image and soundtrack (git-ignored) |
 | `extracted/` | Output of the extraction script (git-ignored) |
 
@@ -38,5 +40,6 @@ Runs `ASTRO.exe` under Wine in its own prefix with a 640×480 virtual desktop.
 
 ## Status
 
-See [docs/plan.md](docs/plan.md) for the roadmap and
-[docs/findings.md](docs/findings.md) for what is known so far.
+See [docs/plan.md](docs/plan.md) for the roadmap,
+[docs/findings.md](docs/findings.md) for what is known so far and
+[docs/modules.md](docs/modules.md) for the structure of `ASTRO.exe`.
