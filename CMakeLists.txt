@@ -37,6 +37,7 @@ add_executable(astro
     src/assets.c
     src/audio.c
     src/config.c
+    src/settings.c
 )
 target_link_libraries(astro PRIVATE astro_core SDL3::SDL3 FLAC::FLAC)
 if(NOT MSVC)

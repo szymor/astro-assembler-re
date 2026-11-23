@@ -78,7 +78,10 @@ replacement of generated functions with readable C. See
       and level 1 gameplay run on the recompiled core
 - [x] Sound effects and CD music from FLAC (see port.md, "Audio")
 - [x] Configuration (original format), quitting, ending
-- [ ] Gamepad and full key mapping, options menu mode list, scaling filter
+- [x] Gamepads as DirectInput joysticks; keyboard uses the game's own redefinable sets
+- [x] Options menu mode list (exact record layout); all options submenus work
+- [x] Decided: 60 Hz tick rate; 4:3 with sharp-bilinear default (nearest/smooth selectable)
+- [x] Audio: look-ahead limiter on the final mix (clipping 3 673 → 0 samples)
 
 ### Survey that led to the decision
 
@@ -108,10 +111,8 @@ Options:
 
 ### Tasks
 
-- [~] Timing model: no refresh rate is requested (driver default, typically
-      60 Hz on Win98/2000 with DX7); logic runs once per frame. To confirm by
-      comparing script frame counts with the music track lengths (each level
-      track flows into its boss track)
+- [x] Timing model: no refresh rate is requested (driver default, typically
+      60 Hz on Win98/2000 with DX7); logic runs once per frame. Decided: 60 Hz
 - [ ] Wave spawner (default script handler `41f757–4227e1`) and remaining opcodes
 - [ ] Game states: intro, logos, menu, play, pause, game over, ending
 - [ ] Entities: player, ship combining, energy, shields, enemies, bullets,

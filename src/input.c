@@ -6,6 +6,119 @@
 bool input_quit_requested;
 bool input_focused = true;
 
+/* ---- gamepads as the original's DirectInput joysticks -------------------- */
+
+static SDL_Gamepad *g_pads[2];
+
+static void open_pad(SDL_JoystickID id)
+{
+    for (int i = 0; i < 2; i++) if (g_pads[i] && SDL_GetGamepadID(g_pads[i]) == id) return;
+    for (int i = 0; i < 2; i++) {
+        if (!g_pads[i]) {
+            g_pads[i] = SDL_OpenGamepad(id);
+            if (g_pads[i]) SDL_Log("joystick %d: %s", i + 1, SDL_GetGamepadName(g_pads[i]));
+            return;
+        }
+    }
+}
+
+/*
+ * Testing aid: ASTRO_VPAD="frame:control[:frames],..." attaches a virtual SDL
+ * gamepad and holds `control` (a, b, left, right, up, down) from presented
+ * frame `frame` for `frames` frames (default 10).
+ */
+static SDL_Joystick *g_vpad;
+static const char *g_vpad_script;
+
+static void vpad_attach(void)
+{
+    g_vpad_script = SDL_getenv("ASTRO_VPAD");
+    if (!g_vpad_script) return;
+    SDL_VirtualJoystickDesc desc;
+    SDL_INIT_INTERFACE(&desc);
+    desc.type = SDL_JOYSTICK_TYPE_GAMEPAD;
+    desc.naxes = SDL_GAMEPAD_AXIS_COUNT;
+    desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
+    desc.axis_mask = (1u << SDL_GAMEPAD_AXIS_COUNT) - 1;
+    desc.button_mask = (1u << SDL_GAMEPAD_BUTTON_COUNT) - 1;
+    desc.name = "Astro test pad";
+    SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
+    g_vpad = id ? SDL_OpenJoystick(id) : NULL;
+    if (!g_vpad) SDL_Log("virtual gamepad: %s", SDL_GetError());
+}
+
+static void vpad_update(void)
+{
+    if (!g_vpad) return;
+    unsigned long now = video_frame_count();
+    bool a = false, b = false;
+    int x = 0, y = 0;
+    for (const char *p = g_vpad_script; *p;) {
+        char *end;
+        unsigned long at = SDL_strtoul(p, &end, 10), dur = 10;
+        char name[8] = {0};
+        if (*end == ':') {
+            end++;
+            for (int i = 0; i < 7 && SDL_isalpha(*end); i++) name[i] = *end++;
+        }
+        if (*end == ':') dur = SDL_strtoul(end + 1, &end, 10);
+        if (now >= at && now < at + dur) {
+            if (!SDL_strcmp(name, "a")) a = true;
+            else if (!SDL_strcmp(name, "b")) b = true;
+            else if (!SDL_strcmp(name, "left")) x = -32768;
+            else if (!SDL_strcmp(name, "right")) x = 32767;
+            else if (!SDL_strcmp(name, "up")) y = -32768;
+            else if (!SDL_strcmp(name, "down")) y = 32767;
+        }
+        if (end == p) break;
+        p = *end == ',' ? end + 1 : end;
+    }
+    SDL_SetJoystickVirtualButton(g_vpad, SDL_GAMEPAD_BUTTON_SOUTH, a);
+    SDL_SetJoystickVirtualButton(g_vpad, SDL_GAMEPAD_BUTTON_EAST, b);
+    SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_LEFTX, (Sint16)x);
+    SDL_SetJoystickVirtualAxis(g_vpad, SDL_GAMEPAD_AXIS_LEFTY, (Sint16)y);
+}
+
+int input_init_gamepads(void)
+{
+    vpad_attach();
+    int n = 0;
+    SDL_JoystickID *ids = SDL_GetGamepads(&n);
+    for (int i = 0; ids && i < n; i++) open_pad(ids[i]);
+    SDL_free(ids);
+    return (g_pads[0] != NULL) + (g_pads[1] != NULL);
+}
+
+/*
+ * Input_PollJoystick (0x406f40): joystick `index` into the 2-bit histories of
+ * player `slot` (left, right, up, down, button 0, button 1; previous state in
+ * bit 1). The original set the axis range to -1000..1000 with a 50% dead zone
+ * (0x406c90) and only looked at the sign, so a stick counts beyond half
+ * deflection. Button 0 = south (A/cross), button 1 = east (B/circle); the
+ * d-pad acts like the stick. With no device the original updated nothing.
+ */
+void input_poll_joystick(int index, int slot)
+{
+    if (index < 0 || index > 1 || !g_pads[index]) return;
+    SDL_Gamepad *p = g_pads[index];
+    const uint32_t base = slot == 0 ? 0x55c980u : 0x55c998u;
+    /* slot 0: right 980, left 984, up 988, down 98c, b0 990, b1 994 */
+    uint32_t right = base, left = base + 4, up = base + 8, down = base + 12, b0 = base + 16, b1 = base + 20;
+    const uint32_t vars[6] = {right, left, up, down, b0, b1};
+    for (int i = 0; i < 6; i++) wr32(vars[i], (rd32(vars[i]) & 1) << 1);
+    int x = SDL_GetGamepadAxis(p, SDL_GAMEPAD_AXIS_LEFTX), y = SDL_GetGamepadAxis(p, SDL_GAMEPAD_AXIS_LEFTY);
+    x = x < -16384 ? -1 : x > 16383 ? 1 : 0;
+    y = y < -16384 ? -1 : y > 16383 ? 1 : 0;
+    if (SDL_GetGamepadButton(p, SDL_GAMEPAD_BUTTON_DPAD_LEFT)) x = -1;
+    if (SDL_GetGamepadButton(p, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)) x = 1;
+    if (SDL_GetGamepadButton(p, SDL_GAMEPAD_BUTTON_DPAD_UP)) y = -1;
+    if (SDL_GetGamepadButton(p, SDL_GAMEPAD_BUTTON_DPAD_DOWN)) y = 1;
+    if (x < 0) wr32(left, rd32(left) | 1); else if (x > 0) wr32(right, rd32(right) | 1);
+    if (y < 0) wr32(up, rd32(up) | 1); else if (y > 0) wr32(down, rd32(down) | 1);
+    if (SDL_GetGamepadButton(p, SDL_GAMEPAD_BUTTON_SOUTH)) wr32(b0, rd32(b0) | 1);
+    if (SDL_GetGamepadButton(p, SDL_GAMEPAD_BUTTON_EAST)) wr32(b1, rd32(b1) | 1);
+}
+
 /* SDL scancode -> DirectInput DIK code (PC set-1 scancodes, 0xE0 keys | 0x80). */
 static uint8_t dik_from_sdl(SDL_Scancode sc)
 {
@@ -78,6 +191,7 @@ static void handle(const SDL_Event *e);
 
 void input_pump(void)
 {
+    vpad_update();
     SDL_Event ev;
     while (SDL_PollEvent(&ev)) handle(&ev);
 }
@@ -101,6 +215,17 @@ static void handle(const SDL_Event *ev)
         break;
     case SDL_EVENT_WINDOW_FOCUS_GAINED:
         input_focused = true;
+        break;
+    case SDL_EVENT_GAMEPAD_ADDED:
+        open_pad(ev->gdevice.which);
+        break;
+    case SDL_EVENT_GAMEPAD_REMOVED:
+        for (int i = 0; i < 2; i++) {
+            if (g_pads[i] && SDL_GetGamepadID(g_pads[i]) == ev->gdevice.which) {
+                SDL_CloseGamepad(g_pads[i]);
+                g_pads[i] = NULL;
+            }
+        }
         break;
     case SDL_EVENT_KEY_DOWN:
         if (ev->key.scancode == SDL_SCANCODE_RETURN && (ev->key.mod & SDL_KMOD_ALT) && !ev->key.repeat)

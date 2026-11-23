@@ -144,9 +144,14 @@
 0055c3b0	l	g_ddPalette
 0055c3f0	l	g_paletteEntries	256 PALETTEENTRY.
 0055c9b0	l	g_keyState	DirectInput keyboard state (256 bytes).
-00556af0	l	g_soundFlags
+00556af0	l	g_soundFlags	Sound_Play flags; also the player slot for Input_PollJoystick.
 00556af4	l	g_soundPanX
 00556af8	l	g_soundVolume
+0046f450	l	g_cfgKeySets	4 keyboard sets x 6 DIK codes (left, right, up, down, fire, fire2) for control schemes 8/12/16/20.
+004700ac	l	ControlReaderTable_P1	Input readers indexed by control scheme (0/4 joysticks, 8..20 keyboard sets).
+0055cab0	l	g_keyHistory	Per-DIK 2-bit key history built by the core from g_keyState.
+0055c980	l	g_inputP1	2-bit histories: right, left, up, down, fire, fire2 (dwords).
+0055c998	l	g_inputP2
 0046ec0c	l	g_cfgCdVolume
 0055c814	l	g_soundEnabled
 0055c81c	l	g_cdEnabled

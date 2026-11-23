@@ -24,9 +24,19 @@ cmake --build build/cmake -j
 Dependencies: SDL3 3.4 or newer (uses `SDL_LoadPNG`) and libFLAC (CMake config
 `FLAC::FLAC`; on Windows e.g. vcpkg `sdl3` and `flac`).
 
-Keyboard: arrows to move, Space = fire (second button and the remaining
-bindings still to be mapped), Enter to choose in menus, Alt+Enter toggles
-fullscreen.
+Controls are the original game's own (redefinable in its options menu and
+saved in the configuration). Defaults with no gamepad connected:
+
+| | Left | Right | Up | Down | Fire | Fire 2 |
+|---|---|---|---|---|---|---|
+| Player 1 (scheme 8) | O | P | Q | A | Space | Enter |
+| Player 2 (scheme 12) | ← | → | ↑ | ↓ | Right Shift | Keypad 0 |
+
+With gamepads connected on the first run, the game assigns joysticks first
+(one pad: player 1 = joystick 1, player 2 = keyboard). Gamepads behave like the
+original DirectInput joysticks: stick or d-pad (digital beyond half
+deflection, as the original's 50% dead zone), south button = fire, east button
+= fire 2. Escape on the title quits; Alt+Enter toggles fullscreen.
 
 ## Source layout
 
@@ -36,10 +46,11 @@ fullscreen.
 | `src/shell.c` | `WinMain` flow: memory setup, `Config_Validate`, mode table, menu/level loop (`Game_RunMenu`, `Game_RunLevels`) |
 | `src/callbacks.c` | `host_shell_call()`: the ~20 shell callbacks (ILT slots) |
 | `src/video.c` | SDL window, 640×480 menu surface, 320×200 game frame, 60 Hz pacing |
-| `src/input.c` | SDL events, DirectInput-style key state (DIK codes) |
+| `src/input.c` | SDL events, DirectInput-style key state (DIK codes), gamepads as DirectInput joysticks |
 | `src/assets.c` | Loading the packaged assets into emulated memory |
 | `src/audio.c` | Sound-effect mixer with DirectSound semantics, CD-audio emulation from FLAC |
 | `src/config.c` | `ASTRO_CC.CFG` in the original binary format, kept in the user's preference directory |
+| `src/settings.c` | The port's own settings, `astro-port.ini` (filter, fullscreen) |
 
 ## Emulated memory
 
@@ -61,7 +72,16 @@ fullscreen.
   `0x55c3f0`). `Video_PresentFrame` reads the 320×200 frame and that palette
   and lets SDL scale it. This avoids the core's 16/24/32 bpp converters (which
   contain the instruction-changing self-modification).
-- Scaling filter and aspect handling are still to be decided (plan.md).
+- Both pictures fill the largest **4:3** area of the window, like the
+  original's screen (the 320×200 frame gets the same slightly tall pixels).
+- **Filter** (decided): `sharp` by default: integer nearest-neighbour upscale,
+  then a linear stretch of the remaining fraction. This keeps pixels crisp
+  without the uneven rows plain nearest gives at 200 → 480 lines (2.4×).
+  `nearest` and `smooth` (bilinear) are available. The original's look
+  depended on the graphics card (unfiltered DirectDraw stretch or filtered
+  Direct3D), so there is no single reference.
+- **Options → Display** lists one mode, `640X480X32 SDL3`, with the text and
+  rectangle records laid out exactly as the original's `DD_Init` built them.
 
 ## Audio
 
@@ -83,12 +103,20 @@ fullscreen.
   0..0xFFFF) are applied as linear gains.
 - **Focus**: when the window loses focus the CD pauses and the game waits, as
   the original `WndProc`/`App_PumpMessages` did.
-- Open point: the original mixed CD audio in the sound card's analog mixer,
-  separately from the effects. Here both are summed digitally and loud
-  explosions over the music can clip; a limiter or headroom may be wanted
-  (decision pending).
+- **Limiter** (decided): the original mixed the CD music in the sound card's
+  analog mixer, separately from the effects, so the two never clipped against
+  each other. The port sums them digitally, so a look-ahead limiter sits on
+  the final mix: below 0.9 of full scale it does nothing (music alone never
+  gets there), above it the whole mix is turned down just enough, seen 1.45 ms
+  ahead so the gain arrives in time, and released over ~200 ms. Measured on an
+  explosion-heavy run: 3 673 clipped samples before, 0 after, quiet passages
+  unchanged.
 
 ## Configuration and quitting
+
+The port's own settings live in `astro-port.ini` next to the game's config:
+`filter = sharp | nearest | smooth` and `fullscreen = 0 | 1` (Alt+Enter
+toggles and is remembered).
 
 - `ASTRO_CC.CFG` uses the original layout (`RHO!` magic, run counter, players,
   controls, settings/high-score blocks, display mode, volumes, difficulty).
@@ -104,18 +132,21 @@ fullscreen.
 ## Timing
 
 Frames are paced at 60 Hz (`video_wait_frame`), standing in for the vertical
-blank waits. One core logic tick happens per presented frame, as in the
-original. The exact original rate is still to be confirmed (plan.md).
+blank waits; one core logic tick per presented frame, as in the original. The
+original used the driver's default refresh rate, which for a 640×480 DirectX 7
+game on Windows 98/2000 was almost always 60 Hz (decided).
 
 ## Debugging aids
 
 | Variable | Effect |
 |---|---|
 | `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette) |
+| `ASTRO_DUMP_OUTPUT=<dir>` | save the scaled window image every 300th gameplay frame |
 | `ASTRO_NO_FOCUS_PAUSE=1` | do not pause when the window loses focus (automated runs) |
 | `SDL_AUDIO_DRIVER=disk` | SDL writes the mixed audio to `sdlaudio.raw` (F32 stereo 44.1 kHz) instead of playing it |
 | `ASTRO_LEVEL=<1-6>` | start the game at that level (state from earlier levels is missing) |
 | `ASTRO_ENDING=1` | show the ending right after the logos |
+| `ASTRO_VPAD="frame:control[:frames],…"` | attach a virtual gamepad and press `a`, `b`, `left`, `right`, `up`, `down` at given frames |
 | `ASTRO_KEYS="frame:dik[:frames],…"` | hold DirectInput key `dik` (hex) from a given frame; e.g. `800:39` presses Space at frame 800 |
 | `ASTRO_WATCH=<byte>` | debug builds with `-DRT_WATCH` only: histogram of writes of that byte into the frame buffer, or into a level-relative range with `ASTRO_WATCH_RANGE=<lo>:<hi>` |
 
@@ -126,10 +157,10 @@ A watch build: `cmake -S . -B build/cmake-watch -DCMAKE_BUILD_TYPE=Debug -DCMAKE
 Working: logos, title, hall of fame, menu navigation, level 1 gameplay (tiles,
 blended particles, sprites, 3D objects, explosions, scoring, lives), sound
 effects, music (title: track 3, levels: tracks 4/6/…/14, ending: 16),
-configuration load/save, quitting, the ending sequence. Levels 2 and 6 checked
+configuration load/save, quitting, the ending sequence, keyboard and gamepad
+controls (gamepad tested with a virtual SDL pad), all options submenus
+(controls, display, sound, difficulty). Levels 2 and 6 checked
 via `ASTRO_LEVEL`.
 
 Not yet implemented:
 
-- joystick/gamepad, full key mapping (control schemes 8/12)
-- options menu's display-mode list (records built approximately)

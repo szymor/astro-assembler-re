@@ -89,6 +89,33 @@ def load_pcode(path: Path):
     return funcs, insns
 
 
+def resolve_jump_tables(insns: dict[int, Insn], tables_path: Path, text: bytes, text_va: int = 0x401000) -> int:
+    """Targets of `jmp [reg*4 + table]` from the table contents, so the generated
+    switch does not depend on references Ghidra may have lost."""
+    sizes = {}
+    for line in tables_path.read_text().split("\n"):
+        p = line.split()
+        if len(p) >= 4 and p[0] == "T" and p[3] == "code":
+            sizes[int(p[1], 16)] = int(p[2])
+    n = 0
+    for ins in insns.values():
+        if not any(o.name == "BRANCHIND" for o in ins.ops):
+            continue
+        m = re.search(r"\[\w+\*0x4 \+ 0x([0-9a-f]+)\]", ins.text)
+        if not m or int(m.group(1), 16) not in sizes:
+            continue
+        base = int(m.group(1), 16)
+        targets = []
+        for i in range(sizes[base]):
+            off = base - text_va + 4 * i
+            v = int.from_bytes(text[off:off + 4], "little")
+            if v and v not in targets:
+                targets.append(v)
+        ins.flows = sorted(set(ins.flows) | set(targets))
+        n += 1
+    return n
+
+
 STRUCTURAL_SMC: set[int] = set()
 
 
@@ -398,6 +425,8 @@ def main(argv=None) -> int:
                     help="extra entry points (output of re/scripts/find_seeds.py: 'F|D <hex>' lines); "
                          "code pointers in tables are targets of computed calls")
     ap.add_argument("--smc", type=Path, help="runtime-patched code fields (output of SmcFields.java)")
+    ap.add_argument("--tables", type=Path, help="inline tables (re/inline_tables.txt) for computed jump targets")
+    ap.add_argument("--text", type=Path, help="code section image (assets/data/ASTRO_TEXT.BIN, VA 0x401000)")
     args = ap.parse_args(argv)
 
     names, insns = load_pcode(args.pcode)
@@ -405,6 +434,9 @@ def main(argv=None) -> int:
         n, structural = apply_smc(insns, args.smc)
         STRUCTURAL_SMC.update(structural)
         print(f"self-modifying code: {n} instructions read patched fields from memory, {len(structural)} trap")
+    if args.tables and args.text:
+        n = resolve_jump_tables(insns, args.tables, args.text.read_bytes())
+        print(f"jump tables: {n} computed jumps resolved from the code image")
     entries = set(a for a in names if CORE_START <= a < CORE_END)
     # code addresses stored as values (handler pointers called later) are entries
     for ins in insns.values():

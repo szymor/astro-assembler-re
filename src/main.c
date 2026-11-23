@@ -9,13 +9,14 @@ int main(int argc, char **argv)
 {
     const char *assets = argc > 1 ? argv[1] : "assets";
 
-    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMEPAD)) {
         SDL_Log("SDL_Init: %s", SDL_GetError());
         return 1;
     }
     mem = calloc(RT_MEM_SIZE, 1);
     if (!mem) { SDL_Log("out of memory"); return 1; }
 
+    settings_load();
     if (!video_init()) return 1;
     if (!shell_init(assets)) {
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Astro Assembler",

@@ -148,6 +148,65 @@ static bool music_next(music_t *m, float *l, float *r)
 
 /* ---- mixer ------------------------------------------------------------------- */
 
+/*
+ * Soft limiter on the final mix. The original mixed the CD music in the sound
+ * card's analog mixer, separately from the effects, so the two never clipped
+ * against each other; here they share one digital sum.
+ *
+ * Below LIM_THRESHOLD the limiter does nothing (music alone never gets there:
+ * its peaks at the default CD volume are 0.875). It delays the output by
+ * LIM_LOOKAHEAD frames (1.45 ms) so it sees peaks coming: the gain ramps down
+ * linearly to exactly what the loudest upcoming frame needs by the time that
+ * frame is played (no overshoot, no clipping), then recovers over ~200 ms so
+ * the change is not audible as a click.
+ */
+#define LIM_THRESHOLD 0.9f
+#define LIM_LOOKAHEAD 64
+
+static float g_lim_gain = 1.0f;
+static float g_lim_buf[2 * LIM_LOOKAHEAD];   /* delayed samples (stereo)   */
+static float g_lim_req[LIM_LOOKAHEAD];       /* gain each delayed frame needs */
+static int g_lim_pos;                        /* oldest frame = next output  */
+
+static void limit(float *buf, int frames)
+{
+    static float release;
+    if (release == 0.0f) {
+        release = expf(-1.0f / (0.200f * MIX_RATE));
+        for (int i = 0; i < LIM_LOOKAHEAD; i++) g_lim_req[i] = 1.0f;
+    }
+    for (int i = 0; i < frames; i++) {
+        /* take the oldest delayed frame out, put the new one in its place */
+        float l = g_lim_buf[2 * g_lim_pos], r = g_lim_buf[2 * g_lim_pos + 1];
+        float in_l = buf[2 * i], in_r = buf[2 * i + 1];
+        float peak = fmaxf(fabsf(in_l), fabsf(in_r));
+        g_lim_buf[2 * g_lim_pos] = in_l;
+        g_lim_buf[2 * g_lim_pos + 1] = in_r;
+        float req_out = g_lim_req[g_lim_pos];
+        g_lim_req[g_lim_pos] = peak > LIM_THRESHOLD ? LIM_THRESHOLD / peak : 1.0f;
+        g_lim_pos = (g_lim_pos + 1) % LIM_LOOKAHEAD;
+
+        /* lowest gain needed by the frame being output or any frame within the
+         * look-ahead, and how many frames away the first such frame is */
+        float need = req_out;
+        int dist = 0;
+        for (int k = 0; k < LIM_LOOKAHEAD; k++) {
+            float q = g_lim_req[(g_lim_pos + k) % LIM_LOOKAHEAD];
+            if (q < need) { need = q; dist = k + 1; }
+        }
+        if (need < g_lim_gain)
+            g_lim_gain -= (g_lim_gain - need) / (float)(dist + 1);   /* arrive exactly in time */
+        else
+            g_lim_gain = release * g_lim_gain + (1.0f - release) * need;
+        if (g_lim_gain > req_out) g_lim_gain = req_out;             /* never above this frame's need */
+
+        l *= g_lim_gain;
+        r *= g_lim_gain;
+        buf[2 * i] = l > 1.0f ? 1.0f : l < -1.0f ? -1.0f : l;      /* safety net only */
+        buf[2 * i + 1] = r > 1.0f ? 1.0f : r < -1.0f ? -1.0f : r;
+    }
+}
+
 static void SDLCALL mix_callback(void *ud, SDL_AudioStream *stream, int additional, int total)
 {
     static float out[2 * 1024];
@@ -181,7 +240,7 @@ static void SDLCALL mix_callback(void *ud, SDL_AudioStream *stream, int addition
             out[2 * i] += l * g_music_gain;
             out[2 * i + 1] += r * g_music_gain;
         }
-        for (int i = 0; i < 2 * n; i++) out[i] = out[i] > 1.0f ? 1.0f : out[i] < -1.0f ? -1.0f : out[i];
+        limit(out, n);
         SDL_PutAudioStreamData(stream, out, (int)(sizeof(float) * 2 * (size_t)n));
         frames -= n;
     }

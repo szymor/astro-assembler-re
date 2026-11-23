@@ -49,6 +49,7 @@ static void cb_pump_messages(void)
          * fullscreen; only the menu quits). A windowed port must close: save
          * the configuration like the normal exit path and leave. */
         config_save();
+        settings_save();
         audio_shutdown();
         exit(0);            /* runs atexit handlers (debug reports) */
     }
@@ -78,7 +79,9 @@ void host_shell_call(uint32_t ilt)
     case 0x4011e0: cb_wait_vblank(); break;                          /* DD_WaitVBlank         */
     case 0x4011ef: cb_pump_messages(); break;                        /* App_PumpMessages      */
     case 0x401091: input_fill_keystate(); break;                     /* Input_PollKeyboard    */
-    case 0x40108c: break;                                            /* Input_PollJoystick: no joystick yet */
+    case 0x40108c:                                                   /* Input_PollJoystick    */
+        input_poll_joystick((int)rd32(G_SHELL_PARAM), (int)rd32(G_JOY_SLOT));
+        break;
     case 0x4011db:                                                   /* Sound_PrimeMenuSet    */
     case 0x401041: case 0x401046: case 0x401050:                     /* Sound_PrimeLevelNSet  */
     case 0x401055: case 0x40105a: case 0x40105f:

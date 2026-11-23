@@ -42,16 +42,30 @@ static int font_index(char c)
 
 struct mode { int w, h, bpp; };
 
+/* Append the decimal digits of v like 0x403e30, adding each glyph's width. */
+static void put_number(char *buf, int *pos, int *width, int v)
+{
+    char tmp[12];
+    int n = SDL_snprintf(tmp, sizeof tmp, "%d", v);
+    for (int i = 0; i < n; i++) {
+        buf[(*pos)++] = tmp[i];
+        *width += k_glyph_width[7 + (tmp[i] - '0')];   /* '0' is glyph 7 */
+    }
+}
+
 /*
  * The original enumerated the DirectDraw modes (640x400..1024x768, 16/24/32 bpp)
- * into g_modeTable and built text records for the options menu. The port has a
- * single logical game mode; the 320x200 frame is scaled by SDL.
- * TODO: verify the record layout against DD_Init's disassembly when the
- * options menu is reached.
+ * into g_modeTable and built text records for the options menu (DD_Init,
+ * 0x40393f..0x403bf8). The port has a single logical mode. Records, exactly as
+ * the original laid them out:
+ *   text: u32 x, u32 y, "<w>X<h>X<bpp> <DEVICE>" NUL, u32 0xffffffff
+ *   rect: u32 x, u32 width + 0x12, u32 y, u32 0x23
+ * x = 0x15e - width of "<w>X<h>X<bpp> ", so the device names line up at 350.
  */
 static void build_mode_table(void)
 {
-    static const struct mode modes[] = {{640, 480, 16}};
+    static const struct mode modes[] = {{640, 480, 32}};
+    static const char device[] = "SDL3";          /* original: DirectDraw device description */
     const int n = (int)(sizeof modes / sizeof modes[0]);
     uint32_t text = G_MODE_LABEL_BUF;
     int y = ((16 - (n > 10 ? 10 : n)) * 30) / 2;
@@ -64,22 +78,35 @@ static void build_mode_table(void)
         wr32(e + 0x0c, 0x20);                   /* DDPIXELFORMAT.dwSize    */
         wr32(e + 0x10, 0x40);                   /* DDPF_RGB                */
         wr32(e + 0x18, (uint32_t)modes[i].bpp); /* dwRGBBitCount           */
-        wr32(e + 0x1c, 0xf800); wr32(e + 0x20, 0x07e0); wr32(e + 0x24, 0x001f);
+        wr32(e + 0x1c, 0x00ff0000); wr32(e + 0x20, 0x0000ff00); wr32(e + 0x24, 0x000000ff);
 
-        char label[40];
-        SDL_snprintf(label, sizeof label, "%dX%dX%d SDL", modes[i].w, modes[i].h, modes[i].bpp);
-        int width = 0;
-        for (const char *c = label; *c; c++) width += k_glyph_width[font_index(*c)];
+        char label[40] = {0};
+        int pos = 0, width = 0;
+        put_number(label, &pos, &width, modes[i].w);
+        label[pos++] = 'X'; width += 0x17;
+        put_number(label, &pos, &width, modes[i].h);
+        label[pos++] = 'X'; width += 0x17;
+        put_number(label, &pos, &width, modes[i].bpp);
+        label[pos++] = ' '; width += 10;
+        const int x = 0x15e - width;
+        for (int c = 0; c < 10 && device[c]; c++) {
+            char ch = device[c];
+            if (ch >= 'a' && ch <= 'z') ch = (char)(ch - 0x20);
+            int gi = font_index(ch);
+            label[pos++] = gi ? ch : ' ';
+            width += k_glyph_width[gi];
+        }
+        label[pos++] = 0;                       /* pos now includes the NUL */
+
         wr32(G_MODE_LABEL_TEXT + 4u * (uint32_t)i, text);
         wr32(G_MODE_LABEL_RECT + 4u * (uint32_t)i, G_MODE_RECT_BUF + 16u * (uint32_t)i);
-        wr32(text, 0x126);
+        wr32(text, (uint32_t)x);
         wr32(text + 4, (uint32_t)y);
-        size_t len = strlen(label);
-        memcpy(&mem[text + 8], label, len + 1);
-        wr32(text + 8 + (uint32_t)len + 1, 0xffffffffu);
+        memcpy(&mem[text + 8], label, (size_t)pos);
+        wr32(text + 8 + (uint32_t)pos, 0xffffffffu);
+        text += 8 + (uint32_t)pos + 4;
         uint32_t r = G_MODE_RECT_BUF + 16u * (uint32_t)i;
-        wr32(r, 0x126); wr32(r + 4, (uint32_t)(width + 0x12)); wr32(r + 8, (uint32_t)y); wr32(r + 12, 0x23);
-        text += 8 + (uint32_t)len + 5;
+        wr32(r, (uint32_t)x); wr32(r + 4, (uint32_t)(width + 0x12)); wr32(r + 8, (uint32_t)y); wr32(r + 12, 0x23);
         y += 30;
     }
     wr32(G_MODE_LABEL_TEXT + 4u * (uint32_t)n, 0);
@@ -149,7 +176,7 @@ bool shell_init(const char *assets_dir)
     wr32(G_APP_ACTIVE, 1);
     setup_menu_mode_globals();                   /* DD_Init                   */
     build_mode_table();
-    wr32(G_JOYSTICK_COUNT, 0);                   /* DI_Init                   */
+    wr32(G_JOYSTICK_COUNT, (uint32_t)input_init_gamepads());   /* DI_Init  */
     wr32(G_SOUND_ENABLED, 1);                    /* DS_Init                   */
     wr32(G_CD_ENABLED, 1);                       /* CD init                   */
 
@@ -281,4 +308,5 @@ void shell_run(void)
         run_menu();
     }
     config_save();                          /* Config_Save, then App_Shutdown */
+    settings_save();
 }

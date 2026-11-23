@@ -32,6 +32,7 @@
 #define G_QUIT_GAME        0x556ae8u
 #define G_SHELL_PARAM      0x556aecu
 #define G_SOUND_FLAGS      0x556af0u
+#define G_JOY_SLOT         0x556af0u   /* same slot: player for Input_PollJoystick */
 #define G_SOUND_PANX       0x556af4u
 #define G_SOUND_VOLUME     0x556af8u
 #define G_CD_TRACK         0x556b2cu
@@ -93,6 +94,13 @@ bool shell_init(const char *assets_dir);
 void shell_run(void);
 void core_command(uint32_t cmd);
 
+/* ---- settings.c (the port's own settings) ------------------------------- */
+typedef enum { FILTER_SHARP, FILTER_NEAREST, FILTER_SMOOTH } scale_filter;
+typedef struct { scale_filter filter; bool fullscreen; } port_settings;
+extern port_settings settings;
+void settings_load(void);
+void settings_save(void);
+
 /* ---- config.c ------------------------------------------------------------ */
 void config_load(void);
 void config_save(void);
@@ -132,3 +140,5 @@ void input_fill_keystate(void);      /* DirectInput-style key state      */
 extern bool input_quit_requested;
 extern bool input_focused;
 void input_wait_while_unfocused(void);
+int input_init_gamepads(void);                /* number of joysticks (max 2) */
+void input_poll_joystick(int index, int slot); /* Input_PollJoystick */

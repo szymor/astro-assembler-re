@@ -22,7 +22,7 @@ ASTRO.exe ──Ghidra──▶ ExportPcode.java ──▶ core.pcode ──reco
 3. `python3 re/scripts/find_seeds.py extracted/game/ASTRO.exe build/recomp/seeds.txt`
    (remove the four jump-table bases listed in `re/inline_tables.txt`), giving
    `build/recomp/entries.txt`
-4. `python3 re/recomp/recomp.py build/recomp/core.pcode -o build/recomp/gen --entries build/recomp/entries.txt --smc re/smc_fields.txt`
+4. `python3 re/recomp/recomp.py build/recomp/core.pcode -o build/recomp/gen --entries build/recomp/entries.txt --smc re/smc_fields.txt --tables re/inline_tables.txt --text assets/data/ASTRO_TEXT.BIN`
 
 `re/smc_fields.txt` is produced by `SmcFields.java` from the list of patched
 code fields (every p-code write into the core's code range); it is kept in the
@@ -57,7 +57,7 @@ only maps about 40 p-code operations to C.
   sorted table; addresses in the ILT (`0x401000–0x401244`) go to
   `host_shell_call()`, which the SDL3 platform layer implements (these are the
   shell callbacks listed in [modules.md](modules.md)).
-- **Computed jumps**: the 4 jump tables become `switch` statements.
+- **Computed jumps**: the 4 jump tables become `switch` statements. Their targets are read from the table contents in the code image (`--tables`/`--text`), not from Ghidra's references, which the table repair can drop.
 - **Special instructions**: lock markers are ignored; the dead DOS `OUT` palette
   writes abort if ever reached.
 - **Self-modifying code**: the core patches 68 code fields at runtime (all
