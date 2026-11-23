@@ -6,7 +6,9 @@
   **No audio tracks.**
 - Wise/MSI installer in `install/` (setup per language: eng, d, esp, fr, ita, nl).
   ProductCode `{E07888C3-282E-11D5-8ED5-0050BF5CB907}`, version 1.0.0.
-  It is a v1 GUID, and its timestamp decodes to 2001-04-03.
+  It is a v1 GUID, and its timestamp decodes to 2001-04-03. The game's own
+  credits say "Astro Assembler is an Advanced Projects game in the year 1999":
+  the game dates from 1999, this CD/installer from 2001.
 - Game files are in `install/astro1.cab` (MS Cabinet, MSZip, 21 files).
 - Extras on disc: DirectX 8 installers, Acrobat Reader 4.05.
 

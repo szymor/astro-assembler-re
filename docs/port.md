@@ -39,6 +39,7 @@ fullscreen.
 | `src/input.c` | SDL events, DirectInput-style key state (DIK codes) |
 | `src/assets.c` | Loading the packaged assets into emulated memory |
 | `src/audio.c` | Sound-effect mixer with DirectSound semantics, CD-audio emulation from FLAC |
+| `src/config.c` | `ASTRO_CC.CFG` in the original binary format, kept in the user's preference directory |
 
 ## Emulated memory
 
@@ -87,6 +88,19 @@ fullscreen.
   explosions over the music can clip; a limiter or headroom may be wanted
   (decision pending).
 
+## Configuration and quitting
+
+- `ASTRO_CC.CFG` uses the original layout (`RHO!` magic, run counter, players,
+  controls, settings/high-score blocks, display mode, volumes, difficulty).
+  The original wrote it to the Windows directory; the port uses the SDL
+  preference directory (Linux: `~/.local/share/Astro Assembler/`). A file from
+  the original game can be copied there. A file with a different magic is left
+  alone and not overwritten, as in the original.
+- Quitting from the game's menu (Escape on the title) ends the main loop and
+  saves the configuration, as in the original.
+- Closing the window also saves and exits. The original ignored the close
+  button, since it ran in exclusive fullscreen; a windowed port has to react.
+
 ## Timing
 
 Frames are paced at 60 Hz (`video_wait_frame`), standing in for the vertical
@@ -100,6 +114,8 @@ original. The exact original rate is still to be confirmed (plan.md).
 | `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette) |
 | `ASTRO_NO_FOCUS_PAUSE=1` | do not pause when the window loses focus (automated runs) |
 | `SDL_AUDIO_DRIVER=disk` | SDL writes the mixed audio to `sdlaudio.raw` (F32 stereo 44.1 kHz) instead of playing it |
+| `ASTRO_LEVEL=<1-6>` | start the game at that level (state from earlier levels is missing) |
+| `ASTRO_ENDING=1` | show the ending right after the logos |
 | `ASTRO_KEYS="frame:dik[:frames],…"` | hold DirectInput key `dik` (hex) from a given frame; e.g. `800:39` presses Space at frame 800 |
 | `ASTRO_WATCH=<byte>` | debug builds with `-DRT_WATCH` only: histogram of writes of that byte into the frame buffer, or into a level-relative range with `ASTRO_WATCH_RANGE=<lo>:<hi>` |
 
@@ -109,11 +125,11 @@ A watch build: `cmake -S . -B build/cmake-watch -DCMAKE_BUILD_TYPE=Debug -DCMAKE
 
 Working: logos, title, hall of fame, menu navigation, level 1 gameplay (tiles,
 blended particles, sprites, 3D objects, explosions, scoring, lives), sound
-effects, music (title: track 3, level 1: track 4, as expected).
+effects, music (title: track 3, levels: tracks 4/6/…/14, ending: 16),
+configuration load/save, quitting, the ending sequence. Levels 2 and 6 checked
+via `ASTRO_LEVEL`.
 
 Not yet implemented:
 
-- configuration load/save, quitting cleanly
 - joystick/gamepad, full key mapping (control schemes 8/12)
-- ending (`Gfx_LoadEnding`, command 15)
 - options menu's display-mode list (records built approximately)

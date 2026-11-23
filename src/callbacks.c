@@ -45,8 +45,12 @@ static void cb_pump_messages(void)
         if (music) cd_resume();
     }
     if (input_quit_requested) {
-        SDL_Log("quit requested");
-        exit(0);            /* runs atexit handlers (debug reports) */            /* TODO: save the configuration like App_Shutdown */
+        /* The original ignored the window's close button (it ran in exclusive
+         * fullscreen; only the menu quits). A windowed port must close: save
+         * the configuration like the normal exit path and leave. */
+        config_save();
+        audio_shutdown();
+        exit(0);            /* runs atexit handlers (debug reports) */
     }
 }
 

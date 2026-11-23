@@ -66,6 +66,7 @@
 #define G_MENU_PIXFMT      0x556964u   /* DDPIXELFORMAT dwords 2..9 */
 #define G_PIXSHIFT         0x55c378u   /* R shift,width, G shift,width, B shift,width */
 #define G_IMG_LOGO1        0x55b5f0u   /* .. LOGO3 at +8 */
+#define G_IMG_FINAL1       0x55b614u   /* FINAL1, FINAL2 */
 #define G_IMG_PORTADA      0x55b5fcu   /* PORTADA, FONDO1, FONDO2, NAVES, LETRAS, backup */
 #define G_MODE_LABEL_TEXT  0x55b620u   /* per mode: pointer to text record */
 #define G_MODE_LABEL_RECT  0x55b6f0u   /* per mode: pointer to rect record */
@@ -91,6 +92,10 @@ static inline void wr32(uint32_t va, uint32_t v) { MEM_WR(va, 4, v); }
 bool shell_init(const char *assets_dir);
 void shell_run(void);
 void core_command(uint32_t cmd);
+
+/* ---- config.c ------------------------------------------------------------ */
+void config_load(void);
+void config_save(void);
 
 /* ---- assets.c ------------------------------------------------------------ */
 void *assets_read(const char *rel, size_t *size);          /* malloc'd, NULL on error */

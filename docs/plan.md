@@ -77,7 +77,8 @@ replacement of generated functions with readable C. See
 - [x] SDL3 host layer (`src/`, see [port.md](port.md)): logos, title, menus
       and level 1 gameplay run on the recompiled core
 - [x] Sound effects and CD music from FLAC (see port.md, "Audio")
-- [ ] Configuration, gamepad, ending
+- [x] Configuration (original format), quitting, ending
+- [ ] Gamepad and full key mapping, options menu mode list, scaling filter
 
 ### Survey that led to the decision
 

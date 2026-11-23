@@ -145,7 +145,7 @@ bool shell_init(const char *assets_dir)
     wr32(G_ALLOC_BASE, VA_ALLOC);                /* Mem_AllocArena            */
     core_command(0);                             /* Core_Cmd00_GetRanges      */
 
-    /* Config_Load: not implemented yet; the .data defaults act as a first run. */
+    config_load();                               /* Config_Load               */
     wr32(G_APP_ACTIVE, 1);
     setup_menu_mode_globals();                   /* DD_Init                   */
     build_mode_table();
@@ -221,11 +221,31 @@ static void run_menu(void)
     audio_load_set(SOUNDSET_MENU, false);
 }
 
-/* Game_RunLevels (0x402f60). TODO: ending images. */
+/* Gfx_LoadEnding (0x408360) + core command 15. */
+static void run_ending(void)
+{
+    set_menu_mode();
+    const uint32_t img = SCREEN_W * SCREEN_H * SCREEN_BPP;
+    uint32_t p = rd32(G_LEVEL_LOAD_BASE);
+    static const char *const names[] = {"images/FINAL1.png", "images/FINAL2.png"};
+    for (int i = 0; i < 2; i++) {
+        wr32(G_IMG_FINAL1 + 4u * (uint32_t)i, p);
+        if (!assets_load_image(names[i], p)) return;   /* original: skip the ending if loading fails */
+        p += img;
+    }
+    wr32(G_LOAD_PTR, p);
+    core_command(15);
+}
+
+/* Game_RunLevels (0x402f60). ASTRO_LEVEL=<n> (debugging) starts at level n;
+ * the core then lacks the state earlier levels would have left behind. */
 static void run_levels(void)
 {
     set_game_mode();
-    for (int level = 1; level <= 6; level++) {
+    int first = 1;
+    const char *dbg = SDL_getenv("ASTRO_LEVEL");
+    if (dbg) first = SDL_clamp(SDL_atoi(dbg), 1, 6);
+    for (int level = first; level <= 6; level++) {
         char name[32];
         SDL_snprintf(name, sizeof name, "data/LEVEL%d.DAT", level);
         uint32_t base = rd32(G_LEVEL_LOAD_BASE), size = 0;
@@ -239,15 +259,19 @@ static void run_levels(void)
         audio_load_set(k_soundset_level[level], false);
         if (rd32(G_QUIT_GAME) != 0) return;
     }
-    SDL_Log("all levels completed: ending not implemented yet");
+    run_ending();
     wr32(G_QUIT_GAME, 1);
 }
 
-/* WinMain's main loop. */
+/* WinMain's main loop; ends when the menu sets g_quitGame = 1 (quit). */
 void shell_run(void)
 {
     set_menu_mode();
     core_command(22);                       /* Game_SetMenuModeAndInit */
+    if (SDL_getenv("ASTRO_ENDING")) {       /* debugging: show the ending directly */
+        run_ending();
+        return;
+    }
     wr32(G_SHELL_PARAM, 0);
     run_menu();
     while (rd32(G_QUIT_GAME) == 0) {
@@ -256,5 +280,5 @@ void shell_run(void)
         set_menu_mode();
         run_menu();
     }
-    SDL_Log("game finished (g_quitGame=%u)", rd32(G_QUIT_GAME));
+    config_save();                          /* Config_Save, then App_Shutdown */
 }
