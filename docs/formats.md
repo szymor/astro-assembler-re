@@ -173,6 +173,8 @@ so the port has to keep those variables bit-exact.
 ```
 assets/
   data/GAME.DAT, LEVEL1-6.DAT, MENU.DAT   byte-identical
+  data/ASTRO_TEXT.BIN   ASTRO.exe .text image (VA 0x401000): tables embedded in
+                        the core's code and the fields it patches at runtime
   data/ASTRO_DATA.BIN   ASTRO.exe .data image (VA 0x46e000, file size 0xe8600,
                         virtual size 0xf1880; the rest is zero at runtime).
                         Holds palettes, level scripts, tables, sound table.

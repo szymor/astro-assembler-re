@@ -131,7 +131,6 @@ static void test_draw_sprite(uint32_t sprite_off, int x, int y)
 }
 
 /* ---- Core_Dispatch, command 0 ------------------------------------------------- */
-rt_func_entry const *unused;
 static void test_dispatch(void)
 {
     printf("Core_Dispatch cmd 0: ");
@@ -158,15 +157,8 @@ int main(int argc, char **argv)
     load(dir, "data/ASTRO_DATA.BIN", DATA_VA);
     load(dir, "data/LEVEL1.DAT", SPRITES_VA);
 
-    /* the dispatcher needs only the command table, which is in the code
-       section; the generated code reads it from memory, so provide it */
-    {
-        char path[512];
-        snprintf(path, sizeof path, "%s/../extracted/game/ASTRO.exe", dir);
-        FILE *f = fopen(path, "rb");
-        if (f) { fseek(f, 0x400, SEEK_SET); if (fread(&mem[0x401000], 1, 0x69558, f) == 0) {} fclose(f); }
-        else { fprintf(stderr, "note: %s not found, dispatcher test will fail\n", path); }
-    }
+    /* the dispatcher reads its command table from the code section */
+    load(dir, "data/ASTRO_TEXT.BIN", 0x401000);
 
     test_random();
     test_draw_sprite(0x0, 100, 80);          /* fully visible: fast path       */

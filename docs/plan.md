@@ -72,7 +72,7 @@ replacement of generated functions with readable C. See
 
 - [x] p-code export, translator, runtime; whole core translates and links
 - [x] Prototype tests pass (RNG, sprite blitter, dispatcher)
-- [ ] Self-modifying instructions read their immediates from memory
+- [x] Self-modifying instructions read their immediates from memory (texture mapper test passes)
 - [ ] Flag-liveness optimisation
 - [ ] SDL3 host layer for the shell callbacks, then run the menu
 

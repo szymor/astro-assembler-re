@@ -22,7 +22,11 @@ ASTRO.exe ──Ghidra──▶ ExportPcode.java ──▶ core.pcode ──reco
 3. `python3 re/scripts/find_seeds.py extracted/game/ASTRO.exe build/recomp/seeds.txt`
    (remove the four jump-table bases listed in `re/inline_tables.txt`), giving
    `build/recomp/entries.txt`
-4. `python3 re/recomp/recomp.py build/recomp/core.pcode -o build/recomp/gen --entries build/recomp/entries.txt`
+4. `python3 re/recomp/recomp.py build/recomp/core.pcode -o build/recomp/gen --entries build/recomp/entries.txt --smc re/smc_fields.txt`
+
+`re/smc_fields.txt` is produced by `SmcFields.java` from the list of patched
+code fields (every p-code write into the core's code range); it is kept in the
+repository because it only holds addresses and p-code templates.
 
 Translating p-code means no x86 semantics are written by hand: Ghidra's
 SLEIGH spec defines every instruction, including all flags. The translator
@@ -52,11 +56,25 @@ only maps about 40 p-code operations to C.
 - **Computed jumps**: the 4 jump tables become `switch` statements.
 - **Special instructions**: lock markers are ignored; the dead DOS `OUT` palette
   writes abort if ever reached.
+- **Self-modifying code**: the core patches 68 code fields at runtime (all
+  direct writes; there are no writes into code through pointers). The code
+  section is loaded at its VA from `ASTRO_TEXT.BIN`, so the patches land in
+  emulated memory, and the 62 affected instructions read their patched
+  constants from there. `SmcFields.java` finds those constants by decoding each
+  instruction with two different sentinel values in its fields: constants that
+  follow the sentinel are field reads (zero- or sign-extended). The p-code of
+  the sentinel variant replaces the original, because Ghidra drops constants
+  that are 0 in the original bytes (e.g. `[edx+0x0]` becomes `[edx]`).
+  Three instructions (`0x41373f`, `0x413742`, `0x413745`) get their ModRM byte
+  patched, which changes the operation itself. They belong to the 16/24/32 bpp
+  palette converter, which the port never runs, and trap if reached.
+- **Handler pointers**: code addresses that the core stores as values (and
+  calls later) are made entries automatically.
 
 ## Status
 
-- Whole core: **1269 functions, 0 translation problems**; compiles and links
-  (gcc `-O1`, ~3 min for 32 files in parallel, 2.6 MB).
+- Whole core: **1272 functions, 0 translation problems**, self-modifying code
+  handled; compiles and links (gcc `-O1`, ~3 min for 32 files in parallel).
 - `re/recomp/test_proto.c` checks generated code against independent reference
   implementations. All pass:
   - `Core_Random`: 10 000 random states
@@ -64,6 +82,11 @@ only maps about 40 p-code operations to C.
     small and large sprites (pixel-identical frame buffer)
   - `Core_Dispatch` command 0: computed call through the command table,
     `pushf/pushad` … `popad/popf` preserve registers and flags
+- `re/recomp/test_smc.c` runs the self-modifying affine texture mapper
+  (`0x442ed6`; patches its shift count, texture base and step values) against
+  a hand transcription: pixel-identical in 4 cases, with the patched fields
+  pre-filled with garbage so stale values cannot pass. It is generated on its
+  own (`--only 442ed6`) because that address is inside a function.
 
 Building the test:
 
@@ -77,13 +100,6 @@ build/recomp/test_full assets
 
 ## Known gaps / next steps
 
-- **Self-modifying code**: ~35 instructions get their immediates patched at
-  runtime (see modules.md). The generated code still has the original
-  constants baked in. Those instructions must read their immediate from `mem`
-  instead (code bytes loaded at their VA). Affects the palette fade area,
-  sprite routines, 3D/polygon code and two menu spots; must be done before
-  running gameplay. The pixel-format converter does not matter, since the port
-  replaces `Video_PresentFrame`.
 - **Compile time / speed**: flags are written to `cpu.r` after every
   instruction even when dead. A flag-liveness pass in `recomp.py` would remove
   most of that code.

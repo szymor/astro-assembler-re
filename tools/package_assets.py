@@ -9,6 +9,7 @@ Inputs (owned by the person running the build):
 Output layout (default: ./assets):
   data/       GAME.DAT, LEVEL1-6.DAT, MENU.DAT  - byte-identical to the original
               ASTRO_DATA.BIN                    - ASTRO.exe .data section image
+              ASTRO_TEXT.BIN                    - ASTRO.exe .text section image
   images/     LOGO1-3, PORTADA, FONDO1-2, NAVES, LETRAS, FINAL1-2 as PNG
   sfx/        NN_Name.wav (NN = the game's sound id)
   music/      trackNN.flac (NN = CD track number 02..16)
@@ -181,6 +182,10 @@ def main(argv=None) -> int:
     pe = Pe(exe_bytes)
     data_va, data_vsize, data_raw, data_rsize = pe.sections[".data"]
     save("data/ASTRO_DATA.BIN", exe_bytes[data_raw:data_raw + data_rsize])
+    # the core's code bytes: it reads tables embedded in its code and patches
+    # immediates at runtime, so they must exist in the emulated memory
+    text_va, text_vsize, text_raw, text_rsize = pe.sections[".text"]
+    save("data/ASTRO_TEXT.BIN", exe_bytes[text_raw:text_raw + text_rsize])
 
     # --- images ----------------------------------------------------------------
     for name in BMP_FILES:
@@ -228,6 +233,8 @@ def main(argv=None) -> int:
         "sources": sources,
         "astro_data": {"file": "data/ASTRO_DATA.BIN", "va": data_va, "virtual_size": data_vsize,
                        "note": "ASTRO.exe .data image; bytes past the file size are zero at runtime"},
+        "astro_text": {"file": "data/ASTRO_TEXT.BIN", "va": text_va, "virtual_size": text_vsize,
+                       "note": "ASTRO.exe .text image (inline tables and runtime-patched fields)"},
         "music": music,
         "files": written,
     }

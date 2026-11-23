@@ -36,6 +36,8 @@ class Vn:
     space: str
     off: int
     size: int
+    field_size: int = 0      # space "smc": runtime-patched code field at `off`
+    sign: bool = False       #   and whether the constant is its sign extension
 
 
 @dataclass
@@ -86,6 +88,47 @@ def load_pcode(path: Path):
                 funcs[int(a, 16)] = name
     return funcs, insns
 
+
+STRUCTURAL_SMC: set[int] = set()
+
+
+def parse_smc_vn(s: str) -> Vn | None:
+    if s.startswith("smc:"):
+        _, field, csize, fsize, ext = s.split(":")
+        return Vn("smc", int(field, 16), int(csize), int(fsize), ext == "s")
+    return parse_vn(s)
+
+
+def apply_smc(insns: dict[int, Insn], path: Path) -> tuple[int, set[int]]:
+    """Replace the p-code of runtime-patched instructions with the version from
+    SmcFields.java, in which constants derived from patched fields are reads
+    of those fields. Returns the number of rewritten instructions and the
+    instructions whose encoding itself is patched (they trap at runtime)."""
+    rewritten: dict[int, list[Op]] = {}
+    structural: set[int] = set()
+    cur = None
+    for line in path.read_text().split("\n"):
+        p = line.split()
+        if not p or p[0].startswith("#"):
+            continue
+        if p[0] == "X":
+            structural.add(int(p[1], 16))
+            cur = None
+        elif p[0] == "V":
+            cur = int(p[1], 16)
+            rewritten[cur] = []
+        elif p[0] == "P" and cur is not None:
+            rewritten[cur].append(Op(p[1], parse_smc_vn(p[2]), [parse_smc_vn(x) for x in p[3:]]))
+    for a, ops in rewritten.items():
+        if a not in insns:
+            raise SystemExit(f"smc: instruction {a:#x} not in the p-code export")
+        old = insns[a].ops
+        flow = [o.name for o in old if o.name in ("BRANCH", "CBRANCH", "CALL", "RETURN", "BRANCHIND", "CALLIND")]
+        if flow != [o.name for o in ops if o.name in ("BRANCH", "CBRANCH", "CALL", "RETURN", "BRANCHIND", "CALLIND")]:
+            raise SystemExit(f"smc: control flow of {a:#x} differs between the variants")
+        insns[a].ops = ops
+    return len(rewritten), structural
+
 # ----------------------------------------------------------------------------
 # expression helpers
 
@@ -105,6 +148,7 @@ class FuncGen:
         self.labels: set[int] = set()
         self.calls: set[int] = set()
         self.problems: list[str] = []
+        self.structural_smc: set[int] = STRUCTURAL_SMC
 
     # -- flow ---------------------------------------------------------------
     def body(self) -> list[int]:
@@ -133,6 +177,9 @@ class FuncGen:
 
     # -- varnodes -------------------------------------------------------------
     def rd(self, v: Vn) -> str:
+        if v.space == "smc":
+            raw = f"MEM_RD(0x{v.off:x}u, {v.field_size})"
+            return f"((uint64_t)SEXT({raw}, {v.field_size}) & {mask(v.size)})" if v.sign else raw
         if v.space == "const":
             return f"0x{v.off & ((1 << (8 * min(v.size, 8))) - 1):x}ULL"
         if v.size == 10:
@@ -186,6 +233,8 @@ class FuncGen:
         out = [f"  /* {ins.addr:08x}: {ins.text} */"]
         if ins.addr in self.labels_needed:
             out.append(f" L_{ins.addr:x}:")
+        if ins.addr in self.structural_smc:
+            out.append(f'    RT_FAIL("instruction at 0x{ins.addr:x} has a runtime-patched encoding (not supported)");')
         # p-code relative branch targets (inside one instruction)
         rel_targets = set()
         for i, op in enumerate(ins.ops):
@@ -347,10 +396,25 @@ def main(argv=None) -> int:
     ap.add_argument("--entries", type=Path,
                     help="extra entry points (output of re/scripts/find_seeds.py: 'F|D <hex>' lines); "
                          "code pointers in tables are targets of computed calls")
+    ap.add_argument("--smc", type=Path, help="runtime-patched code fields (output of SmcFields.java)")
     args = ap.parse_args(argv)
 
     names, insns = load_pcode(args.pcode)
+    if args.smc:
+        n, structural = apply_smc(insns, args.smc)
+        STRUCTURAL_SMC.update(structural)
+        print(f"self-modifying code: {n} instructions read patched fields from memory, {len(structural)} trap")
     entries = set(a for a in names if CORE_START <= a < CORE_END)
+    # code addresses stored as values (handler pointers called later) are entries
+    for ins in insns.values():
+        if ins.text.startswith(("CALL", "JMP", "F")):
+            continue
+        for op in ins.ops:
+            if op.name in ("CALL", "BRANCH", "CBRANCH"):
+                continue
+            for v in op.ins:
+                if v.space == "const" and v.size == 4 and v.off in insns and v.off != ins.addr:
+                    entries.add(v.off)
     extra = set()
     if args.entries:
         for line in args.entries.read_text().split("\n"):

@@ -1,0 +1,548 @@
+# Runtime-patched instructions (output of re/ghidra_scripts/SmcFields.java).
+# V <insn> <field/size>...: replacement p-code follows; smc:<field>:<const-size>:<field-size>:<z|s> = field read.
+# X <insn>: the patch changes the encoding itself (traps at runtime).
+V 0041372e 41372f/4
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P INT_AND register:0:4 register:0:4 smc:41372f:4:4:z
+P INT_SLESS register:207:1 register:0:4 const:0:4
+P INT_EQUAL register:206:1 register:0:4 const:0:4
+P INT_AND unique:49800:4 register:0:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413733 413735/4
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P INT_AND register:c:4 register:c:4 smc:413735:4:4:z
+P INT_SLESS register:207:1 register:c:4 const:0:4
+P INT_EQUAL register:206:1 register:c:4 const:0:4
+P INT_AND unique:49800:4 register:c:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413739 41373b/4
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P INT_AND register:4:4 register:4:4 smc:41373b:4:4:z
+P INT_SLESS register:207:1 register:4:4 const:0:4
+P INT_EQUAL register:206:1 register:4:4 const:0:4
+P INT_AND unique:49800:4 register:4:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+X 0041373f structure-changes ROL dword ptr [EAX],0x0
+X 00413742 structure-changes ROL dword ptr [EAX],0x0
+X 00413745 structure-changes ROL dword ptr [EAX],0x0
+V 00413a88 413a8a/4
+P INT_ADD unique:6800:4 register:8:4 smc:413a8a:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413aaa 413aac/4
+P INT_ADD unique:6800:4 register:0:4 smc:413aac:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413afb 413afd/4
+P INT_ADD unique:6800:4 register:14:4 smc:413afd:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY unique:60f00:1 unique:17000:1
+P INT_LESS register:200:1 unique:60f00:1 const:0:1
+P INT_SBORROW register:20b:1 unique:60f00:1 const:0:1
+P INT_SUB unique:61100:1 unique:60f00:1 const:0:1
+P INT_SLESS register:207:1 unique:61100:1 const:0:1
+P INT_EQUAL register:206:1 unique:61100:1 const:0:1
+P INT_AND unique:49800:1 unique:61100:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413b0d 413b0f/4
+P INT_ADD unique:6800:4 register:0:4 smc:413b0f:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413b42 413b44/4
+P INT_ADD unique:6800:4 register:14:4 smc:413b44:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY unique:60f00:1 unique:17000:1
+P INT_LESS register:200:1 unique:60f00:1 const:0:1
+P INT_SBORROW register:20b:1 unique:60f00:1 const:0:1
+P INT_SUB unique:61100:1 unique:60f00:1 const:0:1
+P INT_SLESS register:207:1 unique:61100:1 const:0:1
+P INT_EQUAL register:206:1 unique:61100:1 const:0:1
+P INT_AND unique:49800:1 unique:61100:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413b54 413b56/4
+P INT_ADD unique:6800:4 register:0:4 smc:413b56:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413ba6 413ba8/4
+P INT_ADD unique:6800:4 register:14:4 smc:413ba8:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY unique:60f00:1 unique:17000:1
+P INT_LESS register:200:1 unique:60f00:1 const:0:1
+P INT_SBORROW register:20b:1 unique:60f00:1 const:0:1
+P INT_SUB unique:61100:1 unique:60f00:1 const:0:1
+P INT_SLESS register:207:1 unique:61100:1 const:0:1
+P INT_EQUAL register:206:1 unique:61100:1 const:0:1
+P INT_AND unique:49800:1 unique:61100:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413bb2 413bb4/4
+P INT_ADD unique:6800:4 register:8:4 smc:413bb4:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413c18 413c1a/4
+P INT_ADD unique:6800:4 register:c:4 smc:413c1a:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413c21 413c23/4
+P INT_ADD unique:6800:4 register:14:4 smc:413c23:4:4:z
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P INT_AND register:0:1 register:0:1 unique:17000:1
+P INT_SLESS register:207:1 register:0:1 const:0:1
+P INT_EQUAL register:206:1 register:0:1 const:0:1
+P INT_AND unique:49800:1 register:0:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413c32 413c34/4
+P INT_ADD unique:6800:4 register:0:4 smc:413c34:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413c64 413c66/4
+P INT_ADD unique:6800:4 register:c:4 smc:413c66:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413c6d 413c6f/4
+P INT_ADD unique:6800:4 register:14:4 smc:413c6f:4:4:z
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P INT_AND register:0:1 register:0:1 unique:17000:1
+P INT_SLESS register:207:1 register:0:1 const:0:1
+P INT_EQUAL register:206:1 register:0:1 const:0:1
+P INT_AND unique:49800:1 register:0:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413c7e 413c80/4
+P INT_ADD unique:6800:4 register:0:4 smc:413c80:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413ccd 413ccf/4
+P INT_ADD unique:6800:4 register:c:4 smc:413ccf:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413cd6 413cd8/4
+P INT_ADD unique:6800:4 register:14:4 smc:413cd8:4:4:z
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P INT_AND register:0:1 register:0:1 unique:17000:1
+P INT_SLESS register:207:1 register:0:1 const:0:1
+P INT_EQUAL register:206:1 register:0:1 const:0:1
+P INT_AND unique:49800:1 register:0:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00413ce1 413ce3/4
+P INT_ADD unique:6800:4 register:8:4 smc:413ce3:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413d29 413d2b/4
+P INT_ADD unique:6800:4 register:0:4 smc:413d2b:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413d64 413d66/4
+P INT_ADD unique:6800:4 register:0:4 smc:413d66:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00413db3 413db5/4
+P INT_ADD unique:6800:4 register:8:4 smc:413db5:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 004427cc 4427ce/4
+P INT_ADD unique:6800:4 register:0:4 smc:4427ce:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00442880 442882/4
+P INT_ADD unique:6800:4 register:0:4 smc:442882:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00442beb 442bed/4
+P INT_ADD unique:6800:4 register:0:4 smc:442bed:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00442c16 442c18/4
+P INT_ADD unique:6800:4 register:0:4 smc:442c18:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00442e66 442e68/4
+P INT_ADD unique:6800:4 register:0:4 smc:442e68:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00442e8b 442e8d/4
+P INT_ADD unique:6800:4 register:0:4 smc:442e8d:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00442f55 442f58/1
+P INT_AND unique:9d200:4 smc:442f58:4:1:z const:1f:4
+P COPY unique:9d300:4 register:18:4
+P INT_LEFT unique:9d400:4 register:18:4 unique:9d200:4
+P INT_SUB unique:9d500:4 const:20:4 unique:9d200:4
+P INT_RIGHT unique:9d600:4 register:8:4 unique:9d500:4
+P INT_OR register:18:4 unique:9d400:4 unique:9d600:4
+P INT_EQUAL unique:4c600:1 unique:9d200:4 const:0:4
+P INT_SUB unique:4c700:4 unique:9d200:4 const:1:4
+P INT_LEFT unique:4c800:4 unique:9d300:4 unique:4c700:4
+P INT_SLESS unique:4c900:1 unique:4c800:4 const:0:4
+P COPY unique:0:1 unique:4c600:1
+P INT_MULT unique:100:1 unique:0:1 register:200:1
+P BOOL_NEGATE unique:200:1 unique:4c600:1
+P COPY unique:300:1 unique:200:1
+P INT_MULT unique:400:1 unique:300:1 unique:4c900:1
+P INT_OR register:200:1 unique:100:1 unique:400:1
+P INT_EQUAL unique:4ca00:1 unique:9d200:4 const:1:4
+P INT_SLESS unique:4cb00:1 register:18:4 const:0:4
+P INT_XOR unique:4cc00:1 register:200:1 unique:4cb00:1
+P COPY unique:0:1 unique:4ca00:1
+P INT_MULT unique:100:1 unique:0:1 unique:4cc00:1
+P BOOL_NEGATE unique:200:1 unique:4ca00:1
+P COPY unique:300:1 unique:200:1
+P INT_MULT unique:400:1 unique:300:1 register:20b:1
+P INT_OR register:20b:1 unique:100:1 unique:400:1
+P INT_NOTEQUAL unique:49d00:1 unique:9d200:4 const:0:4
+P INT_SLESS unique:49f00:1 register:18:4 const:0:4
+P BOOL_NEGATE unique:4a000:1 unique:49d00:1
+P INT_AND unique:4a100:1 unique:4a000:1 register:207:1
+P INT_AND unique:4a200:1 unique:49d00:1 unique:49f00:1
+P INT_OR register:207:1 unique:4a100:1 unique:4a200:1
+P INT_EQUAL unique:4a500:1 register:18:4 const:0:4
+P BOOL_NEGATE unique:4a600:1 unique:49d00:1
+P INT_AND unique:4a700:1 unique:4a600:1 register:206:1
+P INT_AND unique:4a800:1 unique:49d00:1 unique:4a500:1
+P INT_OR register:206:1 unique:4a700:1 unique:4a800:1
+P INT_AND unique:4aa00:4 register:18:4 const:ff:4
+P POPCOUNT unique:4ab00:1 unique:4aa00:4
+P INT_AND unique:4ac00:1 unique:4ab00:1 const:1:1
+P INT_EQUAL unique:4ae00:1 unique:4ac00:1 const:0:1
+P BOOL_NEGATE unique:4af00:1 unique:49d00:1
+P INT_AND unique:4b000:1 unique:4af00:1 register:202:1
+P INT_AND unique:4b100:1 unique:49d00:1 unique:4ae00:1
+P INT_OR register:202:1 unique:4b000:1 unique:4b100:1
+V 00442f59 442f5b/4
+P INT_ADD unique:6800:4 register:18:4 smc:442f5b:4:4:z
+P COPY register:200:1 const:0:1
+P COPY register:20b:1 const:0:1
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P INT_OR register:0:1 register:0:1 unique:17000:1
+P INT_SLESS register:207:1 register:0:1 const:0:1
+P INT_EQUAL register:206:1 register:0:1 const:0:1
+P INT_AND unique:49800:1 register:0:1 const:ff:1
+P POPCOUNT unique:49900:1 unique:49800:1
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00442f63 442f65/4
+P INT_CARRY register:200:1 register:8:4 smc:442f65:4:4:z
+P INT_SCARRY register:20b:1 register:8:4 smc:442f65:4:4:z
+P INT_ADD register:8:4 register:8:4 smc:442f65:4:4:z
+P INT_SLESS register:207:1 register:8:4 const:0:4
+P INT_EQUAL register:206:1 register:8:4 const:0:4
+P INT_AND unique:49800:4 register:8:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00442f6a 442f6c/4
+P INT_LESS register:200:1 register:4:4 smc:442f6c:4:4:z
+P INT_SBORROW register:20b:1 register:4:4 smc:442f6c:4:4:z
+P INT_SUB register:4:4 register:4:4 smc:442f6c:4:4:z
+P INT_SLESS register:207:1 register:4:4 const:0:4
+P INT_EQUAL register:206:1 register:4:4 const:0:4
+P INT_AND unique:49800:4 register:4:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00442f78 442f7a/4
+P INT_CARRY register:200:1 register:1c:4 smc:442f7a:4:4:z
+P INT_SCARRY register:20b:1 register:1c:4 smc:442f7a:4:4:z
+P INT_ADD register:1c:4 register:1c:4 smc:442f7a:4:4:z
+P INT_SLESS register:207:1 register:1c:4 const:0:4
+P INT_EQUAL register:206:1 register:1c:4 const:0:4
+P INT_AND unique:49800:4 register:1c:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00442f7e 442f80/4
+P INT_CARRY register:200:1 register:8:4 smc:442f80:4:4:z
+P INT_SCARRY register:20b:1 register:8:4 smc:442f80:4:4:z
+P INT_ADD register:8:4 register:8:4 smc:442f80:4:4:z
+P INT_SLESS register:207:1 register:8:4 const:0:4
+P INT_EQUAL register:206:1 register:8:4 const:0:4
+P INT_AND unique:49800:4 register:8:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 00442f84 442f86/4
+P INT_CARRY register:200:1 register:4:4 smc:442f86:4:4:z
+P INT_SCARRY register:20b:1 register:4:4 smc:442f86:4:4:z
+P INT_ADD register:4:4 register:4:4 smc:442f86:4:4:z
+P INT_SLESS register:207:1 register:4:4 const:0:4
+P INT_EQUAL register:206:1 register:4:4 const:0:4
+P INT_AND unique:49800:4 register:4:4 const:ff:4
+P POPCOUNT unique:49900:1 unique:49800:4
+P INT_AND unique:49a00:1 unique:49900:1 const:1:1
+P INT_EQUAL register:202:1 unique:49a00:1 const:0:1
+V 004432f1 4432f3/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:4432f3:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:0:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:0:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 004432f7 4432fa/4
+P INT_ADD unique:6600:4 register:18:4 const:8:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:4432fa:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443300 443303/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443303:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 0044330b 44330d/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44330d:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:0:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:0:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443311 443314/4
+P INT_ADD unique:6600:4 register:18:4 const:8:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443314:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 0044331a 44331d/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44331d:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443326 443328/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443328:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:0:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:0:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 0044332c 44332f/4
+P INT_ADD unique:6600:4 register:18:4 const:8:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44332f:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443335 443338/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443338:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443461 443463/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443463:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:0:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:0:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443467 44346a/4
+P INT_ADD unique:6600:4 register:18:4 const:8:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44346a:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443470 443473/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443473:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 0044347e 443480/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443480:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:0:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:0:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443484 443487/4
+P INT_ADD unique:6600:4 register:18:4 const:8:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443487:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 0044348d 443490/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:443490:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 0044349c 44349e/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44349e:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:0:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:0:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 004434a2 4434a5/4
+P INT_ADD unique:6600:4 register:18:4 const:8:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:4434a5:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 004434ab 4434ae/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:4434ae:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00443f20 443f22/4
+P INT_ADD unique:6800:4 register:0:4 smc:443f22:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 00444040 444042/4
+P INT_ADD unique:6800:4 register:0:4 smc:444042:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 0044425c 44425e/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44425e:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:4:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:4:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00444262 444265/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:444265:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:1c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:1c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00444287 444289/4
+P INT_ADD unique:6800:4 register:0:4 smc:444289:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1
+V 0044433c 44433e/4
+P LOAD unique:17200:4 const:1a1:4 register:18:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:44433e:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:4:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:4:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00444342 444345/4
+P INT_ADD unique:6600:4 register:18:4 const:4:4
+P LOAD unique:17200:4 const:1a1:4 unique:6600:4
+P INT_SEXT unique:76700:8 unique:17200:4
+P INT_SEXT unique:76800:8 smc:444345:4:4:z
+P INT_MULT unique:76a00:8 unique:76700:8 unique:76800:8
+P SUBPIECE register:1c:4 unique:76a00:8 const:0:4
+P SUBPIECE unique:76d00:4 unique:76a00:8 const:4:4
+P INT_SEXT unique:4b700:8 register:1c:4
+P INT_NOTEQUAL register:200:1 unique:4b700:8 unique:76a00:8
+P COPY register:20b:1 register:200:1
+V 00444382 444384/4
+P INT_ADD unique:6800:4 register:0:4 smc:444384:4:4:z
+P LOAD unique:17000:1 const:1a1:4 unique:6800:4
+P COPY register:0:1 unique:17000:1

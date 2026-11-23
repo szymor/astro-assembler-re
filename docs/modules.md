@@ -129,11 +129,14 @@ ported from DOS.
 
 ## Self-modifying code
 
-About 35 instructions in the core have their immediate operands patched at
-runtime: the pixel-format converter (`4137xx`), code near the palette fade
-(`413axx–413cxx`), the sprite routines (`442fxx`), the 3D/polygon routines
-(`4430xx–4434xx`) and two places in the menu (`444289`, `444384`). Only data
-values (masks, shifts, constants) are patched, never control flow.
+68 code fields in the core are patched at runtime, all by direct writes, in 62
+instructions: the pixel-format converter (`4137xx`), code near the palette fade
+(`413axx–413dxx`), the sprite routines including an affine texture mapper
+(`4427xx–442fxx`), the 3D/polygon routines (`4432xx–4434xx`) and the menu
+(`443fxx–444384`). Almost all patch immediates or displacements (shift counts,
+texture base, step values). Only the pixel-format converter patches ModRM
+bytes, which changes the operation itself. See
+[recompiler.md](recompiler.md) for how the recompiler handles this.
 
 ## Timing
 
