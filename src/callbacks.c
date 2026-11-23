@@ -32,23 +32,38 @@ static void cb_present_frame(void)
     video_present_game(rd32(G_FRAME_BUFFER));
 }
 
+/* App_PumpMessages (0x408150) with the WndProc's WM_ACTIVATEAPP handling:
+ * losing focus pauses the CD and the game until the window is active again.
+ * ASTRO_NO_FOCUS_PAUSE=1 disables this (automated runs). */
 static void cb_pump_messages(void)
 {
     input_pump();
+    if (!input_focused && !SDL_getenv("ASTRO_NO_FOCUS_PAUSE")) {
+        bool music = rd32(G_CD_PLAYING) != 0;
+        if (music) cd_pause();
+        input_wait_while_unfocused();
+        if (music) cd_resume();
+    }
     if (input_quit_requested) {
         SDL_Log("quit requested");
         exit(0);            /* runs atexit handlers (debug reports) */            /* TODO: save the configuration like App_Shutdown */
     }
 }
 
-static void unimplemented(uint32_t ilt, const char *name)
+/* Sound_Play (0x407980): exact integer arithmetic of the original. */
+static void cb_sound_play(void)
 {
-    static uint32_t seen[64];
-    for (int i = 0; i < 64; i++) {
-        if (seen[i] == ilt) return;
-        if (!seen[i]) { seen[i] = ilt; break; }
-    }
-    SDL_Log("shell callback %s (%08x) not implemented yet", name, ilt);
+    uint32_t flags = rd32(G_SOUND_FLAGS);
+    int pan = 0, volume = 0;
+    if (flags & 2) pan = (int)((uint32_t)(rd32(G_CFG_PAN_RANGE) * rd32(G_SOUND_PANX)) / 0x280u) - 10000;
+    if (flags & 4) volume = (int)((uint32_t)(rd32(G_CFG_VOL_RANGE) * rd32(G_SOUND_VOLUME)) / 1000u) - 10000;
+    audio_play((int)rd32(G_SHELL_PARAM), flags, pan, volume);
+}
+
+/* CD_PlayTrack (0x407a50): the track is a word at g_cdTrack. */
+static void cb_cd_play(void)
+{
+    if (rd32(G_CD_ENABLED)) wr32(G_CD_PLAYING, cd_play_track((int)(uint16_t)MEM_RD(G_CD_TRACK, 2)));
 }
 
 void host_shell_call(uint32_t ilt)
@@ -64,14 +79,16 @@ void host_shell_call(uint32_t ilt)
     case 0x401041: case 0x401046: case 0x401050:                     /* Sound_PrimeLevelNSet  */
     case 0x401055: case 0x40105a: case 0x40105f:
         break;                                                       /* warm-up only          */
-    case 0x40122b: unimplemented(ilt, "Sound_Play"); break;
-    case 0x40119f: unimplemented(ilt, "Sound_Stop"); break;
-    case 0x401145: unimplemented(ilt, "CD_PlayTrack"); break;
-    case 0x401104: unimplemented(ilt, "CD_Stop"); break;
-    case 0x401203: unimplemented(ilt, "CD_Pause"); break;
-    case 0x401230: unimplemented(ilt, "CD_Resume"); break;
-    case 0x401235: unimplemented(ilt, "CDVol_Set"); break;
-    case 0x4010c8: unimplemented(ilt, "CDVol_Apply"); break;
+    case 0x40122b: cb_sound_play(); break;                           /* Sound_Play            */
+    case 0x40119f: audio_stop((int)rd32(G_SHELL_PARAM)); break;      /* Sound_Stop            */
+    case 0x401145: cb_cd_play(); break;                              /* CD_PlayTrack          */
+    case 0x401104: cd_stop(); break;                                 /* CD_Stop               */
+    case 0x401203: cd_pause(); break;                                /* CD_Pause              */
+    case 0x401230: cd_resume(); break;                               /* CD_Resume             */
+    case 0x401235:                                                   /* CDVol_Set             */
+    case 0x4010c8:                                                   /* CDVol_Apply           */
+        audio_set_volumes(rd32(G_CFG_SFX_VOLUME), rd32(G_CFG_CD_VOLUME));
+        break;
     case 0x40107d: break;                                            /* Palette_Set: read at present time */
     case 0x4010ff: cb_present_frame(); break;                        /* Video_PresentFrame    */
     default:

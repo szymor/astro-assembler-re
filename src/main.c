@@ -41,6 +41,7 @@ int main(int argc, char **argv)
     }
 #endif
     shell_run();
+    audio_shutdown();
     video_shutdown();
     SDL_Quit();
     return 0;

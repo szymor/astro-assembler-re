@@ -76,6 +76,13 @@
 #define G_MODE_FLAG40      0x55c39cu   /* 1: core keeps PALETTEENTRY palette */
 #define G_WAIT_VBLANK      0x556828u
 #define G_CFG_DIFFICULTY   0x556abcu
+#define G_CFG_SFX_VOLUME   0x46ec08u
+#define G_CFG_CD_VOLUME    0x46ec0cu
+#define G_CFG_PAN_RANGE    0x46ec10u   /* 20000 */
+#define G_CFG_VOL_RANGE    0x46ec14u   /* 10000 */
+#define G_CD_PLAYING       0x55c834u
+#define SOUNDSET_MENU      0x46ec18u
+static const uint32_t k_soundset_level[7] = {0, 0x46ec28u, 0x46ed10u, 0x46ee10u, 0x46ef08u, 0x46f000u, 0x46f0e8u};
 
 static inline uint32_t rd32(uint32_t va) { return (uint32_t)MEM_RD(va, 4); }
 static inline void wr32(uint32_t va, uint32_t v) { MEM_WR(va, 4, v); }
@@ -90,6 +97,7 @@ void *assets_read(const char *rel, size_t *size);          /* malloc'd, NULL on 
 bool assets_load_to_mem(const char *rel, uint32_t va, uint32_t *size_out);
 bool assets_load_image(const char *rel, uint32_t va);      /* 640x480 -> XRGB8888 */
 void assets_set_dir(const char *dir);
+const char *assets_dir(void);
 
 /* ---- video.c ------------------------------------------------------------- */
 bool video_init(void);
@@ -100,7 +108,22 @@ void video_present_game(uint32_t frame_va);   /* show the 320x200 frame */
 void video_toggle_fullscreen(void);
 unsigned long video_frame_count(void);   /* frames presented so far */
 
+/* ---- audio.c ------------------------------------------------------------- */
+bool audio_init(void);
+void audio_shutdown(void);
+void audio_load_set(uint32_t list_va, bool load);   /* Sound_LoadSet / Sound_FreeSet */
+void audio_stop_set(uint32_t list_va);              /* Sound_StopSet */
+void audio_play(int id, unsigned flags, int pan, int volume);
+void audio_stop(int id);
+void audio_set_volumes(unsigned sfx, unsigned cd);  /* auxSetVolume levels 0..0xffff */
+bool cd_play_track(int track);
+void cd_stop(void);
+void cd_pause(void);
+void cd_resume(void);
+
 /* ---- input.c ------------------------------------------------------------- */
 void input_pump(void);               /* process SDL events               */
 void input_fill_keystate(void);      /* DirectInput-style key state      */
 extern bool input_quit_requested;
+extern bool input_focused;
+void input_wait_while_unfocused(void);

@@ -76,7 +76,8 @@ replacement of generated functions with readable C. See
 - [ ] Flag-liveness optimisation
 - [x] SDL3 host layer (`src/`, see [port.md](port.md)): logos, title, menus
       and level 1 gameplay run on the recompiled core
-- [ ] Sound effects, CD music from FLAC, configuration, gamepad, ending
+- [x] Sound effects and CD music from FLAC (see port.md, "Audio")
+- [ ] Configuration, gamepad, ending
 
 ### Survey that led to the decision
 

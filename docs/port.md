@@ -21,6 +21,9 @@ cmake --build build/cmake -j
 
 4. Run: `build/cmake/astro assets`
 
+Dependencies: SDL3 3.4 or newer (uses `SDL_LoadPNG`) and libFLAC (CMake config
+`FLAC::FLAC`; on Windows e.g. vcpkg `sdl3` and `flac`).
+
 Keyboard: arrows to move, Space = fire (second button and the remaining
 bindings still to be mapped), Enter to choose in menus, Alt+Enter toggles
 fullscreen.
@@ -35,6 +38,7 @@ fullscreen.
 | `src/video.c` | SDL window, 640×480 menu surface, 320×200 game frame, 60 Hz pacing |
 | `src/input.c` | SDL events, DirectInput-style key state (DIK codes) |
 | `src/assets.c` | Loading the packaged assets into emulated memory |
+| `src/audio.c` | Sound-effect mixer with DirectSound semantics, CD-audio emulation from FLAC |
 
 ## Emulated memory
 
@@ -58,6 +62,31 @@ fullscreen.
   contain the instruction-changing self-modification).
 - Scaling filter and aspect handling are still to be decided (plan.md).
 
+## Audio
+
+- **Sound effects** are mixed by `src/audio.c` in one SDL audio stream
+  (44.1 kHz stereo float), reproducing what the original's DirectSound code
+  did:
+  - each sound id has the number of voices from the sound table; a play uses
+    the current voice if idle, otherwise a 1-voice sound is not restarted and
+    a multi-voice sound cuts off the next voice round-robin;
+  - looping only for 1-voice sounds;
+  - pan and volume (hundredths of dB, computed with the original's integer
+    formulas) apply only when flagged and persist per voice;
+  - sound sets are loaded around the menu and each level, as in the original.
+- **Music** emulates the MCI CD player: `CD_PlayTrack` plays
+  `music/trackNN.flac` and continues through the following tracks up to 16,
+  like a CD played without an end position. Pause remembers the position,
+  resume seeks back to it.
+- **Volumes**: the configured wave and CD levels (originally `auxSetVolume`,
+  0..0xFFFF) are applied as linear gains.
+- **Focus**: when the window loses focus the CD pauses and the game waits, as
+  the original `WndProc`/`App_PumpMessages` did.
+- Open point: the original mixed CD audio in the sound card's analog mixer,
+  separately from the effects. Here both are summed digitally and loud
+  explosions over the music can clip; a limiter or headroom may be wanted
+  (decision pending).
+
 ## Timing
 
 Frames are paced at 60 Hz (`video_wait_frame`), standing in for the vertical
@@ -69,6 +98,8 @@ original. The exact original rate is still to be confirmed (plan.md).
 | Variable | Effect |
 |---|---|
 | `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette) |
+| `ASTRO_NO_FOCUS_PAUSE=1` | do not pause when the window loses focus (automated runs) |
+| `SDL_AUDIO_DRIVER=disk` | SDL writes the mixed audio to `sdlaudio.raw` (F32 stereo 44.1 kHz) instead of playing it |
 | `ASTRO_KEYS="frame:dik[:frames],…"` | hold DirectInput key `dik` (hex) from a given frame; e.g. `800:39` presses Space at frame 800 |
 | `ASTRO_WATCH=<byte>` | debug builds with `-DRT_WATCH` only: histogram of writes of that byte into the frame buffer, or into a level-relative range with `ASTRO_WATCH_RANGE=<lo>:<hi>` |
 
@@ -77,12 +108,12 @@ A watch build: `cmake -S . -B build/cmake-watch -DCMAKE_BUILD_TYPE=Debug -DCMAKE
 ## Status
 
 Working: logos, title, hall of fame, menu navigation, level 1 gameplay (tiles,
-blended particles, sprites, 3D objects, explosions, scoring, lives).
+blended particles, sprites, 3D objects, explosions, scoring, lives), sound
+effects, music (title: track 3, level 1: track 4, as expected).
 
 Not yet implemented:
 
-- sound effects (`Sound_Play`, `Sound_Stop`) and music (`CD_PlayTrack`, FLAC)
 - configuration load/save, quitting cleanly
 - joystick/gamepad, full key mapping (control schemes 8/12)
-- ending (`Gfx_LoadEnding`, command 15), per-level sound sets
+- ending (`Gfx_LoadEnding`, command 15)
 - options menu's display-mode list (records built approximately)

@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 
 bool input_quit_requested;
+bool input_focused = true;
 
 /* SDL scancode -> DirectInput DIK code (PC set-1 scancodes, 0xE0 keys | 0x80). */
 static uint8_t dik_from_sdl(SDL_Scancode sc)
@@ -73,21 +74,40 @@ static uint8_t dik_from_sdl(SDL_Scancode sc)
     }
 }
 
+static void handle(const SDL_Event *e);
+
 void input_pump(void)
 {
     SDL_Event ev;
-    while (SDL_PollEvent(&ev)) {
-        switch (ev.type) {
-        case SDL_EVENT_QUIT:
-            input_quit_requested = true;
-            break;
-        case SDL_EVENT_KEY_DOWN:
-            if (ev.key.scancode == SDL_SCANCODE_RETURN && (ev.key.mod & SDL_KMOD_ALT) && !ev.key.repeat)
-                video_toggle_fullscreen();
-            break;
-        default:
-            break;
-        }
+    while (SDL_PollEvent(&ev)) handle(&ev);
+}
+
+/* Like App_PumpMessages (0x408150): while the game is not the active window it
+ * waits for messages, i.e. the whole game pauses. */
+void input_wait_while_unfocused(void)
+{
+    SDL_Event ev;
+    while (!input_focused && !input_quit_requested && SDL_WaitEvent(&ev)) handle(&ev);
+}
+
+static void handle(const SDL_Event *ev)
+{
+    switch (ev->type) {
+    case SDL_EVENT_QUIT:
+        input_quit_requested = true;
+        break;
+    case SDL_EVENT_WINDOW_FOCUS_LOST:
+        input_focused = false;
+        break;
+    case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        input_focused = true;
+        break;
+    case SDL_EVENT_KEY_DOWN:
+        if (ev->key.scancode == SDL_SCANCODE_RETURN && (ev->key.mod & SDL_KMOD_ALT) && !ev->key.repeat)
+            video_toggle_fullscreen();
+        break;
+    default:
+        break;
     }
 }
 

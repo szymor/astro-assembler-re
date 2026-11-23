@@ -14,6 +14,8 @@ if(NOT ASTRO_GEN_SOURCES)
 endif()
 
 find_package(SDL3 REQUIRED CONFIG)
+find_package(Threads REQUIRED)         # some FLAC CMake configs reference Threads::Threads
+find_package(FLAC REQUIRED CONFIG)     # libFLAC (vcpkg: "flac") for the soundtrack
 
 # The generated code is huge and mechanical: build it as its own library with
 # moderate optimisation and without warnings.
@@ -33,8 +35,12 @@ add_executable(astro
     src/video.c
     src/input.c
     src/assets.c
+    src/audio.c
 )
-target_link_libraries(astro PRIVATE astro_core SDL3::SDL3)
+target_link_libraries(astro PRIVATE astro_core SDL3::SDL3 FLAC::FLAC)
+if(NOT MSVC)
+    target_link_libraries(astro PRIVATE m)
+endif()
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(astro PRIVATE -Wall -Wextra -Wno-unused-parameter)
 endif()

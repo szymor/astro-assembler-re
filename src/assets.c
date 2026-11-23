@@ -8,6 +8,7 @@
 static char g_dir[1024] = "assets";
 
 void assets_set_dir(const char *dir) { SDL_strlcpy(g_dir, dir, sizeof g_dir); }
+const char *assets_dir(void) { return g_dir; }
 
 void *assets_read(const char *rel, size_t *size)
 {

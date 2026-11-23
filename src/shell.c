@@ -186,6 +186,8 @@ bool shell_init(const char *assets_dir)
     if (p > VA_ALLOC + 0x1200000u) { SDL_Log("allocation block overflow"); return false; }
 
     config_validate();
+    audio_init();                                /* DS_Init; game runs without sound if it fails */
+    audio_set_volumes(rd32(G_CFG_SFX_VOLUME), rd32(G_CFG_CD_VOLUME));   /* CDVol_Apply */
     core_command(7);                             /* Core_Cmd07_Init           */
     return true;
 }
@@ -210,13 +212,16 @@ static void set_game_mode(void)
     wr32(G_WAIT_VBLANK, 1);
 }
 
-/* Game_RunMenu (0x402ef0). TODO: menu sound set (Sound_LoadSet). */
+/* Game_RunMenu (0x402ef0). */
 static void run_menu(void)
 {
+    audio_load_set(SOUNDSET_MENU, true);
     core_command(9);
+    audio_stop_set(SOUNDSET_MENU);
+    audio_load_set(SOUNDSET_MENU, false);
 }
 
-/* Game_RunLevels (0x402f60). TODO: per-level sound sets, ending images. */
+/* Game_RunLevels (0x402f60). TODO: ending images. */
 static void run_levels(void)
 {
     set_game_mode();
@@ -228,7 +233,10 @@ static void run_levels(void)
         wr32(G_LOAD_PTR, base + size);
         wr32(G_LEVEL_DATA_END, base + size);   /* end of the level data: scratch buffers follow */
         SDL_Log("level %d", level);
+        audio_load_set(k_soundset_level[level], true);
         core_command((uint32_t)level);
+        audio_stop_set(k_soundset_level[level]);
+        audio_load_set(k_soundset_level[level], false);
         if (rd32(G_QUIT_GAME) != 0) return;
     }
     SDL_Log("all levels completed: ending not implemented yet");
