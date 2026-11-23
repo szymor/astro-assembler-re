@@ -1,0 +1,49 @@
+# Tables embedded in the assembly core's code, for re/ghidra_scripts/FixInlineTables.java.
+# T <base> <count> <code|data>: dword table; C <addr>: must be an instruction start.
+T 408c59 23 code
+C 408cc2
+C 408d06
+C 408d58
+C 408daa
+C 408dfc
+C 408e4e
+C 408ea0
+C 408ceb
+C 4443ae
+C 40b8d5
+C 40cd0f
+C 40dd09
+C 408fd2
+C 413797
+C 446195
+C 41103c
+C 412249
+C 41308d
+C 40e24d
+C 40f8ba
+C 410a70
+C 44607a
+T 445025 5 code
+C 4454e1
+C 445039
+C 44514a
+C 4453f6
+C 4454dc
+T 44524e 3 code
+C 44525a
+C 4452d1
+C 44534a
+T 4455d0 4 code
+C 4455fc
+C 445619
+C 44564a
+C 44567f
+T 4455f4 2 data
+T 4457d3 2 code
+C 445806
+C 445975
+C 4455c9
+C 4457db
+T 4457ee 6 data
+C 445806
+C 44564c

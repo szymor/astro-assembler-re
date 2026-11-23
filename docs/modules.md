@@ -114,6 +114,27 @@ behaviour and script-opcode handlers. That is Phase 3 territory.
     pre-transformed quads scaled to the screen
 - Default mode (when the config is missing or invalid): 640×480×16.
 
+### Mode list
+
+`DD_Init` lists, per DirectDraw device, the 16/24/32 bpp modes from 640×400 to
+1024×768 (at most 50), sorted, and builds the in-game menu labels
+(`640X480X16`, …). `SetDisplayMode` always gets refresh rate 0.
+
+### Leftovers from a DOS version
+
+`Core_Cmd14_Present8` contains `out dx,al` palette writes to the VGA DAC
+(`0x4137cf`) in a branch that cannot run under Windows, and the frame format
+(320×200, 6-bit palette) is classic VGA mode 13h. The game was most likely
+ported from DOS.
+
+## Self-modifying code
+
+About 35 instructions in the core have their immediate operands patched at
+runtime: the pixel-format converter (`4137xx`), code near the palette fade
+(`413axx–413cxx`), the sprite routines (`442fxx`), the 3D/polygon routines
+(`4430xx–4434xx`) and two places in the menu (`444289`, `444384`). Only data
+values (masks, shifts, constants) are patched, never control flow.
+
 ## Timing
 
 `SetDisplayMode` is called with refresh rate 0 (driver default).
@@ -147,6 +168,8 @@ as a 2-bit history (previous, current) for edge detection.
    then run auto-analysis
 3. `python3 re/scripts/find_seeds.py extracted/game/ASTRO.exe seeds.txt`
 4. Run `SeedFunctions.java seeds.txt`, then auto-analysis again
-5. Run `ApplySymbols.java re/symbols.tsv`
+5. Run `FixInlineTables.java re/inline_tables.txt` (tables embedded in the
+   core's code that seeding disassembled by mistake)
+6. Run `ApplySymbols.java re/symbols.tsv`
 
 Copy the scripts from `re/ghidra_scripts/` into your Ghidra script directory.

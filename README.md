@@ -14,6 +14,7 @@ it into a standalone game that does not need the disc at runtime.
 | `tools/` | Asset extraction and conversion scripts (Python 3, stdlib only) |
 | `docs/` | Reverse-engineering notes and file format docs |
 | `src/` | The C/SDL3 port (not started yet) |
+| `re/recomp/` | Static recompiler (p-code → C) and its runtime; see [docs/recompiler.md](docs/recompiler.md) |
 | `re/symbols.tsv` | Canonical function/global names for `ASTRO.exe` |
 | `re/scripts/`, `re/ghidra_scripts/` | RE helper scripts (seed finding, symbol import, exports) |
 | `re/ghidra/`, `re/wineprefix/` | Local Ghidra project and Wine prefix (git-ignored) |

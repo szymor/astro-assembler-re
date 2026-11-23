@@ -64,7 +64,51 @@ converted or renamed. Sprite PNG export (`tools/datview.py`) is for viewing only
 
 ## Phase 3 — Game logic
 
-- [ ] Timing model (fixed rate vs vSync)
+### Strategy: hybrid (decided)
+
+Static recompilation of the core first, hand-written SDL3 shell, then gradual
+replacement of generated functions with readable C. See
+[recompiler.md](recompiler.md).
+
+- [x] p-code export, translator, runtime; whole core translates and links
+- [x] Prototype tests pass (RNG, sprite blitter, dispatcher)
+- [ ] Self-modifying instructions read their immediates from memory
+- [ ] Flag-liveness optimisation
+- [ ] SDL3 host layer for the shell callbacks, then run the menu
+
+### Survey that led to the decision
+
+The core is 58 272 instructions of hand-written x86. Survey results:
+
+- only 85 distinct mnemonics, plain integer code (a few `fsqrt`)
+- 60 indirect calls (command, callback and handler tables in `.data`),
+  4 jump tables, status returned in the carry flag in places
+- self-modifying code limited to ~35 patched immediates in rendering routines
+  (pixel format, palette, sprite, 3D/polygon, two in the menu); no control flow
+  is rewritten
+- no OS calls; everything platform-related goes through the shell callbacks
+- data pointers are 32-bit absolute addresses into `.data` and the arena
+
+Options:
+
+1. **Static recompilation**: a translator turns each core function into C
+   (registers and flags as variables, memory as a flat array laid out like the
+   original address space). Bit-exact by construction and playable early, but
+   the generated code is unreadable at first.
+2. **Hand reimplementation**: rewrite the game logic in idiomatic C from
+   understanding. Readable, but very slow for this size and hard to keep
+   bit-exact (RNG inputs, fixed-point math, quirks).
+3. **Hybrid (chosen)**: start with 1, rewrite the shell by hand on SDL3,
+   then replace generated functions one by one with readable C, each checked
+   against the generated version (same input state → same output state).
+
+### Tasks
+
+- [~] Timing model: no refresh rate is requested (driver default, typically
+      60 Hz on Win98/2000 with DX7); logic runs once per frame. To confirm by
+      comparing script frame counts with the music track lengths (each level
+      track flows into its boss track)
+- [ ] Wave spawner (default script handler `41f757–4227e1`) and remaining opcodes
 - [ ] Game states: intro, logos, menu, play, pause, game over, ending
 - [ ] Entities: player, ship combining, energy, shields, enemies, bullets,
       capsules/power-ups, ground units, collision
