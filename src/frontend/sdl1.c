@@ -13,6 +13,7 @@ static SDL_Surface *g_screen;
 static int g_desktop_w, g_desktop_h, g_window_w = SCREEN_W, g_window_h = SCREEN_H;
 static double g_next_frame;
 static bool g_quit, g_focused = true, g_audio_open;
+static bool g_exclusive;            /* the display offers a fullscreen mode of the output size */
 static SDL_Joystick *g_joy[2];
 static plat_mix_fn g_mix;
 static uint32_t *g_scaled;          /* scaling target when the surface is not XRGB */
@@ -23,7 +24,8 @@ const char *plat_device_name(void) { return "SDL1"; }
 static bool set_mode(int w, int h)
 {
     Uint32 flags = SDL_SWSURFACE | (settings.fullscreen ? SDL_FULLSCREEN : SDL_RESIZABLE);
-    if (settings.fullscreen && g_desktop_w > 0) { w = g_desktop_w; h = g_desktop_h; }
+    if (settings.fullscreen && g_exclusive) video_output_size(&w, &h);
+    else if (settings.fullscreen && g_desktop_w > 0) { w = g_desktop_w; h = g_desktop_h; }
     SDL_Surface *s = SDL_SetVideoMode(w, h, 32, flags);
     if (!s) { astro_log("SDL_SetVideoMode: %s", SDL_GetError()); return false; }
     g_screen = s;
@@ -108,7 +110,17 @@ bool plat_init(const char *title)
     const SDL_VideoInfo *vi = SDL_GetVideoInfo();     /* before the first mode: desktop size */
     if (vi) { g_desktop_w = vi->current_w; g_desktop_h = vi->current_h; }
     SDL_WM_SetCaption(title, title);
-    if (!set_mode(SCREEN_W, SCREEN_H)) return false;
+    if (settings.exclusive) {            /* a real display mode of the output size, if offered */
+        int ow, oh;
+        video_output_size(&ow, &oh);
+        SDL_Rect **modes = SDL_ListModes(NULL, SDL_FULLSCREEN | SDL_SWSURFACE);
+        if (modes == (SDL_Rect **)-1) g_exclusive = true;            /* any size */
+        for (int i = 0; modes && modes != (SDL_Rect **)-1 && modes[i]; i++)
+            if (modes[i]->w == ow && modes[i]->h == oh) g_exclusive = true;
+        if (!g_exclusive) astro_log("display has no %dx%d mode: fullscreen uses the desktop mode", ow, oh);
+    }
+    video_window_size(g_desktop_w, g_desktop_h, &g_window_w, &g_window_h);
+    if (!set_mode(g_window_w, g_window_h)) return false;
     SDL_ShowCursor(SDL_DISABLE);
     for (int i = 0; i < 2 && i < SDL_NumJoysticks(); i++) {
         g_joy[i] = SDL_JoystickOpen(i);
@@ -135,8 +147,8 @@ void plat_present(const uint32_t *xrgb, int sw, int sh)
 {
     SDL_Surface *s = g_screen;
     if (!s) return;
-    int x, y, w, h;
-    scale_aspect_rect(s->w, s->h, &x, &y, &w, &h);
+    int x = 0, y = 0, w = s->w, h = s->h;   /* exclusive mode: the display shows it as 4:3 */
+    if (!(settings.fullscreen && g_exclusive)) scale_aspect_rect(s->w, s->h, &x, &y, &w, &h);
     SDL_FillRect(s, NULL, 0);
     bool direct = s->format->BytesPerPixel == 4 && s->format->Rmask == 0xff0000 &&
                   s->format->Gmask == 0x00ff00 && s->format->Bmask == 0x0000ff;
@@ -162,7 +174,7 @@ void plat_present(const uint32_t *xrgb, int sw, int sh)
     /* ASTRO_DUMP_OUTPUT=<dir>: save the scaled window image every 300th gameplay frame */
     const char *odir = getenv("ASTRO_DUMP_OUTPUT");
     unsigned long frame = video_frame_count();
-    if (odir && sw == GAME_W && frame % 300 == 1) {
+    if (odir && video_is_game() && frame % 300 == 1) {
         char path[1100];
         snprintf(path, sizeof path, "%s/out%05lu.bmp", odir, frame - 1);
         SDL_SaveBMP(s, path);

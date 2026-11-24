@@ -4,7 +4,8 @@
  * implements them and provides main(), which calls astro_main().
  *
  * Pictures are handed over as XRGB8888 (0x00RRGGBB) pixels: the 640x480 menu
- * surface or the 320x200 gameplay frame (already palette-converted). The
+ * surface or the 320x200 gameplay frame (already palette-converted), or with a
+ * reduced output resolution (settings.resolution) pictures of that size. The
  * frontend shows them in the largest 4:3 area of its output, using
  * settings.filter (see settings.c and scale.h for a software scaler).
  */

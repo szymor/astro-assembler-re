@@ -78,7 +78,7 @@ deflection, as the original's 50% dead zone), south button = fire, east button
 | `src/audio.c` | Sound-effect mixer with DirectSound semantics, CD-audio emulation from FLAC (dr_flac), limiter, WAV loading |
 | `src/assets.c`, `src/png.c` | Loading the packaged assets; PNG reader (zlib) |
 | `src/config.c` | `ASTRO_CC.CFG` in the original binary format |
-| `src/settings.c` | The port's own settings, `astro-port.ini` (filter, fullscreen) |
+| `src/settings.c` | The port's own settings, `astro-port.ini` (filter, fullscreen, resolution) |
 | `src/util.c` | Logging, UTF-8 file access (Windows-safe), per-user folder, BMP writer, hash |
 | `src/scale.c` | 4:3 rectangle and the software scaler (sharp/nearest/smooth) |
 | `src/frontend/*.c` | SDL3, SDL2, SDL1 and headless frontends |
@@ -114,7 +114,40 @@ deflection, as the original's 50% dead zone), south button = fire, east button
   Direct3D), so there is no single reference.
 - **Options → Display** lists one mode, `640X480X32 <FRONTEND>` (SDL3, SDL2,
   SDL1), with the text and rectangle records laid out exactly as the
-  original's `DD_Init` built them.
+  original's `DD_Init` built them. With a reduced output resolution the label
+  shows it (`320X240X32 SDL3`).
+
+### Output resolution
+
+`resolution = 640x480 | 320x240 | 320x200` in `astro-port.ini` sets the size of
+the picture handed to the frontend (default 640x480, the behaviour above).
+This is a port addition: the original's mode list started at 640×400, although
+its presenter had 320×200 code paths.
+
+| | menus, title, ending (drawn by the core at 640×480) | gameplay (320×200 frame) |
+|---|---|---|
+| 640x480 | as drawn | as is, scaled by the frontend |
+| 320x240 | averaged 2×2 → 320×240 | stretched to 240 lines (`sharp`: area resampling, rows blended only where an output row straddles two; `nearest`/`smooth` as named) |
+| 320x240, `letterbox = 1` | averaged 2×2 → 320×240 | 1:1 with 20-line black bars (pixel-exact; flatter than the original on a 4:3 screen, whose pixels were 1.2× tall) |
+| 320x200 | area-averaged → 320×200 (2× across, 2.4× down) | 1:1 |
+
+- The reduction happens in common code (`video.c`, `scale_area` in
+  `scale.c`), so all frontends behave the same; they still fill the largest
+  4:3 area of the window with the result. Averaging (not point sampling)
+  keeps the thin strokes of the menu font; the text stays legible at both
+  sizes.
+- `letterbox` only affects 320x240; `ASTRO_LETTERBOX=0|1` overrides it
+  without saving.
+- Higher resolutions are not needed as settings: the frontend scales the
+  picture to any window or fullscreen size (GPU in SDL3/SDL2, software scaler
+  in SDL1), which covers what the original's 800×600 and 1024×768 modes did.
+- Reduced resolutions open a 960×720 window (3× 320×240), or 640×480 on
+  small desktops.
+- `exclusive = 1`: fullscreen switches the display to a mode of exactly that
+  size when the display offers one (CRTs, old hardware), and the picture
+  fills it (the display shows it as 4:3). Otherwise fullscreen uses the
+  desktop mode as usual. Only the fallback has been tested (modern displays
+  do not offer 320×240).
 
 ## Audio
 
@@ -149,8 +182,9 @@ deflection, as the original's 50% dead zone), south button = fire, east button
 ## Configuration and quitting
 
 The port's own settings live in `astro-port.ini` next to the game's config:
-`filter = sharp | nearest | smooth` and `fullscreen = 0 | 1` (Alt+Enter
-toggles and is remembered).
+`filter = sharp | nearest | smooth`, `fullscreen = 0 | 1` (Alt+Enter
+toggles and is remembered), `resolution = 640x480 | 320x240 | 320x200`,
+`letterbox = 0 | 1` and `exclusive = 0 | 1` (see "Output resolution").
 
 - `ASTRO_CC.CFG` uses the original layout (`RHO!` magic, run counter, players,
   controls, settings/high-score blocks, display mode, volumes, difficulty).
@@ -175,7 +209,9 @@ game on Windows 98/2000 was almost always 60 Hz (decided).
 
 | Variable | Effect |
 |---|---|
-| `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette) |
+| `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette; with a reduced resolution also `*-out.bmp`, the reduced picture) |
+| `ASTRO_RESOLUTION=<WxH>` | override `resolution` (also for the headless frontend); not saved |
+| `ASTRO_LETTERBOX=0\|1` | override `letterbox` likewise |
 | `ASTRO_DUMP_OUTPUT=<dir>` | SDL frontends: save the scaled window image every 300th gameplay frame |
 | `ASTRO_FRAMES=<n>` | headless: stop after n frames and print the hashes (default 3600) |
 | `ASTRO_HASH_EVERY=<n>` | headless: also print the running hashes every n frames |
@@ -201,7 +237,10 @@ ASTRO_FRAMES=3000 ASTRO_KEYS="800:39,1100:1c,1700:39:600,1700:19:120" build/cmak
 
 Reference for that script (menus, then level 1):
 `frames=3000 video=e04b81cb0fd8b668 audio=40fe3f64feb8a717`, identical on
-Linux and on the Windows build. A changed hash after a code change means the
+Linux and on the Windows build. With `ASTRO_RESOLUTION=320x240`:
+`video=48fc6fa2b3e21f17`, with `320x240` and `ASTRO_LETTERBOX=1`: `video=98d15455507f8503`, with
+`320x200`: `video=13b0762ae150acb5` (audio
+unchanged). A changed hash after a code change means the
 game's output changed; `ASTRO_HASH_EVERY` narrows down where.
 
 ## Status

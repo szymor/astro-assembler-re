@@ -63,7 +63,8 @@ static void put_number(char *buf, int *pos, int *width, int v)
  */
 static void build_mode_table(void)
 {
-    static const struct mode modes[] = {{640, 480, 32}};
+    struct mode modes[1] = {{640, 480, 32}};    /* the port's output resolution */
+    video_output_size(&modes[0].w, &modes[0].h);
     const char *device = plat_device_name();      /* original: DirectDraw device description */
     const int n = (int)(sizeof modes / sizeof modes[0]);
     uint32_t text = G_MODE_LABEL_BUF;

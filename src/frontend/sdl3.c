@@ -9,7 +9,8 @@
 
 static SDL_Window *g_window;
 static SDL_Renderer *g_renderer;
-static SDL_Texture *g_tex_menu, *g_tex_game, *g_prescaled;
+static SDL_Texture *g_tex[2], *g_prescaled;
+static bool g_exclusive;           /* a display mode of the output size is set for fullscreen */
 static int g_prescaled_w, g_prescaled_h;
 static Uint64 g_next_frame_ns;
 static bool g_quit, g_focused = true;
@@ -123,14 +124,29 @@ bool plat_init(const char *title)
         astro_log("SDL_Init: %s", SDL_GetError());
         return false;
     }
-    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | (settings.fullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-    if (!SDL_CreateWindowAndRenderer(title, SCREEN_W, SCREEN_H, flags, &g_window, &g_renderer)) {
+    SDL_DisplayID display = SDL_GetPrimaryDisplay();
+    const SDL_DisplayMode *desktop = SDL_GetDesktopDisplayMode(display);
+    int ww, wh;
+    video_window_size(desktop ? desktop->w : 0, desktop ? desktop->h : 0, &ww, &wh);
+    SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
+    if (!SDL_CreateWindowAndRenderer(title, ww, wh, flags, &g_window, &g_renderer)) {
         astro_log("window: %s", SDL_GetError());
         return false;
     }
-    g_tex_menu = SDL_CreateTexture(g_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, SCREEN_W, SCREEN_H);
-    g_tex_game = SDL_CreateTexture(g_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, GAME_W, GAME_H);
-    if (!g_tex_menu || !g_tex_game) { astro_log("texture: %s", SDL_GetError()); return false; }
+    if (settings.exclusive) {            /* a real display mode of the output size, if offered */
+        int ow, oh;
+        SDL_DisplayMode mode;
+        video_output_size(&ow, &oh);
+        if (SDL_GetClosestFullscreenDisplayMode(display, ow, oh, 0.0f, false, &mode) && mode.w == ow && mode.h == oh &&
+            SDL_SetWindowFullscreenMode(g_window, &mode)) {
+            g_exclusive = true;
+            astro_log("fullscreen display mode %dx%d", mode.w, mode.h);
+        } else {
+            astro_log("display has no %dx%d mode: fullscreen uses the desktop mode", ow, oh);
+        }
+    }
+    SDL_SetWindowFullscreen(g_window, settings.fullscreen);
+    SDL_ShowWindow(g_window);
     SDL_HideCursor();
     vpad_attach();
     int n = 0;
@@ -145,8 +161,8 @@ void plat_shutdown(void)
 {
     if (!g_window) return;
     SDL_DestroyTexture(g_prescaled);
-    SDL_DestroyTexture(g_tex_game);
-    SDL_DestroyTexture(g_tex_menu);
+    SDL_DestroyTexture(g_tex[0]);
+    SDL_DestroyTexture(g_tex[1]);
     SDL_DestroyRenderer(g_renderer);
     SDL_DestroyWindow(g_window);
     g_window = NULL;
@@ -163,14 +179,27 @@ void plat_error(const char *message)
 
 static char g_dump_output[1100];   /* ASTRO_DUMP_OUTPUT: save the scaled image */
 
+/* Streaming texture of the picture's size (two sizes are in use at most). */
+static SDL_Texture *texture_for(int w, int h)
+{
+    for (int i = 0; i < 2; i++)
+        if (g_tex[i] && g_tex[i]->w == w && g_tex[i]->h == h) return g_tex[i];
+    SDL_DestroyTexture(g_tex[1]);
+    g_tex[1] = g_tex[0];
+    g_tex[0] = SDL_CreateTexture(g_renderer, SDL_PIXELFORMAT_XRGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+    if (!g_tex[0]) astro_log("texture: %s", SDL_GetError());
+    return g_tex[0];
+}
+
 void plat_present(const uint32_t *xrgb, int sw, int sh)
 {
-    SDL_Texture *src = sw == SCREEN_W ? g_tex_menu : g_tex_game;
+    SDL_Texture *src = texture_for(sw, sh);
+    if (!src) return;
     SDL_UpdateTexture(src, NULL, xrgb, sw * 4);
 
     const char *odir = SDL_getenv("ASTRO_DUMP_OUTPUT");
     unsigned long frame = video_frame_count();
-    if (odir && sw == GAME_W && frame % 300 == 1)
+    if (odir && video_is_game() && frame % 300 == 1)
         SDL_snprintf(g_dump_output, sizeof g_dump_output, "%s/out%05lu.bmp", odir, frame - 1);
 
     SDL_SetRenderTarget(g_renderer, NULL);
@@ -178,7 +207,11 @@ void plat_present(const uint32_t *xrgb, int sw, int sh)
     SDL_RenderClear(g_renderer);
     int ow = SCREEN_W, oh = SCREEN_H, x, y, w, h;
     SDL_GetCurrentRenderOutputSize(g_renderer, &ow, &oh);
-    scale_aspect_rect(ow, oh, &x, &y, &w, &h);
+    if (g_exclusive && (SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN)) {
+        x = y = 0; w = ow; h = oh;       /* the display shows the whole mode as 4:3 */
+    } else {
+        scale_aspect_rect(ow, oh, &x, &y, &w, &h);
+    }
     SDL_FRect dst = {(float)x, (float)y, (float)w, (float)h};
     int kx = SDL_max(1, w / sw), ky = SDL_max(1, h / sh);
     bool exact = w == sw * kx && h == sh * ky;

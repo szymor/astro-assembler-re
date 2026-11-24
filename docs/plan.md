@@ -123,8 +123,9 @@ Options:
 - [ ] Entities: player, ship combining, energy, shields, enemies, bullets,
       capsules/power-ups, ground units, collision
 - [ ] Scrolling, levels, scoring, lives, 2-player rules, input mapping
-- [ ] Resolution option: the mechanism is known (see modules.md, "Display").
-      Still to decide how to reproduce the upscaling (filtering, aspect)
+- [x] Resolution option: the mechanism is known (see modules.md, "Display").
+      Decided: 4:3 scaling with sharp/nearest/smooth filters, plus reduced
+      320x240 / 320x200 output resolutions (port.md, "Output resolution")
 - [ ] Shared struct definitions (Ghidra ⇄ C headers)
 
 ## Phase 4 — Port (C + SDL3)

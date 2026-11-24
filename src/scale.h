@@ -15,3 +15,12 @@ void scale_aspect_rect(int out_w, int out_h, int *x, int *y, int *w, int *h);
  */
 void scale_xrgb(const uint32_t *src, int sw, int sh, uint32_t *dst, int dst_pitch,
                 int dx, int dy, int dw, int dh, scale_filter filter);
+
+/*
+ * Area (box) resampling of src (sw x sh XRGB) to dst (dw x dh, packed): every
+ * output pixel is the average of the source area it covers. Used for the
+ * reduced output resolutions: 2x2 averages for 640x480 -> 320x240, coverage
+ * weights for 480 -> 200 lines, and a "sharp" 200 -> 240 line stretch (rows
+ * copied, blended only where an output row straddles two source rows).
+ */
+void scale_area(const uint32_t *src, int sw, int sh, uint32_t *dst, int dw, int dh);

@@ -63,3 +63,55 @@ void scale_xrgb(const uint32_t *src, int sw, int sh, uint32_t *dst, int pitch,
     free(tx);
     free(ty);
 }
+
+/* Box-filter taps: output i covers source [i*in/out, (i+1)*in/out). Weights
+ * are 16.16 fixed point and sum to exactly 65536 per output pixel. */
+typedef struct { int first, count; uint32_t w[8]; } area_tap;
+
+static void build_area_taps(area_tap *t, int out, int in)
+{
+    for (int i = 0; i < out; i++) {
+        long long a = (long long)i * in, b = (long long)(i + 1) * in;   /* in units of 1/out */
+        int first = (int)(a / out), last = (int)((b - 1) / out);
+        if (last - first >= 8) last = first + 7;                        /* >8:1 never needed */
+        uint32_t sum = 0;
+        t[i].first = first;
+        t[i].count = last - first + 1;
+        for (int j = first; j <= last; j++) {
+            long long lo = (long long)j * out > a ? (long long)j * out : a;
+            long long hi = (long long)(j + 1) * out < b ? (long long)(j + 1) * out : b;
+            uint32_t w = (uint32_t)(((hi - lo) * 65536 + (b - a) / 2) / (b - a));
+            t[i].w[j - first] = w;
+            sum += w;
+        }
+        t[i].w[t[i].count - 1] += 65536u - sum;   /* rounding remainder */
+    }
+}
+
+static uint32_t area_pixel(const uint32_t *p, size_t stride, const area_tap *t)
+{
+    uint32_t r = 0x8000, g = 0x8000, b = 0x8000;
+    for (int k = 0; k < t->count; k++) {
+        uint32_t v = p[(size_t)(t->first + k) * stride], w = t->w[k];
+        r += (v >> 16 & 0xff) * w;
+        g += (v >> 8 & 0xff) * w;
+        b += (v & 0xff) * w;
+    }
+    return (r >> 16) << 16 | (g >> 16) << 8 | (b >> 16);
+}
+
+void scale_area(const uint32_t *src, int sw, int sh, uint32_t *dst, int dw, int dh)
+{
+    area_tap *tx = malloc(sizeof(area_tap) * (size_t)dw), *ty = malloc(sizeof(area_tap) * (size_t)dh);
+    uint32_t *tmp = malloc(sizeof(uint32_t) * (size_t)dw * (size_t)sh);
+    if (!tx || !ty || !tmp) { free(tx); free(ty); free(tmp); return; }
+    build_area_taps(tx, dw, sw);
+    build_area_taps(ty, dh, sh);
+    for (int y = 0; y < sh; y++)                                     /* horizontal pass */
+        for (int x = 0; x < dw; x++)
+            tmp[(size_t)y * (size_t)dw + (size_t)x] = area_pixel(src + (size_t)y * (size_t)sw, 1, &tx[x]);
+    for (int y = 0; y < dh; y++)                                     /* vertical pass */
+        for (int x = 0; x < dw; x++)
+            dst[(size_t)y * (size_t)dw + (size_t)x] = area_pixel(tmp + x, (size_t)dw, &ty[y]);
+    free(tx); free(ty); free(tmp);
+}

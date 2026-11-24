@@ -3,15 +3,49 @@
  * gameplay frame to the frontend, counts frames, and writes debug dumps.
  */
 #include "astro.h"
+#include "scale.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 static unsigned long g_frames;
+static bool g_game;
+static uint32_t g_out[SCREEN_W * SCREEN_H];   /* reduced-resolution picture */
 
 unsigned long video_frame_count(void) { return g_frames; }
+bool video_is_game(void) { return g_game; }
+
+void video_output_size(int *w, int *h)
+{
+    switch (settings.resolution) {
+    case RES_320X240: *w = 320; *h = 240; break;
+    case RES_320X200: *w = 320; *h = 200; break;
+    default: *w = SCREEN_W; *h = SCREEN_H; break;
+    }
+}
+
+/* 640x480 output: a 640x480 window, as before. Reduced outputs: three times
+ * 320x240 (still 4:3), or twice when that does not fit the desktop. */
+void video_window_size(int desktop_w, int desktop_h, int *w, int *h)
+{
+    *w = SCREEN_W; *h = SCREEN_H;
+    if (settings.resolution == RES_640X480) return;
+    if (desktop_w <= 0 || desktop_h <= 0 || (desktop_w >= 960 && desktop_h >= 800)) { *w = 960; *h = 720; }
+}
 
 /* ASTRO_DUMP=<dir>: save every 60th presented frame as BMP
  * (frameNNNNN.bmp = menus, gameNNNNN.bmp/.raw = gameplay). */
+/* Reduced output: also dump the picture the frontend gets (<name>-out.bmp). */
+static void present_reduced(const char *dir, const char *name, int w, int h)
+{
+    if (dir) {
+        char path[1100];
+        snprintf(path, sizeof path, "%s/%s%05lu-out.bmp", dir, name, g_frames - 1);
+        astro_write_bmp(path, g_out, w, h);
+    }
+    plat_present(g_out, w, h);
+}
+
 static const char *dump_dir(void)
 {
     static const char *dir;
@@ -31,7 +65,15 @@ void video_present_primary(void)
         astro_write_bmp(path, px, SCREEN_W, SCREEN_H);
     }
     g_frames++;
-    plat_present(px, SCREEN_W, SCREEN_H);
+    g_game = false;
+    int ow, oh;
+    video_output_size(&ow, &oh);
+    if (ow == SCREEN_W && oh == SCREEN_H) {
+        plat_present(px, SCREEN_W, SCREEN_H);
+    } else {   /* reduced output: average the menu picture down (keeps thin font strokes) */
+        scale_area(px, SCREEN_W, SCREEN_H, g_out, ow, oh);
+        present_reduced(dir, "frame", ow, oh);
+    }
 }
 
 /*
@@ -64,5 +106,19 @@ void video_present_game(uint32_t frame_va)
         }
     }
     g_frames++;
-    plat_present(rgb, GAME_W, GAME_H);
+    g_game = true;
+    int ow, oh;
+    video_output_size(&ow, &oh);
+    if (ow == SCREEN_W || oh == GAME_H) {          /* 640x480 / 320x200: the frame as it is */
+        plat_present(rgb, GAME_W, GAME_H);
+    } else if (settings.letterbox) {               /* 320x240: 1:1 between black bars */
+        int top = (oh - GAME_H) / 2;
+        memset(g_out, 0, sizeof(uint32_t) * (size_t)ow * (size_t)oh);
+        memcpy(g_out + (size_t)top * (size_t)ow, rgb, sizeof rgb);
+        present_reduced(dir, "game", ow, oh);
+    } else {                                       /* 320x240: stretch 200 -> 240 lines */
+        if (settings.filter == FILTER_SHARP) scale_area(rgb, GAME_W, GAME_H, g_out, ow, oh);
+        else scale_xrgb(rgb, GAME_W, GAME_H, g_out, ow, 0, 0, ow, oh, settings.filter);
+        present_reduced(dir, "game", ow, oh);
+    }
 }
