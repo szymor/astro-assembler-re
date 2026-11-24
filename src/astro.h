@@ -127,6 +127,7 @@ void astro_log(const char *fmt, ...);
 FILE *astro_fopen(const char *utf8_path, const char *mode);   /* UTF-8 paths on Windows too */
 void *astro_read_file(const char *path, size_t *size);        /* malloc'd, NULL on error */
 const char *astro_pref_dir(void);           /* per-user settings folder, with trailing '/' */
+const char *astro_exe_dir(void);            /* executable's folder, trailing separator, or "" */
 extern bool astro_no_user_files;            /* headless: never read/write user settings */
 bool astro_write_bmp(const char *path, const uint32_t *xrgb, int width, int height);
 int astro_strcasecmp(const char *a, const char *b);

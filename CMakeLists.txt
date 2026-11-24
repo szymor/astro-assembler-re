@@ -99,6 +99,19 @@ if(ASTRO_HEADLESS)
     astro_frontend(astro-headless src/frontend/headless.c)
 endif()
 
+# Packaging (tools/make_package.py): on Windows the game is a GUI program (no
+# console window; errors go to message boxes), on Linux the executables also
+# look for shared libraries in lib/ next to them, where a package bundles SDL.
+foreach(t astro astro-sdl2 astro-sdl1)
+    if(TARGET ${t})
+        if(WIN32 AND t STREQUAL "astro")    # SDL3's SDL_main.h provides WinMain
+            set_target_properties(${t} PROPERTIES WIN32_EXECUTABLE ON)
+        elseif(UNIX AND NOT APPLE)
+            set_target_properties(${t} PROPERTIES BUILD_RPATH "\$ORIGIN/lib")
+        endif()
+    endif()
+endforeach()
+
 # Windows: put the runtime DLLs next to the executables. Some MinGW
 # distributions build SDL itself with the stack protector, so its DLL needs
 # libssp-0.dll from the toolchain; copy it when the toolchain has one.

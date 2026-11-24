@@ -12,6 +12,10 @@
 #include <windows.h>
 #else
 #include <sys/stat.h>
+#include <unistd.h>
+#endif
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
 #endif
 
 bool astro_no_user_files;
@@ -139,4 +143,33 @@ bool astro_write_bmp(const char *path, const uint32_t *xrgb, int w, int h)
     for (int i = 0; i < 13; i++) memcpy(hdr + 2 + 4 * i, &v[i], 4);
     bool ok = fwrite(hdr, 1, 54, f) == 54 && fwrite(xrgb, 4, (size_t)(w * h), f) == (size_t)(w * h);
     return fclose(f) == 0 && ok;
+}
+
+/* Folder of the running executable, with a trailing separator ("" if unknown). */
+const char *astro_exe_dir(void)
+{
+    static char dir[1024];
+    static bool done;
+    if (done) return dir;
+    done = true;
+    char path[1024] = {0};
+#ifdef _WIN32
+    wchar_t wpath[1024];
+    DWORD n = GetModuleFileNameW(NULL, wpath, 1024);
+    if (n == 0 || n >= 1024 || !WideCharToMultiByte(CP_UTF8, 0, wpath, -1, path, sizeof path, NULL, NULL)) return dir;
+#elif defined(__APPLE__)
+    uint32_t size = sizeof path;
+    if (_NSGetExecutablePath(path, &size) != 0) return dir;
+#else
+    ssize_t n = readlink("/proc/self/exe", path, sizeof path - 1);
+    if (n <= 0) return dir;
+    path[n] = 0;
+#endif
+    char *slash = strrchr(path, '/');
+#ifdef _WIN32
+    char *bslash = strrchr(path, '\\');
+    if (!slash || (bslash && bslash > slash)) slash = bslash;
+#endif
+    if (slash) { slash[1] = 0; snprintf(dir, sizeof dir, "%s", path); }
+    return dir;
 }

@@ -1,11 +1,27 @@
 /* Common entry point; each frontend's main() calls astro_main(). */
 #include "astro.h"
 
+#include <stdio.h>
 #include <stdlib.h>
+
+/* The asset folder: the first argument, else "assets" next to the executable
+ * (a package started from a file manager or shortcut), else "assets" in the
+ * current directory (development builds run from the source tree). */
+static const char *find_assets(int argc, char **argv)
+{
+    static char path[1100];
+    if (argc > 1) return argv[1];
+    snprintf(path, sizeof path, "%sassets", astro_exe_dir());
+    char probe[1200];
+    snprintf(probe, sizeof probe, "%s/manifest.json", path);
+    FILE *f = astro_exe_dir()[0] ? astro_fopen(probe, "rb") : NULL;
+    if (f) { fclose(f); return path; }
+    return "assets";
+}
 
 int astro_main(int argc, char **argv)
 {
-    const char *assets = argc > 1 ? argv[1] : "assets";
+    const char *assets = find_assets(argc, argv);
 
     mem = calloc(RT_MEM_SIZE, 1);
     if (!mem) { astro_log("out of memory"); return 1; }
@@ -13,8 +29,9 @@ int astro_main(int argc, char **argv)
     settings_load();
     if (!plat_init("Astro Assembler")) return 1;
     if (!shell_init(assets)) {
-        plat_error("Could not load the game data. Build it with tools/package_assets.py "
-                   "and pass the assets folder as the first argument.");
+        plat_error("Could not load the game data. Put the \"assets\" folder next to the "
+                   "program, or pass its location as the first argument (it is built "
+                   "with tools/package_assets.py).");
         plat_shutdown();
         return 1;
     }

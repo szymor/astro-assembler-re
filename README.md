@@ -11,7 +11,7 @@ it into a standalone game that does not need the disc at runtime.
 
 | Path | Contents |
 |---|---|
-| `tools/` | Asset extraction and conversion scripts (Python 3, stdlib only) |
+| `tools/` | Asset extraction and conversion scripts, the package builder (Python 3, stdlib only) |
 | `docs/` | Reverse-engineering notes and file format docs |
 | `src/` | The port's common code; `src/frontend/` has the SDL3, SDL2, SDL1 and headless frontends; see [docs/port.md](docs/port.md) |
 | `third_party/` | Vendored dr_flac (FLAC decoder) |
@@ -61,6 +61,9 @@ See [docs/port.md](docs/port.md): package the assets, generate the core
 ([docs/recompiler.md](docs/recompiler.md)), then build with CMake
 (`cmake --preset linux`, or `mingw` for a Windows cross-build). Frontends:
 SDL3 (main), SDL2, SDL 1.2 and a headless one for regression tests.
+
+`python3 tools/make_package.py linux` (or `windows`) then packs the build and
+the assets into one `.tar.gz` / `.zip` in `dist/` that runs from anywhere.
 
 ## Running the original (reference)
 

@@ -27,7 +27,9 @@ cmake --preset linux
 cmake --build --preset linux -j
 ```
 
-4. Run: `build/cmake/astro assets` (or `astro-sdl2`, `astro-sdl1`)
+4. Run: `build/cmake/astro assets` (or `astro-sdl2`, `astro-sdl1`). Without
+   an argument the game uses `assets` next to the executable if it is there
+   (packages), else `assets` in the current directory.
 
 Dependencies: zlib for every frontend, plus SDL3 (3.4+), SDL2 (2.0.12+) or
 SDL 1.2 for the respective frontend. FLAC decoding uses the vendored
@@ -63,6 +65,49 @@ With gamepads connected on the first run, the game assigns joysticks first
 original DirectInput joysticks: stick or d-pad (digital beyond half
 deflection, as the original's 50% dead zone), south button = fire, east button
 = fire 2. Escape on the title quits; Alt+Enter toggles fullscreen.
+
+### Packages
+
+`tools/make_package.py` packs a build and the assets into one archive, a
+folder that runs from anywhere:
+
+```bash
+python3 tools/make_package.py linux
+```
+
+```bash
+python3 tools/make_package.py windows
+```
+
+Output in `dist/`: `astro-assembler-<git describe>-linux-x86_64.tar.gz`
+(from `build/cmake`) or `…-windows-x86_64.zip` (from `build/mingw`), about
+240 MB, mostly the FLAC soundtrack. Contents:
+
+- `astro` / `astro.exe`, with debug information stripped (`--no-strip` keeps
+  it; `--frontends astro,astro-sdl2` adds frontends, which then use the
+  system's SDL2 / SDL 1.2)
+- Linux: `lib/libSDL3.so.0`, found through the executables' RUNPATH
+  `$ORIGIN/lib`. zlib and the C library come from the system: the package
+  needs a glibc at least as new as the build machine's (2.34 here), so a
+  build meant for older distributions has to be made on one (or in a
+  container).
+- Windows: the DLLs next to `astro.exe` in the build folder (`SDL3.dll`,
+  `libssp-0.dll`). `astro.exe` is a GUI program (no console window); errors
+  are shown in message boxes.
+- `assets/`, checked against its manifest (size and SHA-256 of every file)
+  before packing
+- `README.txt` (starting, settings, controls) and `licenses/` (SDL3, zlib on
+  Windows, dr_flac; the SDL3 license is taken from the distribution, or
+  `--sdl-license`)
+
+Entries get the last commit's time (or `SOURCE_DATE_EPOCH`) and no owner.
+The package contains the original game's data and the recompiled core
+derived from `ASTRO.exe`: it is for the game's owner who built it, not for
+redistribution.
+
+Checked: both packages unpacked elsewhere and started from another
+directory without arguments (Windows under Wine) run into level 1 with
+music; the Linux one uses its bundled SDL3.
 
 ## Source layout
 
