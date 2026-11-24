@@ -343,9 +343,18 @@ ctest --test-dir build/cmake -j8 --output-on-failure
 | `keys-level1`, `replay-level1` | menus and level 1 via `ASTRO_KEYS`, and the same session as a recording (same hashes) |
 | `replay-level1-320x240`, `…-320x240-16x10` | the reduced output resolution and square gameplay pixels |
 | `replay-level1-gamepad` | recorded in the SDL3 frontend with a (virtual) gamepad |
+| `replay-hall-of-fame` | game over, then a hall of fame name entry ("ACE"); the recording starts from a made-up table of low scores so a 750-point game qualifies |
+| `replay-two-players` | TWO PLAYERS chosen in Options > Controls, then a two-player game: player 1 runs out of ships first, player 2 plays on, game over |
 | `replay-level2-start` … `replay-level6-start` | 70 s of each later level started with `ASTRO_LEVEL` (no state from earlier levels; on level 6 no player ship appears) |
 | `replay-ending` | the ending sequence to the game's own quit |
 | `replay-full-<name>` | every `tests/replays/full/*.rec`, e.g. whole playthroughs |
+
+Menu keys for writing `ASTRO_KEYS` scripts: Q/A (`10`/`1e`) move up/down,
+Enter (`1c`) selects, O/P (`18`/`19`) change a value; Space (`39`) skips the
+logos. In the default keyboard set 1 the ship uses O/P/Q/A and Space, set 2
+(player 2) the arrows and Right Shift (`36`). In the name entry O/P change the
+letter and Space confirms it; each letter starts from the previous one. With
+the default table a game needs 10 000 points to enter the hall of fame.
 
 The tests need the packaged assets (`assets/`, or `-DASTRO_TEST_ASSETS=<dir>`)
 and are skipped without them. After an intended output change, or for a new

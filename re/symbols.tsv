@@ -192,6 +192,8 @@
 0046f490	l	g_cfgMagic	'RHO!' (0x214F4852).
 0055cbe0	l	g_cfgRunCount
 0046f440	l	g_cfgPlayers_q
+0046f498	l	g_cfgHallOfFame	8 entries {char name[3]; u8 level; u32 score}, best first; saved in ASTRO_CC.CFG.
+00470050	l	g_scoreP1_q	Score of player 1 (dword); 0x470054 held the same value in a one-player game.
 0046f444	l	g_cfgControlP1_q
 0046f448	l	g_cfgControlP2_q
 0046ec04	l	g_cfgModeIndex	Selected display mode (index into g_modeTable).

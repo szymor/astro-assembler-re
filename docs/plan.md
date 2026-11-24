@@ -143,6 +143,8 @@ Options:
 - [x] Input recording and deterministic playback (`ASTRO_RECORD` /
       `ASTRO_REPLAY`, any frontend → headless); ctest regression suite in
       `tests/` (see port.md, "Test suite")
-- [ ] Recordings of whole playthroughs (1 and 2 players, game over, hall of
-      fame entry) in `tests/replays/full/`
+- [x] Scripted recordings: game over with a hall of fame entry, a
+      two-player game set up through the options menu
+- [ ] Recordings of whole playthroughs (1 and 2 players) in
+      `tests/replays/full/` (need a human player)
 - [ ] Side-by-side runs against Wine

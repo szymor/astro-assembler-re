@@ -35,6 +35,11 @@ astro_regression(replay-level1-320x240-16x10 REPLAY level1-keys.rec ENV ASTRO_RE
 # Recorded with the SDL3 frontend and a (virtual) gamepad: joystick polls.
 astro_regression(replay-level1-gamepad REPLAY level1-gamepad-sdl3.rec)
 
+# Game over with a hall of fame entry (crafted starting table), and a
+# two-player game set up through the options menu.
+astro_regression(replay-hall-of-fame REPLAY hall-of-fame.rec)
+astro_regression(replay-two-players REPLAY two-players.rec)
+
 # Each later level started directly (ASTRO_LEVEL in the recording), and the ending.
 foreach(n 2 3 4 5 6)
     astro_regression(replay-level${n}-start REPLAY level${n}-start.rec)
