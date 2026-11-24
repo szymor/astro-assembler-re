@@ -1,0 +1,9 @@
+{
+  "name": "astro-assembler-port",
+  "version-string": "0.1.0",
+  "description": "Faithful port of Astro Assembler (needs the original game data)",
+  "dependencies": [
+    "sdl3",
+    "zlib"
+  ]
+}

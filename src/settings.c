@@ -7,7 +7,8 @@
  */
 #include "astro.h"
 
-#include <SDL3/SDL.h>
+#include <stdlib.h>
+#include <string.h>
 
 port_settings settings = {FILTER_SHARP, false};
 
@@ -15,44 +16,41 @@ static const char *const k_filters[] = {"sharp", "nearest", "smooth"};
 
 static void settings_path(char *out, size_t size)
 {
-    char *pref = SDL_GetPrefPath("", "Astro Assembler");
-    SDL_snprintf(out, size, "%sastro-port.ini", pref ? pref : "");
-    SDL_free(pref);
+    snprintf(out, size, "%sastro-port.ini", astro_pref_dir());
 }
 
 void settings_load(void)
 {
-    char path[1200];
+    if (astro_no_user_files) return;
+    char path[1200], line[256];
     settings_path(path, sizeof path);
-    size_t size = 0;
-    char *text = SDL_LoadFile(path, &size);
-    if (!text) return;
-    for (char *line = text, *next; line && *line; line = next) {
-        next = SDL_strchr(line, '\n');
-        if (next) *next++ = 0;
+    FILE *f = astro_fopen(path, "r");
+    if (!f) return;
+    while (fgets(line, sizeof line, f)) {
         char key[32], value[32];
-        if (line[0] == '#' || SDL_sscanf(line, " %31[a-z_] = %31s", key, value) != 2) continue;
-        if (!SDL_strcmp(key, "filter")) {
+        if (line[0] == '#' || sscanf(line, " %31[a-z_] = %31s", key, value) != 2) continue;
+        if (!strcmp(key, "filter")) {
             for (int i = 0; i < 3; i++)
-                if (!SDL_strcasecmp(value, k_filters[i])) settings.filter = (scale_filter)i;
-        } else if (!SDL_strcmp(key, "fullscreen")) {
-            settings.fullscreen = SDL_atoi(value) != 0;
+                if (!astro_strcasecmp(value, k_filters[i])) settings.filter = (scale_filter)i;
+        } else if (!strcmp(key, "fullscreen")) {
+            settings.fullscreen = atoi(value) != 0;
         }
     }
-    SDL_free(text);
+    fclose(f);
 }
 
 void settings_save(void)
 {
+    if (astro_no_user_files) return;
     char path[1200];
     settings_path(path, sizeof path);
-    SDL_IOStream *io = SDL_IOFromFile(path, "w");
-    if (!io) return;
-    SDL_IOprintf(io,
-                 "# Astro Assembler port settings\n"
-                 "# filter: sharp (default), nearest or smooth\n"
-                 "filter = %s\n"
-                 "fullscreen = %d\n",
-                 k_filters[settings.filter], settings.fullscreen ? 1 : 0);
-    SDL_CloseIO(io);
+    FILE *f = astro_fopen(path, "w");
+    if (!f) return;
+    fprintf(f,
+            "# Astro Assembler port settings\n"
+            "# filter: sharp (default), nearest or smooth\n"
+            "filter = %s\n"
+            "fullscreen = %d\n",
+            k_filters[settings.filter], settings.fullscreen ? 1 : 0);
+    fclose(f);
 }

@@ -1,0 +1,39 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "linux",
+      "displayName": "Linux (all frontends found on the system)",
+      "binaryDir": "${sourceDir}/build/cmake",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+    },
+    {
+      "name": "mingw",
+      "displayName": "Windows x64, cross-compiled with MinGW-w64 (SDL3 + headless)",
+      "binaryDir": "${sourceDir}/build/mingw",
+      "toolchainFile": "${sourceDir}/cmake/mingw-w64-x86_64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ASTRO_SDL2": "OFF",
+        "ASTRO_SDL1": "OFF"
+      }
+    },
+    {
+      "name": "msvc",
+      "displayName": "Windows x64, Visual Studio + vcpkg (SDL3 + headless; untested)",
+      "binaryDir": "${sourceDir}/build/msvc",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "ASTRO_SDL2": "OFF",
+        "ASTRO_SDL1": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "linux", "configurePreset": "linux" },
+    { "name": "mingw", "configurePreset": "mingw" },
+    { "name": "msvc", "configurePreset": "msvc", "configuration": "Release" }
+  ]
+}

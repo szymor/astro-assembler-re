@@ -5,7 +5,6 @@
  */
 #include "astro.h"
 
-#include <SDL3/SDL.h>
 #include <stdlib.h>
 
 static void cb_lock_primary(void)
@@ -20,14 +19,14 @@ static void cb_wait_vblank(void)
     /* The menu draws straight into the primary surface and waits for the
      * vertical blank; that is when the frame becomes visible. */
     video_present_primary();
-    video_wait_frame();
+    plat_wait_frame();
 }
 
 /* Video_PresentFrame (0x405930): wait for the frame, then show the 320x200
- * frame. The original converted/stretched it per display mode; SDL scales. */
+ * frame. The original converted/stretched it per display mode; the frontend scales. */
 static void cb_present_frame(void)
 {
-    video_wait_frame();
+    plat_wait_frame();
     wr32(0x55c804, 0);
     video_present_game(rd32(G_FRAME_BUFFER));
 }
@@ -37,21 +36,18 @@ static void cb_present_frame(void)
  * ASTRO_NO_FOCUS_PAUSE=1 disables this (automated runs). */
 static void cb_pump_messages(void)
 {
-    input_pump();
-    if (!input_focused && !SDL_getenv("ASTRO_NO_FOCUS_PAUSE")) {
+    plat_pump();
+    if (!plat_focused() && !getenv("ASTRO_NO_FOCUS_PAUSE")) {
         bool music = rd32(G_CD_PLAYING) != 0;
         if (music) cd_pause();
-        input_wait_while_unfocused();
+        plat_wait_focus();
         if (music) cd_resume();
     }
-    if (input_quit_requested) {
+    if (plat_quit_requested()) {
         /* The original ignored the window's close button (it ran in exclusive
          * fullscreen; only the menu quits). A windowed port must close: save
          * the configuration like the normal exit path and leave. */
-        config_save();
-        settings_save();
-        audio_shutdown();
-        exit(0);            /* runs atexit handlers (debug reports) */
+        astro_exit();
     }
 }
 
@@ -99,7 +95,7 @@ void host_shell_call(uint32_t ilt)
     case 0x40107d: break;                                            /* Palette_Set: read at present time */
     case 0x4010ff: cb_present_frame(); break;                        /* Video_PresentFrame    */
     default:
-        SDL_Log("unknown shell callback %08x", ilt);
+        astro_log("unknown shell callback %08x", ilt);
         abort();
     }
 }

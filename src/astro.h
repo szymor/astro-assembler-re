@@ -1,16 +1,21 @@
 /*
- * Astro Assembler port - platform layer shared declarations.
+ * Astro Assembler port - shared declarations of the common (frontend-neutral)
+ * code.
  *
  * The game logic is the recompiled assembly core (build/recomp/gen), which
- * runs on an emulated 32-bit address space (recomp_rt.h: `mem`, `cpu`). This
- * layer replaces the original C++ shell: it sets up that memory the way the
- * shell did, issues core commands, and implements the shell callbacks the core
- * calls (see docs/modules.md).
+ * runs on an emulated 32-bit address space (recomp_rt.h: `mem`, `cpu`). The
+ * common code replaces the original C++ shell: it sets up that memory the way
+ * the shell did, issues core commands, and implements the shell callbacks the
+ * core calls (see docs/modules.md). Everything platform-specific goes through
+ * platform.h.
  */
 #pragma once
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
+#include "platform.h"
 #include "recomp_rt.h"
 
 /* ---- emulated address space layout (chosen by the port) ------------------ */
@@ -89,6 +94,10 @@ static const uint32_t k_soundset_level[7] = {0, 0x46ec28u, 0x46ed10u, 0x46ee10u,
 static inline uint32_t rd32(uint32_t va) { return (uint32_t)MEM_RD(va, 4); }
 static inline void wr32(uint32_t va, uint32_t v) { MEM_WR(va, 4, v); }
 
+/* ---- game.c ------------------------------------------------------------------ */
+int astro_main(int argc, char **argv);      /* called by each frontend's main() */
+void astro_exit(void);                      /* save settings/config and leave    */
+
 /* ---- shell.c: the original WinMain flow -------------------------------- */
 bool shell_init(const char *assets_dir);
 void shell_run(void);
@@ -105,25 +114,37 @@ void settings_save(void);
 void config_load(void);
 void config_save(void);
 
+/* ---- util.c ------------------------------------------------------------------ */
+void astro_log(const char *fmt, ...);
+FILE *astro_fopen(const char *utf8_path, const char *mode);   /* UTF-8 paths on Windows too */
+void *astro_read_file(const char *path, size_t *size);        /* malloc'd, NULL on error */
+const char *astro_pref_dir(void);           /* per-user settings folder, with trailing '/' */
+extern bool astro_no_user_files;            /* headless: never read/write user settings */
+bool astro_write_bmp(const char *path, const uint32_t *xrgb, int width, int height);
+int astro_strcasecmp(const char *a, const char *b);
+uint64_t astro_hash(uint64_t h, const void *data, size_t size);  /* FNV-1a 64 */
+
+/* ---- png.c --------------------------------------------------------------------- */
+uint32_t *png_decode_xrgb(const void *data, size_t size, int *width, int *height);  /* malloc'd */
+
 /* ---- assets.c ------------------------------------------------------------ */
 void *assets_read(const char *rel, size_t *size);          /* malloc'd, NULL on error */
+FILE *assets_open(const char *rel);
 bool assets_load_to_mem(const char *rel, uint32_t va, uint32_t *size_out);
 bool assets_load_image(const char *rel, uint32_t va);      /* 640x480 -> XRGB8888 */
 void assets_set_dir(const char *dir);
 const char *assets_dir(void);
 
-/* ---- video.c ------------------------------------------------------------- */
-bool video_init(void);
-void video_shutdown(void);
-void video_present_primary(void);    /* show the 640x480 primary surface */
-void video_wait_frame(void);         /* frame pacing (60 Hz)             */
-void video_present_game(uint32_t frame_va);   /* show the 320x200 frame */
-void video_toggle_fullscreen(void);
-unsigned long video_frame_count(void);   /* frames presented so far */
+/* ---- video.c (common part of presentation) ------------------------------- */
+void video_present_primary(void);           /* show the 640x480 primary surface */
+void video_present_game(uint32_t frame_va); /* show the 320x200 frame           */
+unsigned long video_frame_count(void);      /* frames presented so far          */
 
 /* ---- audio.c ------------------------------------------------------------- */
+#define MIX_RATE 44100
 bool audio_init(void);
 void audio_shutdown(void);
+void audio_mix(float *out, int frames);     /* the frontend's audio callback calls this */
 void audio_load_set(uint32_t list_va, bool load);   /* Sound_LoadSet / Sound_FreeSet */
 void audio_stop_set(uint32_t list_va);              /* Sound_StopSet */
 void audio_play(int id, unsigned flags, int pan, int volume);
@@ -134,11 +155,7 @@ void cd_stop(void);
 void cd_pause(void);
 void cd_resume(void);
 
-/* ---- input.c ------------------------------------------------------------- */
-void input_pump(void);               /* process SDL events               */
-void input_fill_keystate(void);      /* DirectInput-style key state      */
-extern bool input_quit_requested;
-extern bool input_focused;
-void input_wait_while_unfocused(void);
-int input_init_gamepads(void);                /* number of joysticks (max 2) */
+/* ---- input.c (common part of input) ------------------------------------------- */
+void input_fill_keystate(void);                /* Input_PollKeyboard */
 void input_poll_joystick(int index, int slot); /* Input_PollJoystick */
+uint8_t input_dik_from_usb(int usb_scancode);  /* SDL2/SDL3 scancode -> DIK */

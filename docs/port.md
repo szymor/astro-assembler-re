@@ -1,28 +1,54 @@
-# The port: SDL3 platform layer
+# The port: frontends and common code
 
 The game logic is the recompiled assembly core ([recompiler.md](recompiler.md)).
-`src/` replaces the original C++ shell: it prepares the emulated memory the way
-the shell did, drives the core with its commands, and implements the shell
-callbacks on SDL3.
+The common code in `src/` replaces the original C++ shell: it prepares the
+emulated memory the way the shell did, drives the core with its commands, and
+implements the shell callbacks. Everything platform-specific sits behind a
+small interface (`src/platform.h`) implemented by the **frontends**:
+
+| Executable | Frontend | Notes |
+|---|---|---|
+| `astro` | SDL3 (`src/frontend/sdl3.c`) | the main one; GPU scaling, gamepads, Linux and Windows |
+| `astro-sdl2` | SDL2 (`src/frontend/sdl2.c`) | SDL 2.0.12+; GPU scaling, game controllers |
+| `astro-sdl1` | SDL 1.2 (`src/frontend/sdl1.c`) | also on sdl12-compat; software scaling (`src/scale.c`), raw joysticks |
+| `astro-headless` | none (`src/frontend/headless.c`) | no window/sound/pacing; prints frame and audio hashes for tests |
 
 ## Building and running
 
 1. Package the assets: `python3 tools/package_assets.py img/Astro_Assembler.cue --flac flac -o assets`
 2. Generate the core: see [recompiler.md](recompiler.md) (output in `build/recomp/gen`)
-3. Build:
+3. Build (Linux; SDL2/SDL1 frontends are built when found):
 
 ```bash
-cmake -S . -B build/cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --preset linux
 ```
 
 ```bash
-cmake --build build/cmake -j
+cmake --build --preset linux -j
 ```
 
-4. Run: `build/cmake/astro assets`
+4. Run: `build/cmake/astro assets` (or `astro-sdl2`, `astro-sdl1`)
 
-Dependencies: SDL3 3.4 or newer (uses `SDL_LoadPNG`) and libFLAC (CMake config
-`FLAC::FLAC`; on Windows e.g. vcpkg `sdl3` and `flac`).
+Dependencies: zlib for every frontend, plus SDL3 (3.4+), SDL2 (2.0.12+) or
+SDL 1.2 for the respective frontend. FLAC decoding uses the vendored
+[dr_flac](../third_party/dr_flac/README.md) (public domain / MIT-0).
+
+### Windows
+
+- **MinGW-w64 cross-build from Linux** (tested; the result runs under Wine):
+  `cmake --preset mingw` then `cmake --build --preset mingw -j`. Needs the
+  MinGW toolchain with Windows builds of SDL3 and zlib (e.g. distribution
+  `mingw-w64-sdl3` and `mingw-w64-zlib` packages; `cmake/mingw-w64-x86_64.cmake`
+  takes `MINGW_ROOT`). Output in `build/mingw`: `astro.exe`,
+  `astro-headless.exe`, `SDL3.dll`, and `libssp-0.dll` when the toolchain's
+  SDL3 needs it. zlib and libgcc are linked statically.
+- **Visual Studio + vcpkg** (prepared, not tested here): with `VCPKG_ROOT`
+  set, `cmake --preset msvc` then `cmake --build --preset msvc`; dependencies
+  come from `vcpkg.json`. The generated core compiles as plain C11 (no
+  compiler builtins), but its very large functions may take a while with MSVC.
+- Windows builds contain the SDL3 and headless frontends.
+- The Windows headless build produces exactly the same frame and audio hashes
+  as the Linux build for the same input script.
 
 Controls are the original game's own (redefinable in its options menu and
 saved in the configuration). Defaults with no gamepad connected:
@@ -42,15 +68,20 @@ deflection, as the original's 50% dead zone), south button = fire, east button
 
 | File | Role |
 |---|---|
-| `src/astro.h` | Emulated address layout, addresses of the original globals |
+| `src/platform.h` | The frontend interface (present, pacing, events, keys, joysticks, audio output) |
+| `src/astro.h` | Common declarations, emulated address layout, addresses of the original globals |
+| `src/game.c` | `astro_main()`, called by every frontend's `main()` |
 | `src/shell.c` | `WinMain` flow: memory setup, `Config_Validate`, mode table, menu/level loop (`Game_RunMenu`, `Game_RunLevels`) |
 | `src/callbacks.c` | `host_shell_call()`: the ~20 shell callbacks (ILT slots) |
-| `src/video.c` | SDL window, 640×480 menu surface, 320×200 game frame, 60 Hz pacing |
-| `src/input.c` | SDL events, DirectInput-style key state (DIK codes), gamepads as DirectInput joysticks |
-| `src/assets.c` | Loading the packaged assets into emulated memory |
-| `src/audio.c` | Sound-effect mixer with DirectSound semantics, CD-audio emulation from FLAC |
-| `src/config.c` | `ASTRO_CC.CFG` in the original binary format, kept in the user's preference directory |
+| `src/video.c` | Palette conversion of the game frame, frame counter, `ASTRO_DUMP` |
+| `src/input.c` | DirectInput key state and joystick histories, USB-scancode → DIK table |
+| `src/audio.c` | Sound-effect mixer with DirectSound semantics, CD-audio emulation from FLAC (dr_flac), limiter, WAV loading |
+| `src/assets.c`, `src/png.c` | Loading the packaged assets; PNG reader (zlib) |
+| `src/config.c` | `ASTRO_CC.CFG` in the original binary format |
 | `src/settings.c` | The port's own settings, `astro-port.ini` (filter, fullscreen) |
+| `src/util.c` | Logging, UTF-8 file access (Windows-safe), per-user folder, BMP writer, hash |
+| `src/scale.c` | 4:3 rectangle and the software scaler (sharp/nearest/smooth) |
+| `src/frontend/*.c` | SDL3, SDL2, SDL1 and headless frontends |
 
 ## Emulated memory
 
@@ -69,25 +100,28 @@ deflection, as the original's 50% dead zone), south button = fire, east button
   images are converted to that format at load time, as `Gfx_LoadBitmap` did.
 - **Gameplay**: the port configures the game mode as 8 bpp with the mode flag
   that makes the core keep a converted palette (256 `PALETTEENTRY` at
-  `0x55c3f0`). `Video_PresentFrame` reads the 320×200 frame and that palette
-  and lets SDL scale it. This avoids the core's 16/24/32 bpp converters (which
+  `0x55c3f0`). `Video_PresentFrame` converts the 320×200 frame with that
+  palette and the frontend scales it. This avoids the core's 16/24/32 bpp converters (which
   contain the instruction-changing self-modification).
 - Both pictures fill the largest **4:3** area of the window, like the
   original's screen (the 320×200 frame gets the same slightly tall pixels).
 - **Filter** (decided): `sharp` by default: integer nearest-neighbour upscale,
   then a linear stretch of the remaining fraction. This keeps pixels crisp
   without the uneven rows plain nearest gives at 200 → 480 lines (2.4×).
-  `nearest` and `smooth` (bilinear) are available. The original's look
+  `nearest` and `smooth` (bilinear) are available. SDL3/SDL2 do this on the
+  GPU (render target), SDL1 with the software scaler; the results match. The original's look
   depended on the graphics card (unfiltered DirectDraw stretch or filtered
   Direct3D), so there is no single reference.
-- **Options → Display** lists one mode, `640X480X32 SDL3`, with the text and
-  rectangle records laid out exactly as the original's `DD_Init` built them.
+- **Options → Display** lists one mode, `640X480X32 <FRONTEND>` (SDL3, SDL2,
+  SDL1), with the text and rectangle records laid out exactly as the
+  original's `DD_Init` built them.
 
 ## Audio
 
-- **Sound effects** are mixed by `src/audio.c` in one SDL audio stream
-  (44.1 kHz stereo float), reproducing what the original's DirectSound code
-  did:
+- **Sound effects** are mixed by `src/audio.c` (44.1 kHz stereo float; the
+  frontend's audio callback pulls the mix), reproducing what the original's
+  DirectSound code did. The 8/16-bit 11/22 kHz WAVs are converted once to the
+  mix rate with linear interpolation, close to DirectSound's software mixer:
   - each sound id has the number of voices from the sound table; a play uses
     the current voice if idle, otherwise a 1-voice sound is not restarted and
     a multi-voice sound cuts off the next voice round-robin;
@@ -120,8 +154,9 @@ toggles and is remembered).
 
 - `ASTRO_CC.CFG` uses the original layout (`RHO!` magic, run counter, players,
   controls, settings/high-score blocks, display mode, volumes, difficulty).
-  The original wrote it to the Windows directory; the port uses the SDL
-  preference directory (Linux: `~/.local/share/Astro Assembler/`). A file from
+  The original wrote it to the Windows directory; the port uses a per-user
+  folder shared by all frontends (Linux `~/.local/share/Astro Assembler/`,
+  Windows `%APPDATA%\Astro Assembler\`; `ASTRO_CONFIG_DIR` overrides it). A file from
   the original game can be copied there. A file with a different magic is left
   alone and not overwritten, as in the original.
 - Quitting from the game's menu (Escape on the title) ends the main loop and
@@ -131,7 +166,7 @@ toggles and is remembered).
 
 ## Timing
 
-Frames are paced at 60 Hz (`video_wait_frame`), standing in for the vertical
+Frames are paced at 60 Hz (`plat_wait_frame`), standing in for the vertical
 blank waits; one core logic tick per presented frame, as in the original. The
 original used the driver's default refresh rate, which for a 640×480 DirectX 7
 game on Windows 98/2000 was almost always 60 Hz (decided).
@@ -141,16 +176,33 @@ game on Windows 98/2000 was almost always 60 Hz (decided).
 | Variable | Effect |
 |---|---|
 | `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette) |
-| `ASTRO_DUMP_OUTPUT=<dir>` | save the scaled window image every 300th gameplay frame |
+| `ASTRO_DUMP_OUTPUT=<dir>` | SDL frontends: save the scaled window image every 300th gameplay frame |
+| `ASTRO_FRAMES=<n>` | headless: stop after n frames and print the hashes (default 3600) |
+| `ASTRO_HASH_EVERY=<n>` | headless: also print the running hashes every n frames |
+| `ASTRO_CONFIG_DIR=<dir>` | use this folder instead of the per-user one |
 | `ASTRO_NO_FOCUS_PAUSE=1` | do not pause when the window loses focus (automated runs) |
 | `SDL_AUDIO_DRIVER=disk` | SDL writes the mixed audio to `sdlaudio.raw` (F32 stereo 44.1 kHz) instead of playing it |
 | `ASTRO_LEVEL=<1-6>` | start the game at that level (state from earlier levels is missing) |
 | `ASTRO_ENDING=1` | show the ending right after the logos |
-| `ASTRO_VPAD="frame:control[:frames],…"` | attach a virtual gamepad and press `a`, `b`, `left`, `right`, `up`, `down` at given frames |
+| `ASTRO_VPAD="frame:control[:frames],…"` | SDL3: attach a virtual gamepad and press `a`, `b`, `left`, `right`, `up`, `down` at given frames |
 | `ASTRO_KEYS="frame:dik[:frames],…"` | hold DirectInput key `dik` (hex) from a given frame; e.g. `800:39` presses Space at frame 800 |
 | `ASTRO_WATCH=<byte>` | debug builds with `-DRT_WATCH` only: histogram of writes of that byte into the frame buffer, or into a level-relative range with `ASTRO_WATCH_RANGE=<lo>:<hi>` |
 
 A watch build: `cmake -S . -B build/cmake-watch -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS=-DRT_WATCH`.
+
+### Regression testing with the headless frontend
+
+The headless frontend runs about 17× faster than real time and is fully
+deterministic, so the same input script always gives the same hashes:
+
+```bash
+ASTRO_FRAMES=3000 ASTRO_KEYS="800:39,1100:1c,1700:39:600,1700:19:120" build/cmake/astro-headless assets
+```
+
+Reference for that script (menus, then level 1):
+`frames=3000 video=e04b81cb0fd8b668 audio=40fe3f64feb8a717`, identical on
+Linux and on the Windows build. A changed hash after a code change means the
+game's output changed; `ASTRO_HASH_EVERY` narrows down where.
 
 ## Status
 
@@ -160,7 +212,12 @@ effects, music (title: track 3, levels: tracks 4/6/…/14, ending: 16),
 configuration load/save, quitting, the ending sequence, keyboard and gamepad
 controls (gamepad tested with a virtual SDL pad), all options submenus
 (controls, display, sound, difficulty). Levels 2 and 6 checked
-via `ASTRO_LEVEL`.
+via `ASTRO_LEVEL`. All four frontends run into level 1 with music; the
+Windows build (MinGW) runs under Wine.
 
 Not yet implemented:
 
+- MSVC build: prepared (`msvc` preset, `vcpkg.json`) but not tested
+- Windows builds of the SDL2/SDL1 frontends (not planned for now)
+- the long-term part of the hybrid plan: replacing generated core functions
+  with readable C, each checked against the headless hashes

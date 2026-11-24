@@ -80,6 +80,16 @@ static inline void MEM_WR(uint32_t a, int size, uint64_t v) {
 }
 
 /* ---- arithmetic ------------------------------------------------------------- */
+#if defined(_MSC_VER) && !defined(__clang__)
+static inline uint64_t RT_POPCOUNT(uint64_t v) {          /* portable bit count */
+    v = v - ((v >> 1) & 0x5555555555555555ULL);
+    v = (v & 0x3333333333333333ULL) + ((v >> 2) & 0x3333333333333333ULL);
+    v = (v + (v >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
+    return (v * 0x0101010101010101ULL) >> 56;
+}
+#else
+#define RT_POPCOUNT(v) ((uint64_t)__builtin_popcountll(v))
+#endif
 static inline int64_t SEXT(uint64_t v, int size) {
     if (size >= 8) return (int64_t)v;
     unsigned s = 64u - 8u * (unsigned)size;

@@ -82,6 +82,11 @@ replacement of generated functions with readable C. See
 - [x] Options menu mode list (exact record layout); all options submenus work
 - [x] Decided: 60 Hz tick rate; 4:3 with sharp-bilinear default (nearest/smooth selectable)
 - [x] Audio: look-ahead limiter on the final mix (clipping 3 673 → 0 samples)
+- [x] Frontend interface (`src/platform.h`); frontends SDL3, SDL2, SDL 1.2 and
+      headless (deterministic frame/audio hashes for regression tests)
+- [x] libFLAC replaced by vendored dr_flac; PNG via zlib; no SDL in common code
+- [x] Windows: MinGW-w64 cross-build tested under Wine (hashes identical to
+      Linux); MSVC + vcpkg preset prepared, untested
 
 ### Survey that led to the decision
 

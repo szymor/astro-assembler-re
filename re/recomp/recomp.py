@@ -338,7 +338,7 @@ class FuncGen:
             sym = {"BOOL_AND": "&", "BOOL_OR": "|", "BOOL_XOR": "^"}[n]
             return self.wr(o, f"(({r(a[0])} {sym} {r(a[1])}) & 1)")
         if n == "POPCOUNT":
-            return self.wr(o, f"(uint64_t)__builtin_popcountll({r(a[0])})")
+            return self.wr(o, f"RT_POPCOUNT({r(a[0])})")
         if n == "SUBPIECE":
             return self.wr(o, f"SHR({r(a[0])}, {8 * a[1].off})")
         if n == "PIECE":

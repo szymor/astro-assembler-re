@@ -6,7 +6,6 @@
 #include "astro.h"
 #include "gen_funcs.h"
 
-#include <SDL3/SDL.h>
 #include <stdlib.h>
 
 /* Run one core command (Core_Dispatch) from the outside, as a CALL would. */
@@ -19,7 +18,7 @@ void core_command(uint32_t cmd)
     wr32(esp0 - 4, ret);
     f_408c44();
     if (cpu.ret_addr != ret || ESP != esp0) {
-        SDL_Log("core command %u returned badly (ret %08x, esp %08x)", cmd, cpu.ret_addr, ESP);
+        astro_log("core command %u returned badly (ret %08x, esp %08x)", cmd, cpu.ret_addr, ESP);
         abort();
     }
 }
@@ -46,7 +45,7 @@ struct mode { int w, h, bpp; };
 static void put_number(char *buf, int *pos, int *width, int v)
 {
     char tmp[12];
-    int n = SDL_snprintf(tmp, sizeof tmp, "%d", v);
+    int n = snprintf(tmp, sizeof tmp, "%d", v);
     for (int i = 0; i < n; i++) {
         buf[(*pos)++] = tmp[i];
         *width += k_glyph_width[7 + (tmp[i] - '0')];   /* '0' is glyph 7 */
@@ -65,7 +64,7 @@ static void put_number(char *buf, int *pos, int *width, int v)
 static void build_mode_table(void)
 {
     static const struct mode modes[] = {{640, 480, 32}};
-    static const char device[] = "SDL3";          /* original: DirectDraw device description */
+    const char *device = plat_device_name();      /* original: DirectDraw device description */
     const int n = (int)(sizeof modes / sizeof modes[0]);
     uint32_t text = G_MODE_LABEL_BUF;
     int y = ((16 - (n > 10 ? 10 : n)) * 30) / 2;
@@ -176,7 +175,7 @@ bool shell_init(const char *assets_dir)
     wr32(G_APP_ACTIVE, 1);
     setup_menu_mode_globals();                   /* DD_Init                   */
     build_mode_table();
-    wr32(G_JOYSTICK_COUNT, (uint32_t)input_init_gamepads());   /* DI_Init  */
+    wr32(G_JOYSTICK_COUNT, (uint32_t)plat_joystick_count());   /* DI_Init  */
     wr32(G_SOUND_ENABLED, 1);                    /* DS_Init                   */
     wr32(G_CD_ENABLED, 1);                       /* CD init                   */
 
@@ -210,7 +209,7 @@ bool shell_init(const char *assets_dir)
         if (!assets_load_image(logos[i], p)) return false;
         p += img;
     }
-    if (p > VA_ALLOC + 0x1200000u) { SDL_Log("allocation block overflow"); return false; }
+    if (p > VA_ALLOC + 0x1200000u) { astro_log("allocation block overflow"); return false; }
 
     config_validate();
     audio_init();                                /* DS_Init; game runs without sound if it fails */
@@ -270,16 +269,16 @@ static void run_levels(void)
 {
     set_game_mode();
     int first = 1;
-    const char *dbg = SDL_getenv("ASTRO_LEVEL");
-    if (dbg) first = SDL_clamp(SDL_atoi(dbg), 1, 6);
+    const char *dbg = getenv("ASTRO_LEVEL");
+    if (dbg) { first = atoi(dbg); first = first < 1 ? 1 : first > 6 ? 6 : first; }
     for (int level = first; level <= 6; level++) {
         char name[32];
-        SDL_snprintf(name, sizeof name, "data/LEVEL%d.DAT", level);
+        snprintf(name, sizeof name, "data/LEVEL%d.DAT", level);
         uint32_t base = rd32(G_LEVEL_LOAD_BASE), size = 0;
         if (!assets_load_to_mem(name, base, &size)) exit(1);
         wr32(G_LOAD_PTR, base + size);
         wr32(G_LEVEL_DATA_END, base + size);   /* end of the level data: scratch buffers follow */
-        SDL_Log("level %d", level);
+        astro_log("level %d", level);
         audio_load_set(k_soundset_level[level], true);
         core_command((uint32_t)level);
         audio_stop_set(k_soundset_level[level]);
@@ -295,7 +294,7 @@ void shell_run(void)
 {
     set_menu_mode();
     core_command(22);                       /* Game_SetMenuModeAndInit */
-    if (SDL_getenv("ASTRO_ENDING")) {       /* debugging: show the ending directly */
+    if (getenv("ASTRO_ENDING")) {       /* debugging: show the ending directly */
         run_ending();
         return;
     }

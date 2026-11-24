@@ -77,6 +77,11 @@ void rt_callother(unsigned kind, uint32_t at, ...)
 }
 
 #ifdef RT_WATCH
+#if defined(_MSC_VER)
+#define RT_NOINLINE __declspec(noinline)
+#else
+#define RT_NOINLINE __attribute__((noinline))
+#endif
 uint32_t rt_watch_lo, rt_watch_hi;
 int rt_watch_byte = -1;
 static struct { void *caller; unsigned long count, first; } watch_tab[128];
@@ -88,7 +93,7 @@ static void watch_report(void)
         fprintf(stderr, "  caller offset %#lx: %lu writes, first at hit %lu\n",
                 (unsigned long)((char *)watch_tab[i].caller - (char *)rt_watch) , watch_tab[i].count, watch_tab[i].first);
 }
-__attribute__((noinline)) void rt_watch(uint32_t addr, uint64_t value, int size)
+RT_NOINLINE void rt_watch(uint32_t addr, uint64_t value, int size)
 {
     void *caller = __builtin_return_address(0);
     if (!watch_hits++) atexit(watch_report);

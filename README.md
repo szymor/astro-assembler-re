@@ -13,7 +13,9 @@ it into a standalone game that does not need the disc at runtime.
 |---|---|
 | `tools/` | Asset extraction and conversion scripts (Python 3, stdlib only) |
 | `docs/` | Reverse-engineering notes and file format docs |
-| `src/` | The SDL3 platform layer of the port; see [docs/port.md](docs/port.md) |
+| `src/` | The port's common code; `src/frontend/` has the SDL3, SDL2, SDL1 and headless frontends; see [docs/port.md](docs/port.md) |
+| `third_party/` | Vendored dr_flac (FLAC decoder) |
+| `cmake/`, `CMakePresets.json`, `vcpkg.json` | Build presets (Linux, MinGW cross-build, MSVC + vcpkg) |
 | `re/recomp/` | Static recompiler (p-code → C) and its runtime; see [docs/recompiler.md](docs/recompiler.md) |
 | `re/symbols.tsv` | Canonical function/global names for `ASTRO.exe` |
 | `re/scripts/`, `re/ghidra_scripts/` | RE helper scripts (seed finding, symbol import, exports) |
@@ -56,7 +58,9 @@ See [docs/formats.md](docs/formats.md) for the formats.
 ## Building the port
 
 See [docs/port.md](docs/port.md): package the assets, generate the core
-([docs/recompiler.md](docs/recompiler.md)), then build with CMake (SDL3 needed).
+([docs/recompiler.md](docs/recompiler.md)), then build with CMake
+(`cmake --preset linux`, or `mingw` for a Windows cross-build). Frontends:
+SDL3 (main), SDL2, SDL 1.2 and a headless one for regression tests.
 
 ## Running the original (reference)
 
