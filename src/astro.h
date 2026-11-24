@@ -105,13 +105,14 @@ void core_command(uint32_t cmd);
 
 /* ---- settings.c (the port's own settings) ------------------------------- */
 typedef enum { FILTER_SHARP, FILTER_NEAREST, FILTER_SMOOTH } scale_filter;
-typedef enum { RES_640X480, RES_320X240, RES_320X200 } out_resolution;
+typedef enum { RES_640X480, RES_320X240 } out_resolution;
+typedef enum { ASPECT_4_3, ASPECT_16_10 } gameplay_aspect;
 typedef struct {
     scale_filter filter;
     bool fullscreen;
-    out_resolution resolution;  /* size of the picture handed to the frontend */
-    bool exclusive;             /* fullscreen: switch the display to that size if it has it */
-    bool letterbox;             /* 320x240: gameplay frame 1:1 with black bars, not stretched */
+    out_resolution resolution;        /* detail of the picture handed to the frontend */
+    gameplay_aspect gameplay_aspect;  /* 16:10 = square gameplay pixels (menus stay 4:3) */
+    bool exclusive;                   /* fullscreen: switch the display to the picture's size */
 } port_settings;
 extern port_settings settings;
 void settings_load(void);
@@ -148,11 +149,17 @@ void video_present_game(uint32_t frame_va); /* show the 320x200 frame           
 unsigned long video_frame_count(void);      /* frames presented so far          */
 bool video_is_game(void);                   /* last picture was a gameplay frame */
 /* Output resolution (settings.resolution): the picture the frontend gets is
- * at most this big (640x480 mode: 640x480 menus, 320x200 gameplay frames). */
+ * at most this big (640x480: 640x480 menus, 320x200 gameplay frames). */
 void video_output_size(int *w, int *h);
 /* Default window size for the output resolution, within the desktop size
  * (0 = unknown). */
 void video_window_size(int desktop_w, int desktop_h, int *w, int *h);
+/* Shape the frontend shows the last picture in: 4:3, or 16:10 for gameplay
+ * frames with gameplay_aspect = 16:10. */
+void video_picture_aspect(int *num, int *den);
+/* exclusive = 1: display mode wanted for menus / gameplay (640x400 for
+ * 16:10 gameplay at 640x480 output, as in the original's mode list). */
+void video_exclusive_size(bool game, int *w, int *h);
 
 /* ---- audio.c ------------------------------------------------------------- */
 #define MIX_RATE 44100

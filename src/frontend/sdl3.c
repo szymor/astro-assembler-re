@@ -10,7 +10,11 @@
 static SDL_Window *g_window;
 static SDL_Renderer *g_renderer;
 static SDL_Texture *g_tex[2], *g_prescaled;
-static bool g_exclusive;           /* a display mode of the output size is set for fullscreen */
+/* exclusive = 1: fullscreen display modes for menus [0] and gameplay [1].
+ * exact: the mode has the wanted size (else gameplay borrows the menu mode). */
+static SDL_DisplayMode g_excl_mode[2];
+static bool g_excl_ok[2], g_excl_exact[2];
+static int g_excl_applied = -1;
 static int g_prescaled_w, g_prescaled_h;
 static Uint64 g_next_frame_ns;
 static bool g_quit, g_focused = true;
@@ -133,18 +137,21 @@ bool plat_init(const char *title)
         astro_log("window: %s", SDL_GetError());
         return false;
     }
-    if (settings.exclusive) {            /* a real display mode of the output size, if offered */
-        int ow, oh;
-        SDL_DisplayMode mode;
-        video_output_size(&ow, &oh);
-        if (SDL_GetClosestFullscreenDisplayMode(display, ow, oh, 0.0f, false, &mode) && mode.w == ow && mode.h == oh &&
-            SDL_SetWindowFullscreenMode(g_window, &mode)) {
-            g_exclusive = true;
-            astro_log("fullscreen display mode %dx%d", mode.w, mode.h);
+    for (int k = 0; settings.exclusive && k < 2; k++) {   /* real display modes, if offered */
+        int ew, eh;
+        video_exclusive_size(k == 1, &ew, &eh);
+        SDL_DisplayMode m;
+        if (SDL_GetClosestFullscreenDisplayMode(display, ew, eh, 0.0f, false, &m) && m.w == ew && m.h == eh) {
+            g_excl_mode[k] = m; g_excl_ok[k] = g_excl_exact[k] = true;
+            astro_log("fullscreen display mode for %s: %dx%d", k ? "gameplay" : "menus", ew, eh);
+        } else if (k == 1 && g_excl_ok[0]) {
+            g_excl_mode[1] = g_excl_mode[0]; g_excl_ok[1] = true;
+            astro_log("display has no %dx%d mode: gameplay uses the menu mode", ew, eh);
         } else {
-            astro_log("display has no %dx%d mode: fullscreen uses the desktop mode", ow, oh);
+            astro_log("display has no %dx%d mode: fullscreen uses the desktop mode", ew, eh);
         }
     }
+    if (g_excl_ok[0] && SDL_SetWindowFullscreenMode(g_window, &g_excl_mode[0])) g_excl_applied = 0;
     SDL_SetWindowFullscreen(g_window, settings.fullscreen);
     SDL_ShowWindow(g_window);
     SDL_HideCursor();
@@ -207,10 +214,17 @@ void plat_present(const uint32_t *xrgb, int sw, int sh)
     SDL_RenderClear(g_renderer);
     int ow = SCREEN_W, oh = SCREEN_H, x, y, w, h;
     SDL_GetCurrentRenderOutputSize(g_renderer, &ow, &oh);
-    if (g_exclusive && (SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN)) {
-        x = y = 0; w = ow; h = oh;       /* the display shows the whole mode as 4:3 */
+    int kind = video_is_game(), an, ad;
+    video_picture_aspect(&an, &ad);
+    bool full = (SDL_GetWindowFlags(g_window) & SDL_WINDOW_FULLSCREEN) != 0;
+    if (g_excl_ok[kind] && g_excl_applied != kind) {     /* switch display mode, as the original did */
+        if (SDL_SetWindowFullscreenMode(g_window, &g_excl_mode[kind])) g_excl_applied = kind;
+        SDL_GetCurrentRenderOutputSize(g_renderer, &ow, &oh);
+    }
+    if (full && g_excl_ok[kind] && g_excl_exact[kind]) {
+        x = y = 0; w = ow; h = oh;       /* the mode is the picture's: the display shows all of it */
     } else {
-        scale_aspect_rect(ow, oh, &x, &y, &w, &h);
+        scale_place(ow, oh, an, ad, full && g_excl_ok[kind], &x, &y, &w, &h);
     }
     SDL_FRect dst = {(float)x, (float)y, (float)w, (float)h};
     int kx = SDL_max(1, w / sw), ky = SDL_max(1, h / sh);

@@ -125,7 +125,8 @@ Options:
 - [ ] Scrolling, levels, scoring, lives, 2-player rules, input mapping
 - [x] Resolution option: the mechanism is known (see modules.md, "Display").
       Decided: 4:3 scaling with sharp/nearest/smooth filters, plus reduced
-      320x240 / 320x200 output resolutions (port.md, "Output resolution")
+      320x240 resolution and 16:10 gameplay aspect (port.md, "Resolution and
+      gameplay aspect")
 - [ ] Shared struct definitions (Ghidra ⇄ C headers)
 
 ## Phase 4 — Port (C + SDL3)

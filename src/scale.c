@@ -2,10 +2,13 @@
 
 #include <stdlib.h>
 
-void scale_aspect_rect(int ow, int oh, int *x, int *y, int *w, int *h)
+void scale_place(int ow, int oh, int num, int den, bool display_4_3, int *x, int *y, int *w, int *h)
 {
+    /* the output's shape: its pixel count, or 4:3 for a display mode */
+    long long on = display_4_3 ? 4 : ow, od = display_4_3 ? 3 : oh;
     int rw = ow, rh = oh;
-    if ((long)ow * 3 > (long)oh * 4) rw = oh * 4 / 3; else rh = ow * 3 / 4;
+    if (on * den > od * num) rw = (int)((long long)ow * num * od / (on * den));   /* output wider */
+    else rh = (int)((long long)oh * on * den / (od * num));
     *w = rw; *h = rh;
     *x = (ow - rw) / 2; *y = (oh - rh) / 2;
 }

@@ -4,8 +4,13 @@
 
 #include "astro.h"
 
-/* Largest 4:3 rectangle centred in an output of out_w x out_h pixels. */
-void scale_aspect_rect(int out_w, int out_h, int *x, int *y, int *w, int *h);
+/*
+ * Where a picture of shape num:den goes in an output of out_w x out_h pixels:
+ * the largest such rectangle, centred. With display_4_3 the output is a
+ * display mode the screen shows as 4:3 whatever its pixel count (exclusive
+ * fullscreen), so the shape is measured against 4:3 instead of the pixels.
+ */
+void scale_place(int out_w, int out_h, int num, int den, bool display_4_3, int *x, int *y, int *w, int *h);
 
 /*
  * Software scaler (used by frontends without a GPU renderer, e.g. SDL1):

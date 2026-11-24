@@ -65,6 +65,8 @@ static void build_mode_table(void)
 {
     struct mode modes[1] = {{640, 480, 32}};    /* the port's output resolution */
     video_output_size(&modes[0].w, &modes[0].h);
+    if (settings.gameplay_aspect == ASPECT_16_10 && settings.resolution == RES_640X480)
+        modes[0].h = 400;                       /* the original's 640X400 mode: gameplay 2x, 16:10 */
     const char *device = plat_device_name();      /* original: DirectDraw device description */
     const int n = (int)(sizeof modes / sizeof modes[0]);
     uint32_t text = G_MODE_LABEL_BUF;
