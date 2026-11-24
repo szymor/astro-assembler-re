@@ -7,6 +7,7 @@
 #include "gen_funcs.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 /* Run one core command (Core_Dispatch) from the outside, as a CALL would. */
 void core_command(uint32_t cmd)
@@ -174,11 +175,17 @@ bool shell_init(const char *assets_dir)
     wr32(G_ALLOC_BASE, VA_ALLOC);                /* Mem_AllocArena            */
     core_command(0);                             /* Core_Cmd00_GetRanges      */
 
+    size_t cfg_size;                             /* built-in defaults, for recordings */
+    uint8_t cfg_defaults[256];
+    const uint8_t *cfg = config_image(&cfg_size);
+    memcpy(cfg_defaults, cfg, cfg_size);
     config_load();                               /* Config_Load               */
+    const int joysticks = replay_joystick_count(plat_joystick_count());
+    replay_start(joysticks, cfg_defaults, cfg_size);
     wr32(G_APP_ACTIVE, 1);
     setup_menu_mode_globals();                   /* DD_Init                   */
     build_mode_table();
-    wr32(G_JOYSTICK_COUNT, (uint32_t)plat_joystick_count());   /* DI_Init  */
+    wr32(G_JOYSTICK_COUNT, (uint32_t)joysticks);   /* DI_Init  */
     wr32(G_SOUND_ENABLED, 1);                    /* DS_Init                   */
     wr32(G_CD_ENABLED, 1);                       /* CD init                   */
 
@@ -271,9 +278,7 @@ static void run_ending(void)
 static void run_levels(void)
 {
     set_game_mode();
-    int first = 1;
-    const char *dbg = getenv("ASTRO_LEVEL");
-    if (dbg) { first = atoi(dbg); first = first < 1 ? 1 : first > 6 ? 6 : first; }
+    const int first = replay_start_level();
     for (int level = first; level <= 6; level++) {
         char name[32];
         snprintf(name, sizeof name, "data/LEVEL%d.DAT", level);
@@ -297,7 +302,7 @@ void shell_run(void)
 {
     set_menu_mode();
     core_command(22);                       /* Game_SetMenuModeAndInit */
-    if (getenv("ASTRO_ENDING")) {       /* debugging: show the ending directly */
+    if (replay_ending()) {       /* debugging: show the ending directly */
         run_ending();
         return;
     }

@@ -53,6 +53,7 @@ add_library(astro_common OBJECT
     src/callbacks.c
     src/video.c
     src/input.c
+    src/replay.c
     src/assets.c
     src/audio.c
     src/config.c
@@ -97,6 +98,8 @@ endif()
 
 if(ASTRO_HEADLESS)
     astro_frontend(astro-headless src/frontend/headless.c)
+    enable_testing()
+    add_subdirectory(tests)
 endif()
 
 # Packaging (tools/make_package.py): on Windows the game is a GUI program (no

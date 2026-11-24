@@ -121,6 +121,21 @@ void settings_save(void);
 /* ---- config.c ------------------------------------------------------------ */
 void config_load(void);
 void config_save(void);
+const uint8_t *config_image(size_t *size);              /* the fields, for recordings */
+void config_set_image(const uint8_t *data, size_t size);
+
+/* ---- replay.c: input recording and playback ----------------------------- */
+void replay_init(void);                     /* ASTRO_RECORD / ASTRO_REPLAY        */
+void replay_start(int joysticks, const uint8_t *defaults, size_t size);   /* after Config_Load */
+bool replay_playing(void);                  /* inputs come from a recording       */
+unsigned long replay_end_frame(void);       /* frame the recording ends at, or 0  */
+bool replay_ends_with_quit(void);           /* the recorded session quit by itself */
+void replay_quit(void);                     /* the game is ending by itself        */
+int replay_joystick_count(int live);
+int replay_start_level(void);               /* ASTRO_LEVEL or the recording's     */
+bool replay_ending(void);                   /* ASTRO_ENDING or the recording's    */
+void replay_keys(uint8_t state[256]);
+int replay_joystick(int index, int slot, int bits);
 
 /* ---- util.c ------------------------------------------------------------------ */
 void astro_log(const char *fmt, ...);

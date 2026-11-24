@@ -129,16 +129,20 @@ Options:
       gameplay aspect")
 - [ ] Shared struct definitions (Ghidra ⇄ C headers)
 
-## Phase 4 — Port (C + SDL3)
+## Phase 4 — Port (C + SDL3) ✅
 
-1. Asset loaders, then an 8-bit 640×480 framebuffer with palette conversion
-2. Main loop with the original timing, then menus
-3. Gameplay, level by level
-4. Sound effects (SDL3 audio) and FLAC music streaming (dr_flac)
-5. Gamepads, Alt+Enter fullscreen, saved settings
-6. Packaging script: CD image + FLACs → standalone game directory
+- [x] Asset loaders, then an 8-bit 640×480 framebuffer with palette conversion
+- [x] Main loop with the original timing, then menus
+- [x] Gameplay (levels 1, 2 and 6 checked by eye; all levels run in the test suite)
+- [x] Sound effects (SDL3 audio) and FLAC music streaming (dr_flac)
+- [x] Gamepads, Alt+Enter fullscreen, saved settings
+- [x] Packaging: CD image + FLACs → standalone game directory, single-archive packages
 
 ## Phase 5 — Checking against the original
 
-- Side-by-side runs against Wine
-- Optional input recording and deterministic playback
+- [x] Input recording and deterministic playback (`ASTRO_RECORD` /
+      `ASTRO_REPLAY`, any frontend → headless); ctest regression suite in
+      `tests/` (see port.md, "Test suite")
+- [ ] Recordings of whole playthroughs (1 and 2 players, game over, hall of
+      fame entry) in `tests/replays/full/`
+- [ ] Side-by-side runs against Wine

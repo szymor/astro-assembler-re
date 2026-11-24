@@ -14,6 +14,7 @@
 #include <string.h>
 
 #define CFG_MAGIC 0x214f4852u   /* "RHO!" */
+#define CFG_IMAGE_SIZE (8 * 4 + 0x20 + 0x1a + 0x40)
 
 static const struct { uint32_t va, size; } k_fields[] = {
     {0x55cbe0, 4}, {0x46f440, 4}, {0x46f444, 4}, {0x46f448, 4},
@@ -52,9 +53,32 @@ void config_load(void)
     fclose(f);
 }
 
+/* The fields as one block, in file order without the magic (input recordings,
+ * replay.c). */
+const uint8_t *config_image(size_t *size)
+{
+    static uint8_t buf[CFG_IMAGE_SIZE];   /* <= 256 (shell.c) */
+    size_t n = 0;
+    for (size_t i = 0; i < sizeof k_fields / sizeof k_fields[0]; i++) {
+        memcpy(buf + n, &mem[k_fields[i].va], k_fields[i].size);
+        n += k_fields[i].size;
+    }
+    *size = n;
+    return buf;
+}
+
+void config_set_image(const uint8_t *data, size_t size)
+{
+    size_t n = 0;
+    for (size_t i = 0; i < sizeof k_fields / sizeof k_fields[0] && n + k_fields[i].size <= size; i++) {
+        memcpy(&mem[k_fields[i].va], data + n, k_fields[i].size);
+        n += k_fields[i].size;
+    }
+}
+
 void config_save(void)
 {
-    if (!g_save_enabled) return;
+    if (!g_save_enabled || replay_playing()) return;   /* a replay must not change the user's file */
     char path[1200];
     config_path(path, sizeof path);
     FILE *f = astro_fopen(path, "wb");

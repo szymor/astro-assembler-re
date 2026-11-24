@@ -6,6 +6,10 @@
  *   ASTRO_FRAMES=<n>       stop after n presented frames (default 3600 = 1 min)
  *   ASTRO_HASH_EVERY=<n>   also print the running hashes every n frames
  *   ASTRO_KEYS=...         scripted input (see input.c)
+ *   ASTRO_REPLAY=<file>    recorded input (see replay.c); without ASTRO_FRAMES
+ *                          the run stops where the recording ends, or, if
+ *                          the recorded session quit, where the game quits
+ *                          (at most 10 s after the recorded end)
  *
  * The game never reads or writes the user's settings here, so runs depend only
  * on the assets and the input script. Audio is mixed for exactly 1/60 s per
@@ -33,11 +37,13 @@ bool plat_init(const char *title)
 {
     const char *n = getenv("ASTRO_FRAMES"), *e = getenv("ASTRO_HASH_EVERY");
     if (n) g_limit = strtoul(n, NULL, 10);
+    else if (replay_end_frame()) g_limit = replay_end_frame() + (replay_ends_with_quit() ? 600 : 0);
     if (e) g_every = strtoul(e, NULL, 10);
     return true;
 }
 
-void plat_shutdown(void) {}
+/* The game quit by itself (menu) before the frame limit. */
+void plat_shutdown(void) { report("headless"); }
 void plat_error(const char *message) { astro_log("%s", message); }
 
 void plat_present(const uint32_t *xrgb, int w, int h)

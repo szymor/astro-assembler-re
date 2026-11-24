@@ -27,6 +27,7 @@ int astro_main(int argc, char **argv)
     if (!mem) { astro_log("out of memory"); return 1; }
 
     settings_load();
+    replay_init();
     if (!plat_init("Astro Assembler")) return 1;
     if (!shell_init(assets)) {
         plat_error("Could not load the game data. Put the \"assets\" folder next to the "
@@ -54,6 +55,7 @@ int astro_main(int argc, char **argv)
     }
 #endif
     shell_run();                         /* returns when the menu quits; config saved */
+    replay_quit();
     audio_shutdown();
     plat_shutdown();
     return 0;

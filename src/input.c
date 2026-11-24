@@ -33,6 +33,7 @@ void input_fill_keystate(void)
     uint8_t state[256] = {0};
     plat_keys(state);
     scripted_keys(state);
+    replay_keys(state);
     memcpy(&mem[G_KEY_STATE], state, sizeof state);
 }
 
@@ -46,21 +47,24 @@ void input_fill_keystate(void)
  */
 void input_poll_joystick(int index, int slot)
 {
-    int ax, ay, dx, dy;
+    if (index < 0 || index > 1) return;
+    int ax, ay, dx, dy, bits = -1;
     bool b0, b1;
-    if (index < 0 || index > 1 || !plat_joystick(index, &ax, &ay, &dx, &dy, &b0, &b1)) return;
+    if (plat_joystick(index, &ax, &ay, &dx, &dy, &b0, &b1)) {
+        int x = ax < -16384 ? -1 : ax > 16383 ? 1 : 0;
+        int y = ay < -16384 ? -1 : ay > 16383 ? 1 : 0;
+        if (dx) x = dx;
+        if (dy) y = dy;
+        bits = (x > 0) | (x < 0) << 1 | (y < 0) << 2 | (y > 0) << 3 | b0 << 4 | b1 << 5;
+    }
+    bits = replay_joystick(index, slot, bits);
+    if (bits < 0) return;
     const uint32_t base = slot == 0 ? 0x55c980u : 0x55c998u;
-    const uint32_t right = base, left = base + 4, up = base + 8, down = base + 12, fire = base + 16, fire2 = base + 20;
-    const uint32_t vars[6] = {right, left, up, down, fire, fire2};
-    for (int i = 0; i < 6; i++) wr32(vars[i], (rd32(vars[i]) & 1) << 1);
-    int x = ax < -16384 ? -1 : ax > 16383 ? 1 : 0;
-    int y = ay < -16384 ? -1 : ay > 16383 ? 1 : 0;
-    if (dx) x = dx;
-    if (dy) y = dy;
-    if (x < 0) wr32(left, rd32(left) | 1); else if (x > 0) wr32(right, rd32(right) | 1);
-    if (y < 0) wr32(up, rd32(up) | 1); else if (y > 0) wr32(down, rd32(down) | 1);
-    if (b0) wr32(fire, rd32(fire) | 1);
-    if (b1) wr32(fire2, rd32(fire2) | 1);
+    /* right, left, up, down, button 0, button 1 */
+    for (int i = 0; i < 6; i++) {
+        const uint32_t va = base + 4u * (uint32_t)i;
+        wr32(va, (rd32(va) & 1) << 1 | ((bits >> i) & 1));
+    }
 }
 
 /* USB HID keyboard usage (= SDL2/SDL3 scancode) -> DirectInput DIK code

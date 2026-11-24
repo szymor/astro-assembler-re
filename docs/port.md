@@ -283,6 +283,8 @@ game on Windows 98/2000 was almost always 60 Hz (decided).
 | `ASTRO_LEVEL=<1-6>` | start the game at that level (state from earlier levels is missing) |
 | `ASTRO_ENDING=1` | show the ending right after the logos |
 | `ASTRO_VPAD="frame:control[:frames],…"` | SDL3: attach a virtual gamepad and press `a`, `b`, `left`, `right`, `up`, `down` at given frames |
+| `ASTRO_RECORD=<file>` | record every input the core reads (any frontend), see below |
+| `ASTRO_REPLAY=<file>` | play a recording back instead of live input; the user's configuration is not saved |
 | `ASTRO_KEYS="frame:dik[:frames],…"` | hold DirectInput key `dik` (hex) from a given frame; e.g. `800:39` presses Space at frame 800 |
 | `ASTRO_WATCH=<byte>` | debug builds with `-DRT_WATCH` only: histogram of writes of that byte into the frame buffer, or into a level-relative range with `ASTRO_WATCH_RANGE=<lo>:<hi>` |
 
@@ -291,7 +293,7 @@ A watch build: `cmake -S . -B build/cmake-watch -DCMAKE_BUILD_TYPE=Debug -DCMAKE
 ### Regression testing with the headless frontend
 
 The headless frontend runs about 17× faster than real time and is fully
-deterministic, so the same input script always gives the same hashes:
+deterministic, so the same input always gives the same hashes:
 
 ```bash
 ASTRO_FRAMES=3000 ASTRO_KEYS="800:39,1100:1c,1700:39:600,1700:19:120" build/cmake/astro-headless assets
@@ -303,6 +305,52 @@ Linux and on the Windows build. With `ASTRO_RESOLUTION=320x240`:
 `video=48fc6fa2b3e21f17`, with `320x240` and `ASTRO_GAMEPLAY_ASPECT=16:10`:
 `video=98d15455507f8503` (audio unchanged). A changed hash after a code change means the
 game's output changed; `ASTRO_HASH_EVERY` narrows down where.
+
+### Input recordings
+
+`ASTRO_RECORD=<file>` writes the starting state (configuration as loaded,
+unless it is the built-in default; joystick count; `ASTRO_LEVEL`/`ASTRO_ENDING`)
+and the answer to every keyboard and joystick poll of the core, numbered in the
+order the core asked (format: `src/replay.c`). `ASTRO_REPLAY=<file>` feeds
+those answers back. Since the core only depends on these, a session played in
+the SDL3 window replays bit-exactly in `astro-headless`, on Linux or Windows:
+every dumped frame (`ASTRO_DUMP`) of an SDL3 session with keyboard and gamepad
+was identical in the headless replay, and the MinGW build under Wine gives the
+same hashes as Linux. Each record also notes the frame it was made at, so a
+replay that drifts out of step reports `replay out of step at poll …` once.
+
+The headless run stops where the recording ends; a recorded session that ended
+by itself (quit from the menu, the ending) replays until the game quits. In
+the SDL frontends live input takes over when the recording runs out.
+
+```bash
+ASTRO_RECORD=mygame.rec build/cmake/astro assets            # play
+ASTRO_REPLAY=mygame.rec build/cmake/astro-headless assets   # hashes of that session
+```
+
+### Test suite (ctest)
+
+`tests/` holds recordings (`tests/replays/*.rec`, inputs only, no game data)
+and the hashes they produced (`tests/expected/*.txt`); the expected hashes are
+the port's own earlier output, not the original game's.
+
+```bash
+ctest --test-dir build/cmake -j8 --output-on-failure
+```
+
+| Test | What it covers |
+|---|---|
+| `keys-level1`, `replay-level1` | menus and level 1 via `ASTRO_KEYS`, and the same session as a recording (same hashes) |
+| `replay-level1-320x240`, `…-320x240-16x10` | the reduced output resolution and square gameplay pixels |
+| `replay-level1-gamepad` | recorded in the SDL3 frontend with a (virtual) gamepad |
+| `replay-level2-start` … `replay-level6-start` | 70 s of each later level started with `ASTRO_LEVEL` (no state from earlier levels; on level 6 no player ship appears) |
+| `replay-ending` | the ending sequence to the game's own quit |
+| `replay-full-<name>` | every `tests/replays/full/*.rec`, e.g. whole playthroughs |
+
+The tests need the packaged assets (`assets/`, or `-DASTRO_TEST_ASSETS=<dir>`)
+and are skipped without them. After an intended output change, or for a new
+recording, `ASTRO_BLESS=1 ctest --test-dir build/cmake -R <test>` writes the
+expected hashes; commit them together with the change that explains them.
 
 ## Status
 
