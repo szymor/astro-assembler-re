@@ -99,3 +99,29 @@ HAND_FN(41b54b)
     WR_REG(R_EBX, 2, bx);
     x86_ret();
 }
+
+/*
+ * Core_SplitFixed (0x42be54): ECX and EBX (16.16 fixed point) are split: the
+ * rounded integer parts go to 0x4b3bb8 (from ECX) and
+ * 0x4b3bb4 (from EBX); EAX and EDX are left holding them shifted back (<< 16); the remainders (below one unit, plus 2,
+ * divided by 4) to 0x4b3bc0 (ECX) and 0x4b3bbc (EBX). Flags: those of the last
+ * arithmetic shift (OF of the preceding addition).
+ */
+HAND_FN(42be54)
+{
+    uint32_t ecx = ECX, ebx = EBX;
+    const uint32_t eax = (uint32_t)((int32_t)(ecx + 0x8000u) >> 16);
+    const uint32_t edx = (uint32_t)((int32_t)(ebx + 0x8000u) >> 16);
+    wr32(0x4b3bb8u, eax);
+    wr32(0x4b3bb4u, edx);
+    ecx = sub32(ecx, eax << 16);
+    ebx = sub32(ebx, edx << 16);
+    ecx = add32(ecx, 2);
+    ebx = add32(ebx, 2);
+    ecx = sar32(ecx, 2);
+    ebx = sar32(ebx, 2);
+    wr32(0x4b3bc0u, ecx);
+    wr32(0x4b3bbcu, ebx);
+    WR_REG(R_EAX, 4, eax << 16); WR_REG(R_EDX, 4, edx << 16); WR_REG(R_ECX, 4, ecx); WR_REG(R_EBX, 4, ebx);
+    x86_ret();
+}

@@ -77,6 +77,38 @@ static inline uint32_t sub32(uint32_t a, uint32_t b)
     flags_szp32(r);
     return r;
 }
+/* DEC r16: OF, SF, ZF, PF; CF is left alone. */
+static inline uint16_t dec16(uint16_t a)
+{
+    const uint16_t r = (uint16_t)(a - 1);
+    set_flag(R_OF, a == 0x8000);
+    flags_szp16(r);
+    return r;
+}
+
+/* SAR r32, n for n >= 2: CF = the last bit shifted out, SF, ZF, PF; OF stays as it was. */
+static inline uint32_t sar32(uint32_t a, unsigned n)
+{
+    set_flag(R_CF, (((int32_t)a >> (n - 1)) & 1) != 0);
+    const uint32_t r = (uint32_t)((int32_t)a >> n);
+    flags_szp32(r);
+    return r;
+}
+
+/* TEST r32, mask / TEST r16, mask: CF = OF = 0, SF, ZF, PF of the AND. */
+static inline void test32(uint32_t a, uint32_t mask)
+{
+    set_flag(R_CF, false);
+    set_flag(R_OF, false);
+    flags_szp32(a & mask);
+}
+static inline void test16m(uint16_t a, uint16_t mask)
+{
+    set_flag(R_CF, false);
+    set_flag(R_OF, false);
+    flags_szp16((uint16_t)(a & mask));
+}
+
 /* DEC r32: OF, SF, ZF, PF; CF is left alone. */
 static inline uint32_t dec32(uint32_t a)
 {

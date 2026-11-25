@@ -61,6 +61,9 @@ HAND_FN(41cb30) { find_free_slot((uint16_t)(rd16(0x4acab0u) + rd16(0x4acab2u)), 
 /* 0x41c27d: 100 entries of 0x20 bytes at 0x521a9c (first dword), used = the
  * word at 0x4b04c8. */
 HAND_FN(41c27d) { find_free_slot(rd16(0x4b04c8u), 100, 0x521a7cu, 0x20, 4); }
+/* 0x41c49a: 50 entries of 0x5e bytes at 0x522728 (first dword), used = the
+ * word at 0x4abba8. */
+HAND_FN(41c49a) { find_free_slot(rd16(0x4abba8u), 50, 0x5226beu, 0x5e, 4); }
 /* 0x41c9b2: 25 entries of 0x2c bytes at 0x523ef4 (first word), used = the
  * sum of the words at 0x4ab678 and 0x4ab67a. */
 HAND_FN(41c9b2) { find_free_slot((uint16_t)(rd16(0x4ab678u) + rd16(0x4ab67au)), 25, 0x523ec8u, 0x2c, 2); }

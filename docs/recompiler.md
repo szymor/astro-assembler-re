@@ -178,6 +178,14 @@ Replaced so far:
 | `0x443554` | `Core_NormaliseVectors` | `vectors.c` | 165 637 calls in the full-game recording; the IDIV by a zero sum would fault as in the original (never reached) |
 | `0x41b54b` | `Core_WrapAngle16` | `vectors.c` | 3 670 calls in the full-game recording |
 | `0x423f3f` | `Core_StartTimedEntry` | `spawn.c` | 69 calls in the full-game recording |
+| `0x41c49a` | `Core_FindFreeSlot50` | `pools.c` | 46 calls in the full-game recording |
+| `0x42be54` | `Core_SplitFixed` | `vectors.c` | 94 419 calls in the full-game recording (caught EAX/EDX being left shifted) |
+| `0x409658` | `Core_StoreFrameConstants` | `init.c` | 9 calls in the full-game recording |
+| `0x409e91` / `0x409f04` | `Core_InitPlayer1Ship` / `2Ship` | `init.c` | 7 and 6 calls in the full-game recording |
+| `0x445a93` | `Core_ClearTables` | `init.c` | 52 calls in the full-game recording |
+| `0x40982e` | `Core_FillZeroThenOnes` | `init.c` | 17 calls in the full-game recording |
+| `0x409818` | `Core_CopyRows` | `init.c` | 21 calls in the full-game recording |
+| `0x41851f` / `0x418559` | `Core_SetBestTime1` / `2` | `init.c` | 129 991 calls in the full-game recording (player 1); 3 403 in the two-player recording (player 2). They drop the caller's return address too (`ADD ESP, 4; RET`) |
 
 ## Known gaps / next steps
 
