@@ -63,13 +63,20 @@ static void present_reduced(const char *dir, const char *name, int w, int h)
 }
 
 /* ASTRO_DUMP=<dir>: save every 60th presented frame as BMP
- * (frameNNNNN.bmp = menus, gameNNNNN.bmp/.raw = gameplay). */
+ * (frameNNNNN.bmp = menus, gameNNNNN.bmp/.raw = gameplay);
+ * ASTRO_DUMP_EVERY=<n> changes the interval. */
 static const char *dump_dir(void)
 {
     static const char *dir;
+    static unsigned long every = 60;
     static bool checked;
-    if (!checked) { dir = getenv("ASTRO_DUMP"); checked = true; }
-    return dir && g_frames % 60 == 0 ? dir : NULL;
+    if (!checked) {
+        dir = getenv("ASTRO_DUMP");
+        const char *e = getenv("ASTRO_DUMP_EVERY");
+        if (e && strtoul(e, NULL, 10) > 0) every = strtoul(e, NULL, 10);
+        checked = true;
+    }
+    return dir && g_frames % every == 0 ? dir : NULL;
 }
 
 /* The menus draw straight into the 640x480 32 bpp primary surface. */

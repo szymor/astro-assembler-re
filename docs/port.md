@@ -272,6 +272,7 @@ game on Windows 98/2000 was almost always 60 Hz (decided).
 | Variable | Effect |
 |---|---|
 | `ASTRO_DUMP=<dir>` | save every 60th frame as BMP (`frame*.bmp` menus, `game*.bmp` gameplay; gameplay also `.raw` = indices + palette; with a 320x240 also `*-out.bmp`, the reduced picture) |
+| `ASTRO_DUMP_EVERY=<n>` | dump every n-th frame instead of every 60th |
 | `ASTRO_RESOLUTION=<WxH>` | override `resolution` (also for the headless frontend); not saved |
 | `ASTRO_GAMEPLAY_ASPECT=4:3\|16:10` | override `gameplay_aspect` likewise |
 | `ASTRO_DUMP_OUTPUT=<dir>` | SDL frontends: save the scaled window image every 300th gameplay frame |
@@ -360,6 +361,40 @@ The tests need the packaged assets (`assets/`, or `-DASTRO_TEST_ASSETS=<dir>`)
 and are skipped without them. After an intended output change, or for a new
 recording, `ASTRO_BLESS=1 ctest --test-dir build/cmake -R <test>` writes the
 expected hashes; commit them together with the change that explains them.
+
+## Checking against the original (Wine)
+
+`tools/run_original.sh` runs ASTRO.exe in a Wine virtual desktop. For
+captures it runs on a private X server (`Xvfb :99 -screen 0 640x480x24`, Wine's
+default OpenGL renderer on Mesa llvmpipe; the GDI renderer cannot create the
+game's video-memory surface), frames are grabbed with `ffmpeg -f x11grab` at
+10 per second, and keys are sent with `xdotool`. The original then runs in its
+default mode, 640×480×16.
+
+Results (2026-11-24):
+
+- **Menus and attract mode: identical.** Every non-black frame of a 38 s
+  capture (logo, title, hall of fame, capsule items, special ships, all credit
+  screens, including frames in the middle of fades and scroll-ins: 355 frames)
+  equals a port frame exactly once both are reduced to RGB565, the original's
+  16-bit format. The port's frames were dumped with `ASTRO_DUMP_EVERY=1`.
+- **Gameplay: same content, same order.** Wine shows the 320×200 frame
+  through a filtered stretch to 640×480, so frames cannot match bit for bit.
+  Compared at 160×100, each of 93 captured gameplay frames of an idle level 1
+  game is closest to a port frame of the same game (frames 1186–4232, never out
+  of order, up to game over); the remaining differences are edges from the
+  filtering. Terrain, enemies, explosions, bullets, score and ships are the same.
+- **Timing cannot be compared under Wine.** `WaitForVerticalBlank` is a stub
+  there, so the original runs unpaced: about 270 frames per second in gameplay
+  and about 6× too fast in the menus. Its frame *sequence* is unaffected.
+- A first gameplay capture differed by an extra ship at the bottom left; that
+  was input, not the port: the key presses meant for the menus arrived during
+  play, and Return (fire 2 of keyboard set 1) calls that ship. The same press
+  in the port gives the same picture.
+
+Menu input has to wait for the screen: a key sent while a menu fades in is
+ignored. The capture used one Space on the title screen and one Return on the
+START/OPTIONS menu, each sent once that screen was seen.
 
 ## Status
 

@@ -19,8 +19,8 @@ Ground rules:
       plus WAV resources from the PE. Standard library only; output checked
       byte for byte against 7-Zip.
 - [x] Ghidra project `re/ghidra/astro.gpr`, auto-analysis done, `WinMain` named
-- [x] `tools/run_original.sh`: Wine reference run (starts without crashing;
-      rendering not checked by eye yet)
+- [x] `tools/run_original.sh`: Wine reference run (renders correctly; virtual
+      desktop set in the prefix's registry since Wine 11)
 
 ## Phase 1 — Mapping the executable ✅
 
@@ -147,4 +147,6 @@ Options:
       two-player game set up through the options menu
 - [ ] Recordings of whole playthroughs (1 and 2 players) in
       `tests/replays/full/` (need a human player)
-- [ ] Side-by-side runs against Wine
+- [x] Side-by-side runs against Wine: menus and attract mode identical (RGB565),
+      level 1 gameplay the same frame sequence (see port.md, "Checking against
+      the original"); timing not comparable (unpaced under Wine)
