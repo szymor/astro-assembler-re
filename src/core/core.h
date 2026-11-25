@@ -25,6 +25,10 @@
 #endif
 
 /* ---- memory and registers ------------------------------------------------- */
+#ifndef ASTRO_HAVE_RD32                              /* also defined by astro.h */
+static inline uint32_t rd32(uint32_t va) { return (uint32_t)MEM_RD(va, 4); }
+static inline void wr32(uint32_t va, uint32_t v) { MEM_WR(va, 4, v); }
+#endif
 static inline uint16_t rd16(uint32_t va) { return (uint16_t)MEM_RD(va, 2); }
 static inline void wr16(uint32_t va, uint16_t v) { MEM_WR(va, 2, v); }
 static inline void set_ax(uint16_t v) { WR_REG(R_EAX, 2, v); }
@@ -49,6 +53,31 @@ static inline uint16_t add16(uint16_t a, uint16_t b)
     flags_szp16(r);
     return r;
 }
+
+/* 32-bit counterparts: SF, ZF, PF of a result, ADD and CMP/SUB. */
+static inline void flags_szp32(uint32_t r)
+{
+    set_flag(R_SF, (r & 0x80000000u) != 0);
+    set_flag(R_ZF, r == 0);
+    set_flag(0x202, parity_even((uint8_t)r));          /* PF */
+}
+static inline uint32_t add32(uint32_t a, uint32_t b)
+{
+    const uint32_t r = a + b;
+    set_flag(R_CF, r < a);
+    set_flag(R_OF, ((a ^ r) & (b ^ r) & 0x80000000u) != 0);
+    flags_szp32(r);
+    return r;
+}
+static inline uint32_t sub32(uint32_t a, uint32_t b)
+{
+    const uint32_t r = a - b;
+    set_flag(R_CF, a < b);
+    set_flag(R_OF, ((a ^ b) & (a ^ r) & 0x80000000u) != 0);
+    flags_szp32(r);
+    return r;
+}
+#define cmp32(a, b) ((void)sub32((a), (b)))
 
 static inline uint16_t ror16(uint16_t v, unsigned n) { n &= 15; return (uint16_t)(v >> n | v << ((16 - n) & 15)); }
 

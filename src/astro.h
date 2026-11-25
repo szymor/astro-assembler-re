@@ -91,6 +91,7 @@
 #define SOUNDSET_MENU      0x46ec18u
 static const uint32_t k_soundset_level[7] = {0, 0x46ec28u, 0x46ed10u, 0x46ee10u, 0x46ef08u, 0x46f000u, 0x46f0e8u};
 
+#define ASTRO_HAVE_RD32
 static inline uint32_t rd32(uint32_t va) { return (uint32_t)MEM_RD(va, 4); }
 static inline void wr32(uint32_t va, uint32_t v) { MEM_WR(va, 4, v); }
 
