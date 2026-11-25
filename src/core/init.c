@@ -172,3 +172,47 @@ static void set_best(uint32_t field, uint32_t mode)
 }
 HAND_FN(41851f) { set_best(0x470058u, 0x55c990u); }
 HAND_FN(418559) { set_best(0x4701b0u, 0x55c9a8u); }
+
+/*
+ * Core_PickNearerPlayer (0x4422d6): decides which player a pointer-using
+ * routine follows. Nothing happens unless a player takes part. The target is
+ * set from player 2's ship at 0x4702bc/0x4702be (marker 4, pointer 0x470258);
+ * if player 1 takes part, from player 1's ship at 0x470164/0x470166 (marker 0,
+ * pointer 0x470100); if both take part, player 2 is chosen when the point
+ * (AX - 0x24, BX - 0x20) is closer to it (squared distance, 16-bit
+ * coordinates). Result: words at 0x46fffc, 0x46fffe, the dword at 0x470000 and
+ * the marker at 0x470004. All registers are preserved (PUSHAD/POPAD);
+ * the flags are those of the deciding test or compare.
+ */
+HAND_FN(4422d6)
+{
+    test32(rd32(G_PLAYER_MASK), 3);
+    if (flag(R_ZF)) { x86_ret(); return; }
+    uint16_t si = rd16(0x4702bcu), di = rd16(0x4702beu);
+    uint32_t marker = 4, ebp = 0x470258u;
+    test32(rd32(G_PLAYER_MASK), 1);
+    if (!flag(R_ZF)) {
+        si = rd16(0x470164u);
+        di = rd16(0x470166u);
+        marker = 0;
+        ebp = 0x470100u;
+        test32(rd32(G_PLAYER_MASK), 2);
+        if (!flag(R_ZF)) {
+            const uint16_t ax = (uint16_t)(EAX - 0x24), bx = (uint16_t)(EBX - 0x20);
+            const int32_t a = (int16_t)(uint16_t)(ax - di), b = (int16_t)(uint16_t)(bx - si);
+            const int32_t c = (int16_t)(uint16_t)(ax - rd16(0x4702beu)), d = (int16_t)(uint16_t)(bx - rd16(0x4702bcu));
+            cmp32((uint32_t)(a * a + b * b), (uint32_t)(c * c + d * d));
+            if (cond_a()) {
+                si = rd16(0x4702bcu);
+                di = rd16(0x4702beu);
+                ebp = 0x470258u;
+                marker = 4;
+            }
+        }
+    }
+    wr32(0x470004u, marker);
+    wr16(0x46fffcu, si);
+    wr16(0x46fffeu, di);
+    wr32(0x470000u, ebp);
+    x86_ret();
+}

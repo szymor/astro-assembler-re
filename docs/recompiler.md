@@ -152,7 +152,9 @@ one with readable C, each checked against the generated version.
 - **Limits**: a function that reaches a shell callback (sound, input,
   presentation) cannot run twice without doubling those effects; the check
   aborts if one does, so for now only functions that stay inside the core
-  can be replaced.
+  can be replaced. This rules out, for example, the object steps at
+  `0x437c3a`, `0x437ea0` and `0x4384b7`: the handler they call reaches the
+  sound callback (found when the first check aborted).
 
 Replaced so far:
 
@@ -186,6 +188,7 @@ Replaced so far:
 | `0x40982e` | `Core_FillZeroThenOnes` | `init.c` | 17 calls in the full-game recording |
 | `0x409818` | `Core_CopyRows` | `init.c` | 21 calls in the full-game recording |
 | `0x41851f` / `0x418559` | `Core_SetBestTime1` / `2` | `init.c` | 129 991 calls in the full-game recording (player 1); 3 403 in the two-player recording (player 2). They drop the caller's return address too (`ADD ESP, 4; RET`) |
+| `0x4422d6` | `Core_PickNearerPlayer` | `init.c` | 384 489 calls in the full-game recording, 8 640 in the two-player one |
 
 ## Known gaps / next steps
 
