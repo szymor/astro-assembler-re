@@ -125,3 +125,80 @@ HAND_FN(42be54)
     WR_REG(R_EAX, 4, eax << 16); WR_REG(R_EDX, 4, edx << 16); WR_REG(R_ECX, 4, ecx); WR_REG(R_EBX, 4, ebx);
     x86_ret();
 }
+
+/*
+ * Core_SpawnShot (0x41b676): takes the first free entry (first word zero,
+ * 12 bytes, from ESI + 0xc on) and fills it in: word 2 at +0, the dword at
+ * 0x46ff64 at +2, DI at +0xa, and the two components of a velocity at +6 and +8:
+ * the sine/cosine table at 0x1f4f74 (indexed by the angle BP, advanced by 16,
+ * masked to 0xffe0, wrapped at 0x5a00 and divided by 8, plus the arena offset)
+ * scaled by the dwords at 0x46ffc4 and 0x4b104c. EBP = the table index, EAX and
+ * EDX the last products' parts. Flags: those of the last arithmetic shift.
+ */
+HAND_FN(41b676)
+{
+    uint32_t esi = ESI;
+    do { esi = add32(esi, 0xc); cmp16(rd16(esi), 0); } while (!flag(R_ZF));
+    wr16(esi + 0xa, (uint16_t)EDI);
+    wr16(esi, 2);
+    wr32(esi + 2, rd32(0x46ff64u));
+    uint16_t bp = add16((uint16_t)EBP, 0x10);
+    bp &= 0xffe0;
+    cmp16(bp, 0x5a00);
+    if (flag(R_CF) == 0) bp = sub16(bp, 0x5a00);
+    bp >>= 3;
+    const uint32_t ebp = ((EBP & 0xffff0000u) | bp) + rd32(0x556ac8u);
+    int64_t p = (int64_t)(int16_t)rd16(ebp + 0x1f4f74u) * (int32_t)rd32(0x46ffc4u);
+    p = (int64_t)(int32_t)(uint32_t)p * (int32_t)rd32(0x4b104cu);
+    uint32_t edx = add32((uint32_t)((uint64_t)p >> 32), 0x100);
+    edx = sar32(edx, 9);
+    wr16(esi + 6, (uint16_t)edx);
+    p = (int64_t)(int16_t)rd16(ebp + 0x1f4f76u) * (int32_t)rd32(0x46ffc4u);
+    edx = (uint32_t)((uint64_t)p >> 32);
+    uint32_t eax = add32((uint32_t)p, 0x200);
+    eax = sar32(eax, 10);
+    wr16(esi + 8, (uint16_t)eax);
+    WR_REG(R_ESI, 4, esi);
+    WR_REG(R_EBP, 4, ebp);
+    WR_REG(R_EDX, 4, edx);
+    WR_REG(R_EAX, 4, eax);
+    x86_ret();
+}
+
+/*
+ * Core_FollowPath (0x42d318): a point on a path: the dword at 0x498494 is the
+ * path's offset (0 = none), 0x498498 the position in it. The point at that position
+ * (two words, scaled by the dword at 0x4984a8 and offset by 0x4983a8 and 0x4983ac)
+ * goes to 0x4983b0 / 0x4983b4, and the position advances by the step (the dword
+ * at 0x49849c rounded to whole 4-byte units, at most 0x20); a word of 0x8000 at
+ * the new position ends the path (position 0). EDI = the offset in the arena, EAX
+ * and EBX the last values.
+ */
+HAND_FN(42d318)
+{
+    const uint32_t off = rd32(0x498494u);
+    test32(off, 0xffffffffu);
+    if (flag(R_ZF)) { WR_REG(R_EDI, 4, 0); x86_ret(); return; }
+    const uint32_t edi = off + rd32(0x556ac8u);
+    uint32_t ebp = rd32(0x498498u);
+    uint32_t eax = (uint32_t)((int32_t)(int16_t)rd16(ebp + edi) * (int32_t)rd32(0x4984a8u));
+    uint32_t ebx = (uint32_t)((int32_t)(int16_t)rd16(ebp + edi + 2) * (int32_t)rd32(0x4984a8u));
+    eax = add32(eax, rd32(0x4983a8u));
+    ebx = add32(ebx, rd32(0x4983acu));
+    wr32(0x4983b0u, eax);
+    wr32(0x4983b4u, ebx);
+    eax = ((rd32(0x49849cu) + 0x8000u) >> 16) << 2;
+    cmp32(eax, 0x20);
+    if (cond_a()) eax = 0x20;
+    ebp = add32(ebp, eax);
+    cmp16(rd16(ebp + edi), 0x8000);
+    if (flag(R_ZF)) {
+        ebp = 0;
+        flags_szp32(0);
+        set_flag(R_CF, false);
+        set_flag(R_OF, false);
+    }
+    wr32(0x498498u, ebp);
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}

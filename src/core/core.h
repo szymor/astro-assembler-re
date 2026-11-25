@@ -103,6 +103,13 @@ static inline uint8_t inc8(uint8_t a)
 static inline uint8_t rd8(uint32_t va) { return (uint8_t)MEM_RD(va, 1); }
 static inline void wr8(uint32_t va, uint8_t v) { MEM_WR(va, 1, v); }
 
+/* OR r8, r8 / XOR-style result flags of an 8-bit value: CF = OF = 0, SF, ZF, PF. */
+static inline void test8(uint8_t a)
+{
+    set_flag(R_CF, false);
+    set_flag(R_OF, false);
+    flags_szp8(a);
+}
 /* DEC r16: OF, SF, ZF, PF; CF is left alone. */
 static inline uint16_t dec16(uint16_t a)
 {
@@ -157,6 +164,8 @@ static inline uint16_t sub16(uint16_t a, uint16_t b)
     return r;
 }
 #define cmp16(a, b) ((void)sub16((a), (b)))
+/* NEG r16: CF = (a != 0), the other flags as for 0 - a. */
+static inline uint16_t neg16(uint16_t a) { return sub16(0, a); }
 
 /* INC r16: OF, SF, ZF, PF; CF is left alone. */
 static inline uint16_t inc16(uint16_t a)

@@ -197,6 +197,13 @@ Replaced so far:
 | `0x415e97` | `Core_FindEntryOrFree` | `tables.c` | 3 318 calls in the full-game recording |
 | `0x413849` | `Core_NextFrames` | `tables.c` | 130 092 calls in the full-game recording |
 | `0x42b030` | `Core_StoreFourEntries` | `init.c` | 4 calls in the full-game recording |
+| `0x42d0fc`, `0x42f888`, `0x43029b` | `Core_LevelEffectA`-`C` | `tables.c` | 4 303, 5 945 and 7 188 calls in the full-game recording |
+| `0x4135ba` | `Palette_StartFade` | `tables.c` | one call (its 720 components) in the full-game recording |
+| `0x42e61e` | `Core_StoreFiveEntries` | `tables.c` | 15 calls in the full-game recording |
+| `0x430874` | `Core_SetRecordFields` | `tables.c` | 9 calls in the full-game recording (which of its four cases are reached is not recorded) |
+| `0x41b676` | `Core_SpawnShot` | `vectors.c` | 6 607 calls in the full-game recording |
+| `0x42d318` | `Core_FollowPath` | `vectors.c` | 4 303 calls in the full-game recording |
+| `0x419819` / `0x41aa6d` | `Core_StepEntries24` / `Core_StepEntries14` | `tables.c` | 130 092 calls each in the full-game recording |
 
 ## Known gaps / next steps
 
