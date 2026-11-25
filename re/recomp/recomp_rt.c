@@ -113,6 +113,7 @@ RT_NOINLINE void rt_watch(uint32_t addr, uint64_t value, int size)
 #ifdef RT_DIFF
 /* ---- differential checking of hand-written functions --------------------- */
 int rt_diff_active;
+static int diff_phase_ref;                  /* 1 while the generated side runs */
 static uint8_t *diff_seen;                  /* bitmap of bytes written so far */
 static struct diff_byte { uint32_t addr; uint8_t old, ref; } *diff_log;
 static size_t diff_len, diff_cap;
@@ -131,19 +132,38 @@ void rt_diff_note(uint32_t a, int size)
     }
 }
 
+void rt_diff_note_range(uint32_t a, uint32_t n)
+{
+    while (n) {
+        const int k = n > 0x40000000u ? 0x40000000 : (int)n;
+        rt_diff_note(a, k);
+        a += (uint32_t)k;
+        n -= (uint32_t)k;
+    }
+}
+
 static void diff_forget(size_t from)
 {
     for (size_t i = from; i < diff_len; i++) diff_seen[diff_log[i].addr >> 3] = 0;
     diff_len = from;
 }
 
-static struct diff_stat { uint32_t addr; const char *name; unsigned long calls; } diff_stats[256];
+static struct diff_stat { uint32_t addr; const char *name; unsigned long calls, nested; } diff_stats[256];
+
+static struct diff_stat *diff_stat_for(uint32_t addr, const char *name)
+{
+    for (int i = 0; i < 256; i++) {
+        if (!diff_stats[i].name) { diff_stats[i].addr = addr; diff_stats[i].name = name; }
+        if (diff_stats[i].addr == addr) return &diff_stats[i];
+    }
+    return NULL;
+}
 
 static void diff_report(void)
 {
     for (int i = 0; i < 256 && diff_stats[i].name; i++)
-        fprintf(stderr, "diff: %s (%06x): %lu calls checked, identical\n", diff_stats[i].name,
-                diff_stats[i].addr, diff_stats[i].calls);
+        fprintf(stderr, "diff: %s (%06x): %lu calls checked, identical; %lu more inside other checks\n",
+                diff_stats[i].name, diff_stats[i].addr, diff_stats[i].calls, diff_stats[i].nested);
 }
 
 static const char *reg_name(unsigned off)
@@ -159,21 +179,25 @@ static const char *reg_name(unsigned off)
 
 void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
 {
-    if (rt_diff_active) { hand(); return; }  /* nested: checked on its own */
+    if (rt_diff_active) {                    /* nested: same side as the outer call */
+        struct diff_stat *n = diff_stat_for(addr, name);
+        if (n && !diff_phase_ref) n->nested++;
+        (diff_phase_ref ? ref : hand)();
+        return;
+    }
     if (!diff_seen) {
         diff_seen = calloc(RT_MEM_SIZE / 8, 1);
         if (!diff_seen) { fprintf(stderr, "recomp: out of memory\n"); abort(); }
         atexit(diff_report);
     }
-    struct diff_stat *st = NULL;
-    for (int i = 0; i < 256; i++)
-        if (!diff_stats[i].name || diff_stats[i].addr == addr) { st = &diff_stats[i]; break; }
-    if (st && !st->name) { st->addr = addr; st->name = name; }
+    struct diff_stat *st = diff_stat_for(addr, name);
 
     static rt_cpu before, after_ref;
     before = cpu;
     rt_diff_active = 1;
+    diff_phase_ref = 1;
     ref();
+    diff_phase_ref = 0;
     after_ref = cpu;
     size_t nref = diff_len;
     for (size_t i = 0; i < nref; i++) {      /* remember the results, then undo */

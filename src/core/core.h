@@ -52,6 +52,73 @@ static inline uint16_t add16(uint16_t a, uint16_t b)
 
 static inline uint16_t ror16(uint16_t v, unsigned n) { n &= 15; return (uint16_t)(v >> n | v << ((16 - n) & 15)); }
 
+/* CMP/SUB r16, x: result, and CF, OF, SF, ZF, PF. */
+static inline uint16_t sub16(uint16_t a, uint16_t b)
+{
+    const uint16_t r = (uint16_t)(a - b);
+    set_flag(R_CF, a < b);
+    set_flag(R_OF, ((a ^ b) & (a ^ r) & 0x8000) != 0);
+    flags_szp16(r);
+    return r;
+}
+#define cmp16(a, b) ((void)sub16((a), (b)))
+
+/* INC r16: OF, SF, ZF, PF; CF is left alone. */
+static inline uint16_t inc16(uint16_t a)
+{
+    const uint16_t r = (uint16_t)(a + 1);
+    set_flag(R_OF, a == 0x7fff);
+    flags_szp16(r);
+    return r;
+}
+
+/* OR r16, r16 (the "test for sign" idiom): CF = OF = 0, SF, ZF, PF. */
+static inline void test16(uint16_t a)
+{
+    set_flag(R_CF, false);
+    set_flag(R_OF, false);
+    flags_szp16(a);
+}
+
+/* Conditions of the last flag-setting instruction. */
+static inline bool flag(unsigned off) { return RD_REG(off, 1) != 0; }
+static inline bool cond_ge(void) { return flag(R_SF) == flag(R_OF); }          /* JGE */
+static inline bool cond_l(void) { return flag(R_SF) != flag(R_OF); }           /* JL  */
+static inline bool cond_le(void) { return flag(R_ZF) || cond_l(); }            /* JLE */
+static inline bool cond_ae(void) { return !flag(R_CF); }                       /* JAE */
+static inline bool cond_a(void) { return !flag(R_CF) && !flag(R_ZF); }         /* JA  */
+
+/* REP MOVSB/MOVSD with the direction flag clear (the core sets it only around
+ * one copy and clears it right after): n bytes from src to dst, front to
+ * back. Writes go through the differential build's recording. */
+static inline void copy_forward(uint32_t dst, uint32_t src, uint32_t n)
+{
+    if (!n) return;
+    if ((uint64_t)src + n > RT_MEM_SIZE) rt_bad_access(src, (int)n);
+    if ((uint64_t)dst + n > RT_MEM_SIZE) rt_bad_access(dst, -(int)n);
+#ifdef RT_DIFF
+    if (rt_diff_active) rt_diff_note_range(dst, n);
+#endif
+    if (dst > src && dst < src + n) {
+        for (uint32_t i = 0; i < n; i++) mem[dst + i] = mem[src + i];   /* overlapping: as REP MOVSB does */
+    } else {
+        memcpy(&mem[dst], &mem[src], n);
+    }
+}
+
+/* The general registers, for functions written as a translation of their
+ * register usage; loaded at the start, stored before returning. */
+typedef struct { uint32_t eax, ecx, edx, ebx, ebp, esi, edi; } regs32;
+static inline regs32 regs_load(void) { return (regs32){EAX, ECX, EDX, EBX, EBP, ESI, EDI}; }
+static inline void regs_store(const regs32 *r)
+{
+    WR_REG(R_EAX, 4, r->eax); WR_REG(R_ECX, 4, r->ecx); WR_REG(R_EDX, 4, r->edx); WR_REG(R_EBX, 4, r->ebx);
+    WR_REG(R_EBP, 4, r->ebp); WR_REG(R_ESI, 4, r->esi); WR_REG(R_EDI, 4, r->edi);
+}
+/* Low 16 bits of a 32-bit register: read, and write leaving the top alone. */
+static inline uint16_t lo16(uint32_t r) { return (uint16_t)r; }
+static inline void set_lo16(uint32_t *r, uint16_t v) { *r = (*r & 0xffff0000u) | v; }
+
 /* RET: pop the return address (Ghidra keeps it in its EIP slot, 0x284) and
  * report it to the caller's check (RT_CALL). */
 static inline void x86_ret(void)

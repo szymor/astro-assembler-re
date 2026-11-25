@@ -144,9 +144,12 @@ one with readable C, each checked against the generated version.
   ```
 
   The normal build's suite must then still give the same hashes.
-- **Limits**: calls made during a check go to the hand-written versions
-  without being checked themselves (each is checked where it is called
-  directly). A function that reaches a shell callback (sound, input,
+- **Nested replacements**: a replaced function called during a check runs
+  its generated version on the generated side and its hand-written version on
+  the other, so the whole call tree is compared (this is how a function that
+  is only ever reached from another one, like the blitter's clipping path,
+  gets checked).
+- **Limits**: a function that reaches a shell callback (sound, input,
   presentation) cannot run twice without doubling those effects; the check
   aborts if one does, so for now only functions that stay inside the core
   can be replaced.
@@ -156,6 +159,8 @@ Replaced so far:
 | Address | Name | File | Checked on |
 |---|---|---|---|
 | `0x408f8c` | `Core_Random` | `random.c` | every call in the 14 regression recordings (166 538 in the full-game one); a wrong flag or a missing write is reported on the first call |
+| `0x442454` | `Core_DrawSprite` | `sprite.c` | 5 103 188 calls in the full-game recording; a clipping edge one pixel off is reported at the first sprite touching it |
+| `0x4424f0` | `Core_DrawSpriteClipped` | `sprite.c` | only reached from `Core_DrawSprite`: 300 685 calls inside its checks |
 
 ## Known gaps / next steps
 

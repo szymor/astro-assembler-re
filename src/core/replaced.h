@@ -11,3 +11,5 @@
  * tests then check each one on real game states.
  */
 HAND(408f8c, Core_Random)
+HAND(442454, Core_DrawSprite)
+HAND(4424f0, Core_DrawSpriteClipped)

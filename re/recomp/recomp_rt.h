@@ -74,6 +74,7 @@ void rt_watch(uint32_t addr, uint64_t value, int size);
  * hand-written function is checked against its generated version. */
 extern int rt_diff_active;
 void rt_diff_note(uint32_t a, int size);
+void rt_diff_note_range(uint32_t a, uint32_t n);
 #endif
 static inline void MEM_WR(uint32_t a, int size, uint64_t v) {
     if ((uint64_t)a + (uint64_t)size > RT_MEM_SIZE) rt_bad_access(a, -size);
@@ -145,9 +146,11 @@ rt_func rt_lookup(uint32_t addr);
  * generated version `ref`, undoes its effects, runs the hand-written `hand`
  * from the same state, and aborts with a report unless both left the same
  * registers, flags, return address and memory (the stack below the final ESP
- * is dead and not compared). Calls made while a check runs go to the
- * hand-written versions unchecked; a function that reaches the shell cannot
- * be checked (its side effects would happen twice) and aborts too. */
+ * is dead and not compared). Replaced functions called while a check runs
+ * use the same side's version (generated during the generated run,
+ * hand-written during the other), so the whole call tree is compared. A
+ * function that reaches the shell cannot be checked (its side effects would
+ * happen twice) and aborts too. */
 void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name);
 
 /* Supplied by the host (shell / platform layer): called for computed calls to
