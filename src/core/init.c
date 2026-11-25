@@ -239,3 +239,101 @@ HAND_FN(42b030)
     WR_REG(R_EAX, 4, eax);
     x86_ret();
 }
+
+/*
+ * Core_CopyTiles (0x4097d9): copies 3 x 3 x 2 blocks of 32 bytes from ESI to EDI
+ * (plus the arena offset at 0x556ac8): the two blocks of a pair go 0x350 bytes
+ * past each other's end, the same source row is repeated for three destination
+ * rows (0xb0 further each), then the source moves on by 0x40. Registers: ESI
+ * ends 0xc0 on, EDI at the end of the last block, ECX = EDX = 0. Flags: those of
+ * the last DEC CX (CF of the preceding ESI addition).
+ */
+HAND_FN(4097d9)
+{
+    uint32_t esi = ESI, edi = EDI + rd32(0x556ac8u);
+    uint16_t outer = 3, mid, inner;
+    do {
+        mid = 3;
+        do {
+            const uint32_t row_esi = esi;
+            inner = 2;
+            do {
+                copy_forward(edi, esi, 32);
+                edi += 32 + 0x350;
+                esi += 32;
+                inner = dec16(inner);
+            } while (!flag(R_ZF));
+            esi = row_esi;
+            edi = sub32(edi, 0x690);
+            mid = dec16(mid);
+        } while (!flag(R_ZF));
+        esi = add32(esi, 0x40);
+        outer = dec16(outer);
+    } while (!flag(R_ZF));
+    WR_REG(R_ESI, 4, esi);
+    WR_REG(R_EDI, 4, edi);
+    WR_REG(R_ECX, 4, 0);
+    WR_REG(R_EDX, 2, 0);
+    x86_ret();
+}
+
+/*
+ * Core_MaskBlit (0x415a58): CX rows (the word at 0x4b0630) of 4 dword pairs (AND
+ * mask, OR bits: the sprite masks at the pointer in 0x4b0632) are combined into
+ * the screen at EAX + the row table entry (word index at 0x4b0624) + the arena
+ * offset; pairs are 8 bytes apart, rows 0x370. EAX = the last dword read.
+ * Flags: those of the DEC CX (CF of the last EDI addition).
+ */
+HAND_FN(415a58)
+{
+    uint32_t edi = rd16(0x4b0640u + 2 * rd32(0x4b0624u)) + EAX + rd32(0x556ac8u);
+    uint32_t esi = rd32(0x4b0632u), eax = 0;
+    uint16_t cx = rd16(0x4b0630u);
+    do {
+        for (unsigned i = 0; i < 4; i++) {
+            eax = rd32(esi); esi += 4;
+            wr32(edi, rd32(edi) & eax);
+            eax = rd32(esi); esi += 4;
+            wr32(edi, rd32(edi) | eax);
+            edi = add32(edi, i < 3 ? 8 : 0x358);
+        }
+        cx = dec16(cx);
+    } while (!flag(R_ZF));
+    WR_REG(R_EAX, 4, eax);
+    WR_REG(R_ECX, 2, cx);
+    WR_REG(R_ESI, 4, esi);
+    WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}
+
+/*
+ * Core_Cross4 (0x433acd): which side of the line through (EAX, EBX) and
+ * (EBP, EDI) the four corners made of the words at 0x470888/0x47088a (x) and
+ * 0x47088c/0x47088e (y) lie on: the byte at 0x46ffa8 collects a bit per corner
+ * that is on the non-negative side (cross product, 32 bits). EBP, EDI become the
+ * line's direction; ECX and EDX keep the last corner's values.
+ */
+HAND_FN(433acd)
+{
+    static const uint32_t corner[4][2] = {{0x470888, 0x47088c}, {0x470888, 0x47088e},
+                                          {0x47088a, 0x47088e}, {0x47088a, 0x47088c}};
+    const uint32_t eax = EAX, ebx = EBX;
+    uint32_t ebp = sub32(EBP, eax), edi = sub32(EDI, ebx), ecx = 0, edx = 0;
+    uint8_t mask = 0;
+    wr8(0x46ffa8u, 0);
+    for (unsigned i = 0; i < 4; i++) {
+        ecx = (uint32_t)(int32_t)(int16_t)rd16(corner[i][0]);
+        edx = (uint32_t)(int32_t)(int16_t)rd16(corner[i][1]);
+        ecx = sub32(ecx, eax);
+        edx = sub32(edx, ebx);
+        ecx *= edi;
+        edx *= ebp;
+        edx = sub32(edx, ecx);
+        ecx = (ecx & 0xffffff00u) | (cond_ge() ? 1u : 0u);
+        mask |= (uint8_t)ecx;
+        wr8(0x46ffa8u, mask);
+        test8(mask);
+    }
+    WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi); WR_REG(R_ECX, 4, ecx); WR_REG(R_EDX, 4, edx);
+    x86_ret();
+}

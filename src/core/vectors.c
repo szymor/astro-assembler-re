@@ -202,3 +202,55 @@ HAND_FN(42d318)
     WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi);
     x86_ret();
 }
+
+/*
+ * Core_FollowPath2 (0x4299b8): as Core_FollowPath for the path at 0x497c34 (position
+ * 0x497c38, step 0x497c3c, point 0x497b00/0x497b04 from the words scaled by 1024
+ * and offset by 0x497af8/0x497afc), and then the point drifts: a countdown at
+ * 0x497aec; when it runs out, the next (countdown, dx, dy) triple of the list
+ * pointed to by 0x497ae8 is loaded. Each call adds (dx, dy) at 0x497af0/0x497af4
+ * to the offsets. Flags: those of the last addition.
+ */
+HAND_FN(4299b8)
+{
+    uint32_t eax = EAX;
+    const uint32_t off = rd32(0x497c34u);
+    uint32_t edi = 0, ebp = EBP, ebx = EBX;
+    test32(off, 0xffffffffu);
+    if (!flag(R_ZF)) {
+        edi = off + rd32(0x556ac8u);
+        ebp = rd32(0x497c38u);
+        eax = (uint32_t)(int32_t)(int16_t)rd16(ebp + edi) << 10;
+        ebx = (uint32_t)(int32_t)(int16_t)rd16(ebp + edi + 2) << 10;
+        eax = add32(eax, rd32(0x497af8u));
+        ebx = add32(ebx, rd32(0x497afcu));
+        wr32(0x497b00u, eax);
+        wr32(0x497b04u, ebx);
+        eax = ((rd32(0x497c3cu) + 0x8000u) >> 16) << 2;
+        cmp32(eax, 0x20);
+        if (cond_a()) eax = 0x20;
+        ebp = add32(ebp, eax);
+        cmp16(rd16(ebp + edi), 0x8000);
+        if (flag(R_ZF)) ebp = 0;
+        wr32(0x497c38u, ebp);
+    }
+    uint32_t esi = ESI;
+    const uint32_t left = dec32(rd32(0x497aecu));
+    wr32(0x497aecu, left);
+    if (flag(R_ZF)) {
+        esi = rd32(0x497ae8u);
+        wr32(0x497aecu, rd32(esi));
+        wr32(0x497af0u, rd32(esi + 4));
+        wr32(0x497af4u, rd32(esi + 8));
+        esi += 12;
+        eax = rd32(esi - 4);
+        wr32(0x497ae8u, esi);
+    }
+    eax = rd32(0x497af0u);
+    wr32(0x497af8u, add32(rd32(0x497af8u), eax));
+    eax = rd32(0x497af4u);
+    wr32(0x497afcu, add32(rd32(0x497afcu), eax));
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_EBP, 4, ebp);
+    WR_REG(R_ESI, 4, esi); WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}

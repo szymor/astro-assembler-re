@@ -156,7 +156,7 @@ one with readable C, each checked against the generated version.
   `0x437c3a`, `0x437ea0` and `0x4384b7`: the handler they call reaches the
   sound callback (found when the first check aborted). `0x40b866` (three
   counter steps) was left out because no recording ever calls it, so a
-  replacement could not be checked.
+  replacement could not be checked; the same goes for `0x4422c2`.
 
 Replaced so far:
 
@@ -204,6 +204,12 @@ Replaced so far:
 | `0x41b676` | `Core_SpawnShot` | `vectors.c` | 6 607 calls in the full-game recording |
 | `0x42d318` | `Core_FollowPath` | `vectors.c` | 4 303 calls in the full-game recording |
 | `0x419819` / `0x41aa6d` | `Core_StepEntries24` / `Core_StepEntries14` | `tables.c` | 130 092 calls each in the full-game recording |
+| `0x42975e`, `0x431c25` | `Core_LevelEffectD`, `E` | `tables.c` | 17 475 and 11 726 calls in the full-game recording |
+| `0x4097d9` | `Core_CopyTiles` | `init.c` | 2 calls in the full-game recording |
+| `0x415a58` | `Core_MaskBlit` | `init.c` | 3 calls in the full-game recording |
+| `0x433acd` | `Core_Cross4` | `init.c` | 151 974 calls in the full-game recording |
+| `0x4299b8` | `Core_FollowPath2` | `vectors.c` | 3 495 calls in the full-game recording |
+| `0x41ed70`, `0x41ee75` | `Core_CopyStripA`, `B` | `tables.c` | up to 4 803 and 134 calls over the recordings (whether `B`'s optional second block is reached is not recorded) |
 
 ## Known gaps / next steps
 

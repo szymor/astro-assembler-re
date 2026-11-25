@@ -163,25 +163,43 @@ HAND_FN(413849)
  * and up, 0xa/1 for 6, 9/1 for 5, 8/1 for 4, 8/2 for 3, 8/3 for 2, 8/4 for 1,
  * 8/5 for 0. Flags: those of the last compare of AX.
  */
+static void level_table(const uint16_t *bx, const uint16_t *cx, unsigned n)
+{
+    const uint16_t ax = (uint16_t)EAX;
+    for (unsigned i = 0; i < n; i++) {
+        WR_REG(R_EBX, 2, bx[i]);
+        WR_REG(R_ECX, 2, cx[i]);
+        cmp16(ax, (uint16_t)(n - i));
+        if (cond_ae()) { x86_ret(); return; }
+    }
+    WR_REG(R_EBX, 2, bx[n]);
+    WR_REG(R_ECX, 2, cx[n]);
+    x86_ret();
+}
 static void level_effect(void)
 {
     static const uint16_t bx[8] = {1, 0xa, 9, 8, 8, 8, 8, 8};
     static const uint16_t cx[8] = {0, 1, 1, 1, 2, 3, 4, 5};
-    const uint16_t ax = (uint16_t)EAX;
-    unsigned i = 0;
-    for (; i < 7; i++) {
-        WR_REG(R_EBX, 2, bx[i]);
-        WR_REG(R_ECX, 2, cx[i]);
-        cmp16(ax, (uint16_t)(7 - i));
-        if (cond_ae()) { x86_ret(); return; }
-    }
-    WR_REG(R_EBX, 2, 8);
-    WR_REG(R_ECX, 2, 5);
-    x86_ret();
+    level_table(bx, cx, 7);
 }
 HAND_FN(42d0fc) { level_effect(); }
 HAND_FN(42f888) { level_effect(); }
 HAND_FN(43029b) { level_effect(); }
+
+/* Two more of the same shape with eight thresholds (AX 8 and up gives 1/0):
+ * 0x42975e (final 8/6) and 0x431c25. */
+HAND_FN(42975e)
+{
+    static const uint16_t bx[9] = {1, 0xa, 9, 8, 8, 8, 8, 8, 8};
+    static const uint16_t cx[9] = {0, 1, 1, 1, 2, 3, 4, 5, 6};
+    level_table(bx, cx, 8);
+}
+HAND_FN(431c25)
+{
+    static const uint16_t bx[9] = {1, 0x10, 0xe, 0xc, 0xa, 9, 8, 7, 6};
+    static const uint16_t cx[9] = {0, 1, 1, 1, 1, 2, 2, 2, 2};
+    level_table(bx, cx, 8);
+}
 
 /*
  * Palette_StartFade (0x4135ba): CX = the number of steps, EDI the
@@ -386,5 +404,85 @@ HAND_FN(41aa6d)
         if (flag(R_ZF)) break;
     }
     WR_REG(R_EAX, 4, eax); WR_REG(R_ECX, 2, cx); WR_REG(R_EDX, 2, 0); WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}
+
+/*
+ * Copying a strip of a picture into the work buffer. The index words at EBP
+ * (one per step, times 400) select 20 x 20-byte blocks in the picture in the
+ * arena (at the offset in 0x4b1f74 / 0x4b1fa4); EDI is preserved.
+ *
+ * Core_CopyStripA (0x41ed70): 20 steps; each copies a block (destination rows
+ * 0x17c bytes after each 20), then a second block from the offset limited to
+ * the dword at 0x4b1f7c plus 0x4b1f78, 0x27100 bytes further. EAX = the last
+ * offset, EBX = ECX = EDX = 0. Flags: those of the last DEC EDX (CF of the EDI
+ * subtraction).
+ */
+static void copy_block(uint32_t *edi, uint32_t *esi, uint32_t gap)
+{
+    for (unsigned i = 0; i < 20; i++) {
+        copy_forward(*edi, *esi, 20);
+        *esi += 20;
+        *edi += 20;
+        *edi += gap;
+    }
+}
+
+HAND_FN(41ed70)
+{
+    uint32_t ebp = EBP, edi = EDI, esi = 0, eax = 0, edx = 0x14;
+    do {
+        eax = (uint32_t)rd16(ebp) * 0x190u;
+        esi = rd32(0x556ac8u);
+        ebp += 2;
+        esi += rd32(0x4b1f74u);
+        esi += eax;
+        copy_block(&edi, &esi, 0x17c);
+        cmp32(eax, rd32(0x4b1f7cu));
+        if (cond_a()) eax = rd32(0x4b1f7cu);
+        esi = eax;
+        edi += 0x27100;
+        esi += rd32(0x4b1f78u);
+        esi += rd32(0x556ac8u);
+        copy_block(&edi, &esi, 0x17c);
+        edi = sub32(edi, 0x2af6c);
+        edx = dec32(edx);
+    } while (!flag(R_ZF));
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, 0); WR_REG(R_ECX, 4, 0); WR_REG(R_EDX, 4, edx);
+    WR_REG(R_ESI, 4, esi); WR_REG(R_EBP, 4, ebp);
+    x86_ret();
+}
+
+/*
+ * Core_CopyStripB (0x41ee75): as A for 16 blocks from 0x4b1fa4/0x4b1fa8/0x4b1fac
+ * (rows 0x12c apart); the second block only when bit 4 of the word at 0x4b3ba0
+ * is set (then 0x1f400 further). Flags: those of the last DEC EDX.
+ */
+HAND_FN(41ee75)
+{
+    uint32_t ebp = EBP, edi = EDI, esi = 0, eax = 0, edx = 0x10;
+    do {
+        eax = (uint32_t)rd16(ebp) * 0x190u;
+        esi = rd32(0x556ac8u);
+        ebp += 2;
+        esi += rd32(0x4b1fa4u);
+        esi += eax;
+        copy_block(&edi, &esi, 0x12c);
+        test16m(rd16(0x4b3ba0u), 0x10);
+        if (!flag(R_ZF)) {
+            cmp32(eax, rd32(0x4b1facu));
+            if (cond_a()) eax = rd32(0x4b1facu);
+            esi = eax;
+            edi += 0x1f400;
+            esi += rd32(0x4b1fa8u);
+            esi += rd32(0x556ac8u);
+            copy_block(&edi, &esi, 0x12c);
+            edi -= 0x20d00;
+        }
+        edi = sub32(edi, 0x18ec);
+        edx = dec32(edx);
+    } while (!flag(R_ZF));
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, 0); WR_REG(R_ECX, 4, 0); WR_REG(R_EDX, 4, edx);
+    WR_REG(R_ESI, 4, esi); WR_REG(R_EBP, 4, ebp);
     x86_ret();
 }
