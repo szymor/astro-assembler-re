@@ -77,6 +77,14 @@ static inline uint32_t sub32(uint32_t a, uint32_t b)
     flags_szp32(r);
     return r;
 }
+/* DEC r32: OF, SF, ZF, PF; CF is left alone. */
+static inline uint32_t dec32(uint32_t a)
+{
+    const uint32_t r = a - 1;
+    set_flag(R_OF, a == 0x80000000u);
+    flags_szp32(r);
+    return r;
+}
 #define cmp32(a, b) ((void)sub32((a), (b)))
 
 static inline uint16_t ror16(uint16_t v, unsigned n) { n &= 15; return (uint16_t)(v >> n | v << ((16 - n) & 15)); }

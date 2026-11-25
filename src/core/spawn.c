@@ -54,3 +54,30 @@ HAND_FN(41bea9)
     WR_REG(R_EBX, 4, ebx);
     x86_ret();
 }
+
+/*
+ * Core_StartTimedEntry (0x423f3f): adds EBX to the dword the pointer at
+ * 0x46ffe8 points to (clamped at 0 if the sum is negative), then takes the
+ * first free entry (first word zero) of the table of 10-byte entries after
+ * 0x51f436 and fills it in: 0x78 (the time to live, 120 frames), BP, 0, DI,
+ * AX. The count word at 0x4b203c goes up. ESI = the entry. Flags: those of the
+ * free-entry scan.
+ */
+HAND_FN(423f3f)
+{
+    const uint32_t target = rd32(0x46ffe8u);
+    uint32_t v = add32(rd32(target), EBX);
+    if (v & 0x80000000u) v = 0;
+    wr32(target, v);
+    wr16(0x4b203cu, inc16(rd16(0x4b203cu)));
+    uint32_t e = 0x51f436u;
+    do e += 0xa; while (rd16(e) != 0);
+    cmp16(0, 0);
+    wr16(e, 0x78);
+    wr16(e + 2, (uint16_t)EBP);
+    wr16(e + 4, 0);
+    wr16(e + 6, (uint16_t)EDI);
+    wr16(e + 8, (uint16_t)EAX);
+    WR_REG(R_ESI, 4, e);
+    x86_ret();
+}

@@ -173,6 +173,11 @@ Replaced so far:
 | `0x42beb7` | `Core_FineToIndex` | `pools.c` | 352 560 calls in the full-game recording |
 | `0x408cf1` | `Core_GetLevelScript` | `spawn.c` | 14 calls in the full-game recording |
 | `0x41bea9` | `Core_StartObject28` | `spawn.c` | 1 043 calls in the full-game recording |
+| `0x4435ec` | `Core_AddVectors` | `vectors.c` | 194 389 calls in the full-game recording |
+| `0x44359c` | `Core_StepAngles` | `vectors.c` | 175 525 calls in the full-game recording |
+| `0x443554` | `Core_NormaliseVectors` | `vectors.c` | 165 637 calls in the full-game recording; the IDIV by a zero sum would fault as in the original (never reached) |
+| `0x41b54b` | `Core_WrapAngle16` | `vectors.c` | 3 670 calls in the full-game recording |
+| `0x423f3f` | `Core_StartTimedEntry` | `spawn.c` | 69 calls in the full-game recording |
 
 ## Known gaps / next steps
 
