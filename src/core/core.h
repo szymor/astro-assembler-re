@@ -77,6 +77,32 @@ static inline uint32_t sub32(uint32_t a, uint32_t b)
     flags_szp32(r);
     return r;
 }
+/* 8-bit counterparts: SF, ZF, PF, CMP/SUB and INC. */
+static inline void flags_szp8(uint8_t r)
+{
+    set_flag(R_SF, (r & 0x80) != 0);
+    set_flag(R_ZF, r == 0);
+    set_flag(0x202, parity_even(r));                   /* PF */
+}
+static inline uint8_t sub8(uint8_t a, uint8_t b)
+{
+    const uint8_t r = (uint8_t)(a - b);
+    set_flag(R_CF, a < b);
+    set_flag(R_OF, ((a ^ b) & (a ^ r) & 0x80) != 0);
+    flags_szp8(r);
+    return r;
+}
+#define cmp8(a, b) ((void)sub8((a), (b)))
+static inline uint8_t inc8(uint8_t a)
+{
+    const uint8_t r = (uint8_t)(a + 1);
+    set_flag(R_OF, a == 0x7f);
+    flags_szp8(r);
+    return r;
+}
+static inline uint8_t rd8(uint32_t va) { return (uint8_t)MEM_RD(va, 1); }
+static inline void wr8(uint32_t va, uint8_t v) { MEM_WR(va, 1, v); }
+
 /* DEC r16: OF, SF, ZF, PF; CF is left alone. */
 static inline uint16_t dec16(uint16_t a)
 {

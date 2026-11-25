@@ -154,7 +154,9 @@ one with readable C, each checked against the generated version.
   aborts if one does, so for now only functions that stay inside the core
   can be replaced. This rules out, for example, the object steps at
   `0x437c3a`, `0x437ea0` and `0x4384b7`: the handler they call reaches the
-  sound callback (found when the first check aborted).
+  sound callback (found when the first check aborted). `0x40b866` (three
+  counter steps) was left out because no recording ever calls it, so a
+  replacement could not be checked.
 
 Replaced so far:
 
@@ -189,6 +191,12 @@ Replaced so far:
 | `0x409818` | `Core_CopyRows` | `init.c` | 21 calls in the full-game recording |
 | `0x41851f` / `0x418559` | `Core_SetBestTime1` / `2` | `init.c` | 129 991 calls in the full-game recording (player 1); 3 403 in the two-player recording (player 2). They drop the caller's return address too (`ADD ESP, 4; RET`) |
 | `0x4422d6` | `Core_PickNearerPlayer` | `init.c` | 384 489 calls in the full-game recording, 8 640 in the two-player one |
+| `0x416ba1`, `0x416ba8`, `0x416baf`, `0x416bb6` / `0x416bff`, `0x416c06`, `0x416c0d`, `0x416c14` | `Core_BindKeysP1a`-`d` / `P2a`-`d` | `keys.c` | `P1a` 163 657 calls, `P2b` 3 403 (all recordings). The other six are **not called by any recording**: they share the checked body and differ only in the start of the key list |
+| `0x41a93d` | `Core_ClearFinishedA` | `tables.c` | 130 092 calls in the full-game recording |
+| `0x41b026` | `Core_ClearFinishedB` | `tables.c` | 130 092 calls in the full-game recording |
+| `0x415e97` | `Core_FindEntryOrFree` | `tables.c` | 3 318 calls in the full-game recording |
+| `0x413849` | `Core_NextFrames` | `tables.c` | 130 092 calls in the full-game recording |
+| `0x42b030` | `Core_StoreFourEntries` | `init.c` | 4 calls in the full-game recording |
 
 ## Known gaps / next steps
 

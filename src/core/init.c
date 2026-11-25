@@ -216,3 +216,26 @@ HAND_FN(4422d6)
     wr32(0x470000u, ebp);
     x86_ret();
 }
+
+/*
+ * Core_StoreFourEntries (0x42b030): four records at 0x497dbe, 0x497e6e, 0x497f1e and
+ * 0x497fce (0xb0 apart) are initialised from
+ * the four dwords at ESI: in use (word 1), word 0, the dword, then EBX and ECX.
+ * ESI ends after the list, EAX = the last dword.
+ */
+HAND_FN(42b030)
+{
+    uint32_t esi = ESI, eax = 0;
+    for (uint32_t rec = 0x497dbeu; rec <= 0x497fceu; rec += 0xb0) {
+        eax = rd32(esi);
+        esi += 4;
+        wr16(rec, 1);
+        wr16(rec + 2, 0);
+        wr32(rec + 4, eax);
+        wr32(rec + 8, EBX);
+        wr32(rec + 0xc, ECX);
+    }
+    WR_REG(R_ESI, 4, esi);
+    WR_REG(R_EAX, 4, eax);
+    x86_ret();
+}
