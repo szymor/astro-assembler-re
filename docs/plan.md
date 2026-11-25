@@ -79,7 +79,7 @@ replacement of generated functions with readable C. See
       against the generated version on every call in the regression
       recordings (recompiler.md, "Replacing generated functions")
 - [x] Replaced so far: `Core_Random`, the sprite blitter (`Core_DrawSprite`,
-      `Core_DrawSpriteClipped`)
+      `Core_DrawSpriteClipped`) and its one-colour variant (`Core_DrawSilhouette`)
 - [x] SDL3 host layer (`src/`, see [port.md](port.md)): logos, title, menus
       and level 1 gameplay run on the recompiled core
 - [x] Sound effects and CD music from FLAC (see port.md, "Audio")

@@ -96,6 +96,7 @@
 00408cf1	f	Core_GetLevelScript	eax = LevelScriptTable[level-1][section*3 + g_cfgDifficulty].
 00442454	f	Core_DrawSprite	RLE sprite -> g_frameBuffer. dx=x, bx=y, bp=width, cx=height, esi=data. Fast path when fully visible.
 004424f0	f	Core_DrawSpriteClipped	Clipping path of Core_DrawSprite.
+004425dc	f	Core_DrawSilhouette	Like Core_DrawSprite, but fills the sprite's shape with the pattern at 0x4b3bb0 (pixel data skipped); clipping inline.
 0041f109	f	Script_Run	Level script interpreter (word opcodes 0xEF..0xFD, see docs/formats.md).
 004135ba	f	Palette_StartFade	Fade from current palette to edi over cx frames (240 colours, 8.8 fixed point).
 00413577	f	Palette_StepFade	Advances the 8.8 fade by one frame into g_paletteOut.

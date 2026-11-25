@@ -184,3 +184,141 @@ HAND_FN(4424f0)
     regs_store(&r);
     x86_ret();
 }
+
+#define G_SILHOUETTE_FILL 0x4b3bb0u  /* dword: the fill pattern of the silhouette */
+
+/* REP STOSB / STOSD of ECX bytes at EDI: AL until EDI is 4-aligned, then EAX
+ * as dwords, then AL again. EBX is the original's scratch register. */
+static void fill_run(regs32 *r)
+{
+    if (r->ecx >= 4) {
+        r->ebx = r->ecx;
+        const uint32_t head = (4 - r->edi) & 3;
+        r->ebx -= head;
+        fill_bytes(r->edi, (uint8_t)r->eax, head);
+        r->edi += head;
+        fill_dwords(r->edi, r->eax, r->ebx >> 2);
+        r->edi += r->ebx & ~3u;
+        r->ecx = r->ebx & 3;
+    }
+    fill_bytes(r->edi, (uint8_t)r->eax, r->ecx);
+    r->edi += r->ecx;
+    r->ecx = 0;
+}
+
+/*
+ * Core_DrawSilhouette (0x4425dc): the shape of the sprite at ESI, at (DX, BX),
+ * size BP x CX, filled with the pattern at 0x4b3bb0 instead of its pixels
+ * (the pixel data is skipped). The same visibility tests and the same
+ * clipping as Core_DrawSprite and Core_DrawSpriteClipped, written out in one
+ * function by the original; the skip is kept in DX, EBX is scratch for the
+ * fill, and the upper halves of EAX and EDI are left as they came until the
+ * drawing starts.
+ */
+HAND_FN(4425dc)
+{
+    regs32 r = regs_load();
+    const uint16_t x = lo16(r.edx), y = lo16(r.ebx), w = lo16(r.ebp), h = lo16(r.ecx);
+
+    set_lo16(&r.eax, (uint16_t)(x + w));
+    set_lo16(&r.edi, (uint16_t)(SCREEN_W + w));
+    cmp16(lo16(r.eax), lo16(r.edi));
+    if (cond_ae()) goto done;                         /* beyond the right edge */
+    set_lo16(&r.eax, (uint16_t)(y + h));
+    set_lo16(&r.edi, (uint16_t)(SCREEN_H + h));
+    cmp16(lo16(r.eax), lo16(r.edi));
+    if (cond_ae()) goto done;                         /* below the bottom edge */
+
+    set_lo16(&r.edi, (uint16_t)(SCREEN_W - w));
+    cmp16(x, lo16(r.edi));
+    if (!cond_a()) {
+        set_lo16(&r.edi, (uint16_t)(SCREEN_H - h));
+        cmp16(y, lo16(r.edi));
+    }
+    if (cond_a()) goto clipped;                       /* partly outside */
+
+    /* fully inside */
+    r.ecx = (uint16_t)(y * SCREEN_W + x);
+    r.edi = (uint32_t)MEM_RD(G_FRAME_BUFFER, 4);
+    r.eax = (uint32_t)MEM_RD(G_SILHOUETTE_FILL, 4);
+    r.edx = 0;
+    r.edi += r.ecx;
+    r.ebp = r.edi;                                    /* start of the current line */
+    for (;;) {
+        set_lo16(&r.edx, rd16(r.esi));
+        r.esi += 2;
+        test16(lo16(r.edx));
+        if (!flag(R_SF)) {                            /* DX = skip, then a run */
+            set_lo16(&r.ecx, rd16(r.esi));
+            r.edi += r.edx;
+            r.esi += 2;
+            r.esi += r.ecx;                           /* the pixels are not used */
+            fill_run(&r);
+            continue;
+        }
+        set_lo16(&r.edx, inc16(lo16(r.edx)));
+        if (flag(R_ZF)) goto done;                    /* 0xffff: end */
+        r.ebp += SCREEN_W;                            /* 0xfffe: next line */
+        r.edi = r.ebp;
+    }
+
+clipped:
+    wr16(G_CLIP_X, x);
+    wr16(G_CLIP_Y, y);
+    r.edx = (uint32_t)(int32_t)(int16_t)x;
+    r.ebx = (uint32_t)(int32_t)(int16_t)y;
+    set_lo16(&r.ebp, x);                              /* BP: x of the next pixel */
+    r.edi = r.ebx * SCREEN_W;
+    r.ecx = 0;
+    r.edi += r.edx;
+    r.edx = 0;
+    r.edi += (uint32_t)MEM_RD(G_FRAME_BUFFER, 4);
+    MEM_WR(G_CLIP_LINE, 4, r.edi);
+    r.eax = (uint32_t)MEM_RD(G_SILHOUETTE_FILL, 4);
+    for (;;) {
+        set_lo16(&r.edx, rd16(r.esi));
+        r.esi += 2;
+        test16(lo16(r.edx));
+        if (!flag(R_SF)) {                            /* DX = skip, then a run of CX */
+            set_lo16(&r.ecx, rd16(r.esi));
+            r.esi += 2;
+            r.esi += r.ecx;                           /* the pixels are not used */
+            cmp16(rd16(G_CLIP_Y), 0);
+            if (cond_l()) continue;                   /* line above the screen */
+            r.edi += r.edx;
+            set_lo16(&r.edx, add16(lo16(r.edx), lo16(r.ebp)));    /* x of the run */
+            if (!cond_ge()) {                         /* starts left of the screen */
+                r.edi += r.ecx;
+                set_lo16(&r.edx, add16(lo16(r.edx), lo16(r.ecx)));    /* x after the run */
+                set_lo16(&r.ebp, lo16(r.edx));
+                if (cond_le()) continue;              /* entirely left of it */
+                r.edi -= r.edx;                       /* fill the visible end */
+                set_lo16(&r.ecx, lo16(r.edx));
+            } else {
+                set_lo16(&r.edx, add16(lo16(r.edx), lo16(r.ecx)));    /* x after the run */
+                set_lo16(&r.ebp, lo16(r.edx));
+                cmp16(lo16(r.edx), SCREEN_W);
+                if (!cond_l()) {                      /* reaches past the right edge */
+                    set_lo16(&r.edx, sub16(lo16(r.edx), lo16(r.ecx)));
+                    set_lo16(&r.edx, sub16(lo16(r.edx), SCREEN_W));
+                    if (cond_ge()) continue;          /* entirely right of it */
+                    set_lo16(&r.edx, add16(lo16(r.edx), lo16(r.ecx)));
+                    set_lo16(&r.ecx, sub16(lo16(r.ecx), lo16(r.edx)));    /* fill the visible start */
+                }
+            }
+            fill_run(&r);
+            continue;
+        }
+        set_lo16(&r.edx, inc16(lo16(r.edx)));
+        if (flag(R_ZF)) break;                        /* 0xffff: end */
+        wr16(G_CLIP_Y, (uint16_t)(rd16(G_CLIP_Y) + 1));   /* 0xfffe: next line */
+        cmp16(rd16(G_CLIP_Y), SCREEN_H);
+        if (cond_ge()) break;                         /* below the screen */
+        set_lo16(&r.ebp, rd16(G_CLIP_X));
+        MEM_WR(G_CLIP_LINE, 4, (uint32_t)MEM_RD(G_CLIP_LINE, 4) + SCREEN_W);
+        r.edi = (uint32_t)MEM_RD(G_CLIP_LINE, 4);
+    }
+done:
+    regs_store(&r);
+    x86_ret();
+}

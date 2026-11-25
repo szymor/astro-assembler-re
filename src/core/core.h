@@ -106,6 +106,28 @@ static inline void copy_forward(uint32_t dst, uint32_t src, uint32_t n)
     }
 }
 
+/* REP STOSB: n bytes of `value` from dst on (direction flag clear). */
+static inline void fill_bytes(uint32_t dst, uint8_t value, uint32_t n)
+{
+    if (!n) return;
+    if ((uint64_t)dst + n > RT_MEM_SIZE) rt_bad_access(dst, -(int)n);
+#ifdef RT_DIFF
+    if (rt_diff_active) rt_diff_note_range(dst, n);
+#endif
+    memset(&mem[dst], value, n);
+}
+
+/* REP STOSD: n dwords of `value` (little-endian) from dst on. */
+static inline void fill_dwords(uint32_t dst, uint32_t value, uint32_t n)
+{
+    if (!n) return;
+    if ((uint64_t)dst + 4ull * n > RT_MEM_SIZE) rt_bad_access(dst, -(int)(4 * n));
+#ifdef RT_DIFF
+    if (rt_diff_active) rt_diff_note_range(dst, 4 * n);
+#endif
+    for (uint32_t i = 0; i < n; i++) memcpy(&mem[dst + 4 * i], &value, 4);
+}
+
 /* The general registers, for functions written as a translation of their
  * register usage; loaded at the start, stored before returning. */
 typedef struct { uint32_t eax, ecx, edx, ebx, ebp, esi, edi; } regs32;

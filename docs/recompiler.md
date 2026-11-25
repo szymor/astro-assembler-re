@@ -161,6 +161,7 @@ Replaced so far:
 | `0x408f8c` | `Core_Random` | `random.c` | every call in the 14 regression recordings (166 538 in the full-game one); a wrong flag or a missing write is reported on the first call |
 | `0x442454` | `Core_DrawSprite` | `sprite.c` | 5 103 188 calls in the full-game recording; a clipping edge one pixel off is reported at the first sprite touching it |
 | `0x4424f0` | `Core_DrawSpriteClipped` | `sprite.c` | only reached from `Core_DrawSprite`: 300 685 calls inside its checks |
+| `0x4425dc` | `Core_DrawSilhouette` | `sprite.c` | 1 464 calls in the full-game recording, every branch reached (fully visible 819, clipped 627 incl. lines above and runs cut or dropped at both edges); a clipping edge one pixel off is reported at call 174 |
 
 ## Known gaps / next steps
 
