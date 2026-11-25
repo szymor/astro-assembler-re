@@ -166,6 +166,13 @@ Replaced so far:
 | `0x41c033` | `Core_FindFreeSlot200` | `pools.c` | 219 063 calls in the full-game recording |
 | `0x41cb30` | `Core_FindFreeSlot30` | `pools.c` | 5 335 calls in the full-game recording |
 | `0x42be97` | `Core_WrapPosition` | `pools.c` | 291 838 calls in the full-game recording |
+| `0x41c27d` | `Core_FindFreeSlot100` | `pools.c` | 2 376 calls in the full-game recording |
+| `0x41c9b2` | `Core_FindFreeSlot25` | `pools.c` | 61 calls in the full-game recording |
+| `0x41cdb2` | `Core_FindFreeSlot10` | `pools.c` | 88 calls in the full-game recording |
+| `0x41cf6b` | `Core_WrapIndex` | `pools.c` | 1 390 calls in the full-game recording |
+| `0x42beb7` | `Core_FineToIndex` | `pools.c` | 352 560 calls in the full-game recording |
+| `0x408cf1` | `Core_GetLevelScript` | `spawn.c` | 14 calls in the full-game recording |
+| `0x41bea9` | `Core_StartObject28` | `spawn.c` | 1 043 calls in the full-game recording |
 
 ## Known gaps / next steps
 
