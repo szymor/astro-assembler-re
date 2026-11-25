@@ -210,6 +210,11 @@ Replaced so far:
 | `0x433acd` | `Core_Cross4` | `init.c` | 151 974 calls in the full-game recording |
 | `0x4299b8` | `Core_FollowPath2` | `vectors.c` | 3 495 calls in the full-game recording |
 | `0x41ed70`, `0x41ee75` | `Core_CopyStripA`, `B` | `tables.c` | up to 4 803 and 134 calls over the recordings (whether `B`'s optional second block is reached is not recorded) |
+| `0x41599f` | `Core_MaskBlitRows` | `init.c` | 974 calls in the full-game recording |
+| `0x42d1a0` | `Core_EnergyStep` | `init.c` | 4 303 calls in the full-game recording |
+| `0x42ad07` | `Core_StepGauges` | `tables.c` | 3 495 calls in the full-game recording |
+| `0x42aee4` | `Core_StepPoints` | `vectors.c` | 3 495 calls in the full-game recording |
+| `0x41be2a` | `Core_ProjectPoints` | `vectors.c` | 430 584 calls in the full-game recording |
 
 ## Known gaps / next steps
 

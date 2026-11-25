@@ -486,3 +486,45 @@ HAND_FN(41ee75)
     WR_REG(R_ESI, 4, esi); WR_REG(R_EBP, 4, ebp);
     x86_ret();
 }
+
+/*
+ * Core_StepGauges (0x42ad07): four records 0xb0 apart from 0x497dba, each a dword
+ * value (+0) with a "falling" word (+4) and a "rising" word (+6), a step (+0xc)
+ * and a limit (+0x10). Falling: the value drops by the step; at 0 or below it
+ * stops falling and starts rising, and the dword at +8 is copied to the record's
+ * dword 8 bytes before it (and the dword 4 before cleared). Rising: the value
+ * grows by the step up to the limit, where rising ends. EAX = the last dword
+ * read. Flags: those of the last compare or arithmetic.
+ */
+HAND_FN(42ad07)
+{
+    uint32_t eax = EAX;
+    for (uint32_t b = 0x497dbau; b <= 0x497dbau + 3 * 0xb0; b += 0xb0) {
+        cmp16(rd16(b + 4), 0);
+        if (!flag(R_ZF)) {
+            eax = rd32(b + 0xc);
+            wr32(b, sub32(rd32(b), eax));
+            if (!(!flag(R_ZF) && flag(R_SF) == flag(R_OF))) {          /* not JG */
+                wr32(b, 0);
+                wr16(b + 4, 0);
+                wr16(b + 6, 1);
+                eax = rd32(b + 8);
+                wr32(b - 8, eax);
+                wr32(b - 4, 0);
+            }
+        }
+        cmp16(rd16(b + 6), 0);
+        if (!flag(R_ZF)) {
+            eax = rd32(b + 0xc);
+            wr32(b, add32(rd32(b), eax));
+            eax = rd32(b + 0x10);
+            cmp32(rd32(b), eax);
+            if (!cond_l()) {
+                wr32(b, eax);
+                wr16(b + 6, 0);
+            }
+        }
+    }
+    WR_REG(R_EAX, 4, eax);
+    x86_ret();
+}

@@ -337,3 +337,84 @@ HAND_FN(433acd)
     WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi); WR_REG(R_ECX, 4, ecx); WR_REG(R_EDX, 4, edx);
     x86_ret();
 }
+
+/*
+ * Core_MaskBlitRows (0x41599f): CX rows of 10 dword pairs (AND mask, OR bits;
+ * the data at ESI) combined into the screen at EDI, the pairs 4 bytes apart;
+ * after a row ESI skips 0x324 bytes and EDI 0x11c (counted from the last pair).
+ * EAX = the last dword read. Flags: those of the DEC CX (CF of the EDI addition).
+ */
+HAND_FN(41599f)
+{
+    uint32_t esi = ESI, edi = EDI, eax = 0;
+    uint16_t cx = (uint16_t)ECX;
+    do {
+        for (unsigned i = 0; i < 10; i++) {
+            eax = rd32(esi); esi += 4;
+            wr32(edi, rd32(edi) & eax);
+            eax = rd32(esi);
+            esi += i < 9 ? 4 : 0x324;
+            wr32(edi, rd32(edi) | eax);
+            edi = add32(edi, i < 9 ? 4 : 0x11c);
+        }
+        cx = dec16(cx);
+    } while (!flag(R_ZF));
+    WR_REG(R_EAX, 4, eax);
+    WR_REG(R_ECX, 2, cx);
+    WR_REG(R_ESI, 4, esi);
+    WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}
+
+/*
+ * Core_EnergyStep (0x42d1a0): the countdown dword at 0x4983cc drops by an amount
+ * chosen by the word at 0x498868 (a level: 4 below 0xe, 6 below 0xd ... 0x18 for
+ * 0). When it runs out and none of five entries (words at 0x4984c4, 0x498550,
+ * 0x4984d0, 0x498502, 0x498536) is in use, the next pair of dwords from the list
+ * at the pointer in 0x4983c8 is loaded (countdown, 0x4983d4) and a timer of 180
+ * started. The timer (word at 0x4983d0) counts down, and when it reaches 0 with
+ * the entry at 0x498550 unused, the dword at 0x4983c4 is set to 0x18000.
+ */
+HAND_FN(42d1a0)
+{
+    static const uint8_t amount[14] = {4, 6, 8, 0xa, 0xc, 0xe, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17};
+    uint32_t eax = 4, esi = ESI;
+    unsigned i = 0;
+    for (; i < 14; i++) {
+        eax = amount[i];
+        cmp16(rd16(0x498868u), (uint16_t)(0xe - i));
+        if (cond_ae()) break;
+    }
+    if (i == 14) eax = 0x18;
+    const uint32_t left = sub32(rd32(0x4983ccu), eax);
+    wr32(0x4983ccu, left);
+    if (!flag(R_ZF) && flag(R_SF) == flag(R_OF)) goto timer;       /* JG */
+    {
+        static const uint32_t used[5] = {0x4984c4, 0x498550, 0x4984d0, 0x498502, 0x498536};
+        for (unsigned k = 0; k < 5; k++) {
+            cmp16(rd16(used[k]), 0);
+            if (!flag(R_ZF)) goto timer;
+        }
+        esi = rd32(0x4983c8u);
+        eax = rd32(esi);
+        wr32(0x4983ccu, eax);
+        eax = rd32(esi + 4);
+        wr32(0x4983d4u, eax);
+        esi += 8;
+        wr32(0x4983c8u, esi);
+        wr16(0x4983d0u, 0xb4);
+        wr32(0x4983c4u, 0x20000);
+    }
+timer:
+    cmp16(rd16(0x4983d0u), 0);
+    if (!flag(R_ZF)) {
+        wr16(0x4983d0u, dec16(rd16(0x4983d0u)));
+        if (flag(R_ZF)) {
+            cmp16(rd16(0x498550u), 0);
+            if (flag(R_ZF)) wr32(0x4983c4u, 0x18000);
+        }
+    }
+    WR_REG(R_EAX, 4, eax);
+    WR_REG(R_ESI, 4, esi);
+    x86_ret();
+}

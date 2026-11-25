@@ -254,3 +254,92 @@ HAND_FN(4299b8)
     WR_REG(R_ESI, 4, esi); WR_REG(R_EDI, 4, edi);
     x86_ret();
 }
+
+/*
+ * Core_StepPoints (0x42aee4): four records 0xb0 apart (from 0x497db2: path
+ * offset, +4 position, +8 scale, results at -0x18 and -0xc): for each record
+ * with a path, the two dwords at the position are multiplied by the scale
+ * (64-bit, >> 16) into the results and the position moves on by 8 (to 0 at a
+ * 0x80000000 end marker). EAX = the last result, EDX = its high dword, EBP =
+ * the last position, EDI the last offset. Flags: those of the last compare, or
+ * of the test of the first record without a path.
+ */
+HAND_FN(42aee4)
+{
+    uint32_t eax = EAX, edx = EDX, ebp = EBP, edi = EDI;
+    for (uint32_t b = 0x497db2u; b <= 0x497db2u + 3 * 0xb0; b += 0xb0) {
+        edi = rd32(b);
+        test32(edi, 0xffffffffu);
+        if (flag(R_ZF)) { edi = 0; continue; }
+        edi += rd32(0x556ac8u);
+        ebp = rd32(b + 4);
+        for (unsigned k = 0; k < 2; k++) {
+            eax = rd32(b + 8);
+            const int64_t p = (int64_t)(int32_t)eax * (int32_t)rd32(ebp + edi + 4 * k);
+            edx = (uint32_t)((uint64_t)p >> 32);
+            eax = (uint32_t)(((uint64_t)p >> 16) & 0xffffffffu);
+            wr32(b - 0x18 + 0xc * k, eax);
+        }
+        ebp = add32(ebp, 8);
+        cmp32(rd32(ebp + edi), 0x80000000u);
+        if (flag(R_ZF)) { ebp = 0; flags_szp32(0); set_flag(R_CF, false); set_flag(R_OF, false); }
+        wr32(b + 4, ebp);
+    }
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EDX, 4, edx); WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}
+
+/*
+ * Core_ProjectPoints (0x41be2a): CX points (word pairs at EDI) are transformed
+ * by the factors in the object at EBP (+0xa, +0xe multipliers; +2 and +6
+ * offsets; +0x12 added to the second coordinate, which is set to 0 when the sum
+ * is not positive) and written as screen words to the table at
+ * 0x4b1b2a (x halved, adjusted by the word at 0x4b1f9a when the byte at +0x1a
+ * is set). ESI is preserved; EDI ends after the input. Flags: those of the DEC CX
+ * (CF of the last ESI addition).
+ */
+HAND_FN(41be2a)
+{
+    uint32_t esi = 0x4b1b2au, edi = EDI;
+    const uint32_t ebp = EBP;
+    uint16_t cx = (uint16_t)ECX;
+    uint32_t eax = EAX, ebx = EBX, ecx = ECX, edx = EDX;
+    do {
+        uint16_t bx = add16(rd16(edi + 2), rd16(ebp + 0x12));
+        if (!(!flag(R_ZF) && flag(R_SF) == flag(R_OF))) bx = 0;       /* not JG */
+        ecx = (uint32_t)(int32_t)(int16_t)rd16(edi);
+        ebx = (uint32_t)(int32_t)(int16_t)bx;
+        edx = ecx;
+        eax = ebx;
+        edx *= rd32(ebp + 0xa);
+        eax *= rd32(ebp + 0xa);
+        ecx *= rd32(ebp + 0xe);
+        ebx *= rd32(ebp + 0xe);
+        eax = sub32(eax, ecx);
+        edx = add32(edx, ebx);
+        eax *= 0xd5;
+        eax = add32(eax, 0x80);
+        eax = sar32(eax, 8);
+        edx = add32(edx, rd32(ebp + 2));
+        eax = add32(eax, rd32(ebp + 6));
+        edx = add32(edx, 0x1000);
+        eax = add32(eax, 0x2000);
+        edx = sar32(edx, 13);
+        eax = sar32(eax, 14);
+        uint16_t dx = (uint16_t)edx;
+        cmp8(rd8(ebp + 0x1a), 0);
+        if (!flag(R_ZF)) dx = (uint16_t)(dx - rd16(0x4b1f9au));
+        dx = (uint16_t)(dx + 1);
+        dx = (uint16_t)((int16_t)dx >> 1);
+        edx = (edx & 0xffff0000u) | dx;
+        wr16(esi, dx);
+        wr16(esi + 2, (uint16_t)eax);
+        edi += 4;
+        esi = add32(esi, 4);
+        ecx = (ecx & 0xffff0000u) | cx;
+        cx = dec16(cx);
+    } while (!flag(R_ZF));
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_ECX, 4, (ecx & 0xffff0000u) | cx);
+    WR_REG(R_EDX, 4, edx); WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}
