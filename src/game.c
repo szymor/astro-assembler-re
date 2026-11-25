@@ -1,5 +1,6 @@
 /* Common entry point; each frontend's main() calls astro_main(). */
 #include "astro.h"
+#include "core.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +23,8 @@ static const char *find_assets(int argc, char **argv)
 int astro_main(int argc, char **argv)
 {
     const char *assets = find_assets(argc, argv);
+
+    if (!core_check_replaced()) return 1;   /* generated core out of date */
 
     mem = calloc(RT_MEM_SIZE, 1);
     if (!mem) { astro_log("out of memory"); return 1; }

@@ -69,8 +69,17 @@ extern uint32_t rt_watch_lo, rt_watch_hi;
 extern int rt_watch_byte;
 void rt_watch(uint32_t addr, uint64_t value, int size);
 #endif
+#ifdef RT_DIFF
+/* Differential builds (see rt_diff_check): writes are recorded while a
+ * hand-written function is checked against its generated version. */
+extern int rt_diff_active;
+void rt_diff_note(uint32_t a, int size);
+#endif
 static inline void MEM_WR(uint32_t a, int size, uint64_t v) {
     if ((uint64_t)a + (uint64_t)size > RT_MEM_SIZE) rt_bad_access(a, -size);
+#ifdef RT_DIFF
+    if (rt_diff_active) rt_diff_note(a, size);
+#endif
 #ifdef RT_WATCH
     if (a < rt_watch_hi && a + (uint32_t)size > rt_watch_lo &&
         (rt_watch_byte < 0 || memchr(&v, rt_watch_byte, (size_t)size)))
@@ -131,6 +140,15 @@ void rt_callind(uint32_t target, uint32_t ret);     /* computed call      */
 void rt_jumpind(uint32_t target);                   /* unknown computed jump */
 void rt_callother(unsigned kind, uint32_t at, ...); /* special instructions */
 rt_func rt_lookup(uint32_t addr);
+
+/* Differential check of a hand-written function (RT_DIFF builds): runs the
+ * generated version `ref`, undoes its effects, runs the hand-written `hand`
+ * from the same state, and aborts with a report unless both left the same
+ * registers, flags, return address and memory (the stack below the final ESP
+ * is dead and not compared). Calls made while a check runs go to the
+ * hand-written versions unchecked; a function that reaches the shell cannot
+ * be checked (its side effects would happen twice) and aborts too. */
+void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name);
 
 /* Supplied by the host (shell / platform layer): called for computed calls to
  * addresses outside the core, i.e. ILT slots 0x401000..0x401244. The host must

@@ -22,7 +22,14 @@ ASTRO.exe ──Ghidra──▶ ExportPcode.java ──▶ core.pcode ──reco
 3. `python3 re/scripts/find_seeds.py extracted/game/ASTRO.exe build/recomp/seeds.txt`
    (remove the four jump-table bases listed in `re/inline_tables.txt`), giving
    `build/recomp/entries.txt`
-4. `python3 re/recomp/recomp.py build/recomp/core.pcode -o build/recomp/gen --entries build/recomp/entries.txt --smc re/smc_fields.txt --tables re/inline_tables.txt --text assets/data/ASTRO_TEXT.BIN`
+4. `python3 re/recomp/recomp.py build/recomp/core.pcode -o build/recomp/gen --entries build/recomp/entries.txt --smc re/smc_fields.txt --tables re/inline_tables.txt --text assets/data/ASTRO_TEXT.BIN --replaced src/core/replaced.h`
+
+Once `build/recomp/core.pcode` and `entries.txt` exist, CMake runs step 4
+itself whenever the recompiler or the list of hand-written functions
+changes (it takes a few seconds; only changed files are rewritten, so only
+those are recompiled). Without them, CMake uses the files in
+`build/recomp/gen` as they are, and the game refuses to start if they were
+generated for a different list.
 
 `re/smc_fields.txt` is produced by `SmcFields.java` from the list of patched
 code fields (every p-code write into the core's code range); it is kept in the
@@ -95,12 +102,60 @@ only maps about 40 p-code operations to C.
 Building the test:
 
 ```bash
-gcc -O1 -std=c11 -w -Ire/recomp -Ibuild/recomp/gen re/recomp/recomp_rt.c re/recomp/test_proto.c build/recomp/gen/gen_*.c -lm -o build/recomp/test_full
+gcc -O1 -std=c11 -w -Ire/recomp -Ibuild/recomp/gen -Isrc/core re/recomp/recomp_rt.c re/recomp/test_proto.c src/core/*.c build/recomp/gen/gen_*.c -lm -o build/recomp/test_full
 ```
 
 ```bash
 build/recomp/test_full assets
 ```
+
+## Replacing generated functions with hand-written C
+
+The second half of the hybrid plan: generated functions are replaced one by
+one with readable C, each checked against the generated version.
+
+- **Where**: `src/core/`. `replaced.h` lists the replaced functions
+  (`HAND(<hex>, <name>)`); each is written as `HAND_FN(<hex>) { ... }`
+  (`core.h`) in a source file of its own subject (`random.c`, ...), and the
+  file is added to `ASTRO_HAND_SOURCES` in `CMakeLists.txt`.
+- **How it is linked in**: the recompiler generates listed functions as
+  `ref_<hex>` instead of `f_<hex>`, so every direct, tail and computed call
+  reaches the hand-written `f_<hex>`.
+- **What it must do**: leave exactly what the original instructions left:
+  registers (including the halves it does not use), the flags of the last
+  flag-setting instruction (in p-code semantics: additions do not set AF),
+  memory, the emulated stack, and on return the popped address in ESP, in
+  Ghidra's EIP slot (`0x284`) and in `cpu.ret_addr` (`x86_ret()`).
+  `core.h` has helpers for the common cases.
+- **How it is checked**: the differential build (`cmake --preset diff`,
+  `build/diff`, headless only) defines `RT_DIFF`. Every call of a replaced
+  function then runs the generated version, records and undoes its memory
+  writes, restores the registers, runs the hand-written version and compares
+  the whole register file, the return address and every byte either version
+  wrote (the stack below the final ESP is dead and ignored). A difference
+  aborts with the call number, the register or address, and both values; at
+  exit each function's number of checked calls is printed. Running the
+  regression suite in that build checks the replacements on every state the
+  recordings reach:
+
+  ```bash
+  cmake --preset diff && cmake --build --preset diff -j
+  ctest --test-dir build/diff -j8 --output-on-failure
+  ```
+
+  The normal build's suite must then still give the same hashes.
+- **Limits**: calls made during a check go to the hand-written versions
+  without being checked themselves (each is checked where it is called
+  directly). A function that reaches a shell callback (sound, input,
+  presentation) cannot run twice without doubling those effects; the check
+  aborts if one does, so for now only functions that stay inside the core
+  can be replaced.
+
+Replaced so far:
+
+| Address | Name | File | Checked on |
+|---|---|---|---|
+| `0x408f8c` | `Core_Random` | `random.c` | every call in the 14 regression recordings (166 538 in the full-game one); a wrong flag or a missing write is reported on the first call |
 
 ## Known gaps / next steps
 

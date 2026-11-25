@@ -5,7 +5,22 @@
       "name": "linux",
       "displayName": "Linux (all frontends found on the system)",
       "binaryDir": "${sourceDir}/build/cmake",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "diff",
+      "displayName": "Linux, differential check of the hand-written core functions (headless only)",
+      "binaryDir": "${sourceDir}/build/diff",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "ASTRO_DIFF": "ON",
+        "ASTRO_SDL3": "OFF",
+        "ASTRO_SDL2": "OFF",
+        "ASTRO_SDL1": "OFF",
+        "ASTRO_BOT": "OFF"
+      }
     },
     {
       "name": "mingw",
@@ -32,8 +47,23 @@
     }
   ],
   "buildPresets": [
-    { "name": "linux", "configurePreset": "linux" },
-    { "name": "mingw", "configurePreset": "mingw" },
-    { "name": "msvc", "configurePreset": "msvc", "configuration": "Release" }
-  ]
+    {
+      "name": "linux",
+      "configurePreset": "linux"
+    },
+    {
+      "name": "diff",
+      "configurePreset": "diff"
+    },
+    {
+      "name": "mingw",
+      "configurePreset": "mingw"
+    },
+    {
+      "name": "msvc",
+      "configurePreset": "msvc",
+      "configuration": "Release"
+    }
+  ],
+  "testPresets": []
 }

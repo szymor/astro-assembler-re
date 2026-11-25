@@ -15,6 +15,12 @@ rt_callind(), which dispatches to generated functions or to the shell
 
 The output is derived from ASTRO.exe and must not be committed.
 
+Functions rewritten by hand (src/core/replaced.h, `HAND(<hex>, <name>)`, passed
+with --replaced) are generated as `ref_<addr>` instead: every call, including
+computed calls through rt_func_table, then reaches the hand-written `f_<addr>`,
+and the generated version stays available as the reference the differential
+build checks it against (recomp_rt.h, RT_DIFF).
+
 Usage:
   python3 re/recomp/recomp.py core.pcode -o build/recomp/gen [--only 408f8c,442454]
 """
@@ -404,7 +410,8 @@ class FuncGen:
         if self.doubles:
             decl.append("  double " + ", ".join(f"d_{u:x} = 0" for u in sorted(self.doubles)) + ";")
         name = self.names.get(self.entry, "")
-        head = [f"/* {name} */", f"void f_{self.entry:x}(void)", "{"] + decl
+        prefix = "ref" if self.entry in REPLACED else "f"
+        head = [f"/* {name} */", f"void {prefix}_{self.entry:x}(void)", "{"] + decl
         if addrs and addrs[0] != self.entry:
             head.append(f"  goto L_{self.entry:x};")
         return "\n".join(head + lines + ["}", ""])
@@ -413,6 +420,24 @@ class FuncGen:
 def _s32(v: int) -> int:
     v &= 0xFFFFFFFF
     return v - (1 << 32) if v & 0x80000000 else v
+
+
+REPLACED: dict[int, str] = {}
+
+
+def write_if_changed(path: Path, text: str) -> None:
+    """Leave files whose content is unchanged alone (no needless rebuilds)."""
+    if path.exists() and path.read_text() == text:
+        return
+    path.write_text(text)
+
+
+def load_replaced(path: Path) -> dict[int, str]:
+    """HAND(<hex>, <name>) lines of src/core/replaced.h."""
+    out = {}
+    for m in re.finditer(r"^\s*HAND\(\s*([0-9a-fA-F]+)\s*,\s*(\w+)\s*\)", path.read_text(), re.M):
+        out[int(m.group(1), 16)] = m.group(2)
+    return out
 
 
 def main(argv=None) -> int:
@@ -427,7 +452,11 @@ def main(argv=None) -> int:
     ap.add_argument("--smc", type=Path, help="runtime-patched code fields (output of SmcFields.java)")
     ap.add_argument("--tables", type=Path, help="inline tables (re/inline_tables.txt) for computed jump targets")
     ap.add_argument("--text", type=Path, help="code section image (assets/data/ASTRO_TEXT.BIN, VA 0x401000)")
+    ap.add_argument("--replaced", type=Path,
+                    help="functions rewritten by hand (src/core/replaced.h): generated as ref_<addr>")
     args = ap.parse_args(argv)
+    if args.replaced:
+        REPLACED.update(load_replaced(args.replaced))
 
     names, insns = load_pcode(args.pcode)
     if args.smc:
@@ -482,10 +511,18 @@ def main(argv=None) -> int:
 
     args.out.mkdir(parents=True, exist_ok=True)
     order = sorted(gens)
+    missing = sorted(set(REPLACED) - set(order))
+    if missing:
+        print("replaced functions that are not core functions: " + ", ".join(f"{a:x}" for a in missing))
+        return 1
     proto = "\n".join(f"void f_{e:x}(void);" for e in order)
-    (args.out / "gen_funcs.h").write_text("/* generated - do not edit */\n#pragma once\n" + proto + "\n")
+    proto += "\n/* generated versions of the hand-written functions (src/core/replaced.h) */\n"
+    proto += "\n".join(f"void ref_{e:x}(void);" for e in sorted(REPLACED))
+    listed = " ".join(f"{e:x}" for e in sorted(REPLACED))
+    proto += f'\n#define GEN_REPLACED "{listed}"\n'
+    write_if_changed(args.out / "gen_funcs.h", "/* generated - do not edit */\n#pragma once\n" + proto + "\n")
     table = ",\n".join(f"  {{0x{e:x}u, f_{e:x}}}" for e in order)
-    (args.out / "gen_table.c").write_text(
+    write_if_changed(args.out / "gen_table.c", 
         '/* generated - do not edit */\n#include "recomp_rt.h"\n#include "gen_funcs.h"\n'
         f"const rt_func_entry rt_func_table[] = {{\n{table}\n}};\n"
         f"const unsigned rt_func_count = {len(order)};\n")
@@ -498,7 +535,7 @@ def main(argv=None) -> int:
         src = ['/* generated from ASTRO.exe - do not edit, do not commit */',
                '#include "recomp_rt.h"', '#include "gen_funcs.h"', '#include <math.h>', '']
         src += [gens[e].code for e in chunk]
-        (args.out / f"gen_{k:02d}.c").write_text("\n".join(src))
+        write_if_changed(args.out / f"gen_{k:02d}.c", "\n".join(src))
 
     problems = [(e, p) for e, g in gens.items() for p in g.problems]
     ninsn = sum(len(g.body()) for g in gens.values())

@@ -126,7 +126,9 @@ music; the Linux one uses its bundled SDL3.
 | `src/settings.c` | The port's own settings, `astro-port.ini` (filter, fullscreen, resolution) |
 | `src/util.c` | Logging, UTF-8 file access (Windows-safe), per-user folder, BMP writer, hash |
 | `src/scale.c` | 4:3 rectangle and the software scaler (sharp/nearest/smooth) |
-| `src/frontend/*.c` | SDL3, SDL2, SDL1 and headless frontends |
+| `src/replay.c` | Input recording and playback (`ASTRO_RECORD`, `ASTRO_REPLAY`) |
+| `src/core/` | Hand-written replacements of recompiled core functions (`replaced.h`; see recompiler.md) |
+| `src/frontend/*.c` | SDL3, SDL2, SDL1 and headless frontends; `bot.c`: astro-bot |
 
 ## Emulated memory
 
@@ -431,6 +433,10 @@ logos. In the default keyboard set 1 the ship uses O/P/Q/A and Space, set 2
 (player 2) the arrows and Right Shift (`36`). In the name entry O/P change the
 letter and Space confirms it; each letter starts from the previous one. With
 the default table a game needs 10 000 points to enter the hall of fame.
+
+In the differential build (`cmake --preset diff`, see recompiler.md,
+"Replacing generated functions") the same tests also check every hand-written
+core function against its generated version on each call.
 
 The tests need the packaged assets (`assets/`, or `-DASTRO_TEST_ASSETS=<dir>`)
 and are skipped without them. After an intended output change, or for a new

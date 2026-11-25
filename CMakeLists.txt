@@ -15,10 +15,54 @@ option(ASTRO_SDL1 "Build the SDL 1.2 frontend (astro-sdl1) if SDL 1.2 is found" 
 option(ASTRO_HEADLESS "Build the headless test frontend (astro-headless)" ON)
 option(ASTRO_BOT "Build astro-bot, which plays the game by search (POSIX only)" ON)
 
-file(GLOB ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_*.c")
-if(NOT ASTRO_GEN_SOURCES)
-    message(FATAL_ERROR "No generated core found in ${ASTRO_GEN_DIR}. See docs/recompiler.md.")
+option(ASTRO_DIFF "Differential build: check every hand-written core function against its generated version on each call (slow)" OFF)
+
+# Functions rewritten by hand replace generated ones (src/core/replaced.h).
+# With Ghidra's p-code export at hand (docs/recompiler.md, step 2), the core
+# is regenerated whenever that list or the recompiler changes; otherwise the
+# existing generated files are used, and the game refuses to start if they do
+# not match the list.
+set(ASTRO_PCODE "${CMAKE_SOURCE_DIR}/build/recomp/core.pcode" CACHE FILEPATH "Ghidra p-code export of the core (ExportPcode.java)")
+set(ASTRO_ENTRIES "${CMAKE_SOURCE_DIR}/build/recomp/entries.txt" CACHE FILEPATH "Extra core entry points (find_seeds.py)")
+set(ASTRO_TEXT_IMAGE "${CMAKE_SOURCE_DIR}/assets/data/ASTRO_TEXT.BIN" CACHE FILEPATH "Code section image (package_assets.py)")
+if(EXISTS "${ASTRO_PCODE}" AND EXISTS "${ASTRO_ENTRIES}" AND EXISTS "${ASTRO_TEXT_IMAGE}")
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_table.c")
+    foreach(i RANGE 0 31)
+        string(LENGTH "${i}" len)
+        if(len EQUAL 1)
+            set(i "0${i}")
+        endif()
+        list(APPEND ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_${i}.c")
+    endforeach()
+    # The recompiler rewrites only files whose content changed, so a stamp
+    # (per build directory) marks the last run.
+    add_custom_command(
+        OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/recomp.stamp"
+        BYPRODUCTS ${ASTRO_GEN_SOURCES} "${ASTRO_GEN_DIR}/gen_funcs.h"
+        COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/re/recomp/recomp.py" "${ASTRO_PCODE}"
+                -o "${ASTRO_GEN_DIR}" --entries "${ASTRO_ENTRIES}"
+                --smc "${CMAKE_SOURCE_DIR}/re/smc_fields.txt" --tables "${CMAKE_SOURCE_DIR}/re/inline_tables.txt"
+                --text "${ASTRO_TEXT_IMAGE}" --replaced "${CMAKE_SOURCE_DIR}/src/core/replaced.h"
+        COMMAND "${CMAKE_COMMAND}" -E touch "${CMAKE_CURRENT_BINARY_DIR}/recomp.stamp"
+        DEPENDS "${CMAKE_SOURCE_DIR}/re/recomp/recomp.py" "${CMAKE_SOURCE_DIR}/src/core/replaced.h"
+                "${ASTRO_PCODE}" "${ASTRO_ENTRIES}" "${ASTRO_TEXT_IMAGE}"
+                "${CMAKE_SOURCE_DIR}/re/smc_fields.txt" "${CMAKE_SOURCE_DIR}/re/inline_tables.txt"
+        COMMENT "Regenerating the recompiled core"
+        VERBATIM)
+    set(ASTRO_GEN_STAMP "${CMAKE_CURRENT_BINARY_DIR}/recomp.stamp")
+else()
+    file(GLOB ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_*.c")
+    if(NOT ASTRO_GEN_SOURCES)
+        message(FATAL_ERROR "No generated core found in ${ASTRO_GEN_DIR}. See docs/recompiler.md.")
+    endif()
+    list(APPEND ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_table.c")
+    list(REMOVE_DUPLICATES ASTRO_GEN_SOURCES)
 endif()
+
+# Hand-written replacements of core functions (warnings on, unlike the
+# generated code).
+set(ASTRO_HAND_SOURCES src/core/replaced.c src/core/random.c)
 
 if(MINGW)
     set(ZLIB_USE_STATIC_LIBS ON)                  # one DLL less to ship
@@ -37,13 +81,17 @@ endif()
 
 # The generated code is huge and mechanical: its own library, moderate
 # optimisation, no warnings.
-add_library(astro_core STATIC ${ASTRO_GEN_SOURCES} re/recomp/recomp_rt.c)
-target_include_directories(astro_core PUBLIC re/recomp "${ASTRO_GEN_DIR}")
+add_library(astro_core STATIC ${ASTRO_GEN_SOURCES} re/recomp/recomp_rt.c ${ASTRO_HAND_SOURCES} ${ASTRO_GEN_STAMP})
+target_include_directories(astro_core PUBLIC re/recomp "${ASTRO_GEN_DIR}" src/core)
 if(MSVC)
-    target_compile_options(astro_core PRIVATE /O1 /w /bigobj)
+    set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "/O1;/w;/bigobj")
 else()
-    target_compile_options(astro_core PRIVATE -O1 -w)
+    set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-w")
     target_link_libraries(astro_core PUBLIC m)
+endif()
+set_source_files_properties(${ASTRO_HAND_SOURCES} PROPERTIES COMPILE_OPTIONS "${ASTRO_WARNINGS}")
+if(ASTRO_DIFF)
+    target_compile_definitions(astro_core PUBLIC RT_DIFF)
 endif()
 
 # Frontend-neutral code (the replacement for the original shell), compiled once
