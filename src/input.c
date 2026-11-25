@@ -7,23 +7,81 @@
 /*
  * Debugging/testing aid: ASTRO_KEYS="frame:dik[:frames],..." holds DirectInput
  * key `dik` (hex) from presented frame `frame` for `frames` frames (default 10).
+ * Parsed once; scripts may be long (astro-bot writes whole playthroughs).
+ * ASTRO_KEYS_FILE=<file> reads the script from a file instead: one environment
+ * string may not exceed 128 KiB on Linux.
  */
+const char *input_key_script(void)
+{
+    static char *text;
+    static bool loaded;
+    if (!loaded) {
+        loaded = true;
+        const char *file = getenv("ASTRO_KEYS_FILE");
+        if (file) {
+            size_t size;
+            text = astro_read_file(file, &size);
+            if (!text) astro_log("cannot read ASTRO_KEYS_FILE %s", file);
+            else {
+                char *t = realloc(text, size + 1);
+                if (t) { text = t; text[size] = 0; }
+                else { free(text); text = NULL; }
+            }
+        }
+    }
+    return text ? text : getenv("ASTRO_KEYS");
+}
+
+typedef struct { unsigned long at, end; uint8_t dik; } key_event;
+
+static int cmp_key_event(const void *a, const void *b)
+{
+    const key_event *x = a, *y = b;
+    return x->at < y->at ? -1 : x->at > y->at;
+}
+
 static void scripted_keys(uint8_t state[256])
 {
-    static const char *spec;
-    static bool checked;
-    if (!checked) { spec = getenv("ASTRO_KEYS"); checked = true; }
-    if (!spec) return;
-    unsigned long now = video_frame_count();
-    const char *p = spec;
-    while (*p) {
-        char *end;
-        unsigned long at = strtoul(p, &end, 10), dik = 0, dur = 10;
-        if (*end == ':') dik = strtoul(end + 1, &end, 16);
-        if (*end == ':') dur = strtoul(end + 1, &end, 10);
-        if (now >= at && now < at + dur && dik < 256) state[dik] = 0x80;
-        p = *end == ',' ? end + 1 : end;
-        if (end == p && *p) break;
+    static key_event *ev, **active;
+    static size_t count, next, nactive;
+    static bool parsed;
+    if (!parsed) {
+        parsed = true;
+        const char *p = input_key_script();
+        size_t cap = 0;
+        while (p && *p) {
+            char *end;
+            unsigned long at = strtoul(p, &end, 10), dik = 0, dur = 10;
+            if (*end == ':') dik = strtoul(end + 1, &end, 16);
+            if (*end == ':') dur = strtoul(end + 1, &end, 10);
+            if (end == p) {                          /* whitespace (files) or junk */
+                if (*p == '\n' || *p == '\r' || *p == ' ' || *p == ',') { p++; continue; }
+                break;
+            }
+            if (dik < 256 && dur > 0) {
+                if (count == cap) {
+                    cap = cap ? cap * 2 : 64;
+                    key_event *n = realloc(ev, cap * sizeof *n);
+                    if (!n) break;
+                    ev = n;
+                }
+                ev[count++] = (key_event){at, at + dur, (uint8_t)dik};
+            }
+            p = *end == ',' ? end + 1 : end;
+        }
+        if (count) {
+            qsort(ev, count, sizeof *ev, cmp_key_event);
+            active = malloc(count * sizeof *active);
+            if (!active) count = 0;
+        }
+    }
+    if (!count) return;
+    const unsigned long now = video_frame_count();
+    while (next < count && ev[next].at <= now) active[nactive++] = &ev[next++];
+    for (size_t i = 0; i < nactive;) {
+        if (now >= active[i]->end) { active[i] = active[--nactive]; continue; }
+        state[active[i]->dik] = 0x80;
+        i++;
     }
 }
 

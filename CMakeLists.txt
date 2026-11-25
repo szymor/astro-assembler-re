@@ -13,6 +13,7 @@ option(ASTRO_SDL3 "Build the SDL3 frontend (astro)" ON)
 option(ASTRO_SDL2 "Build the SDL2 frontend (astro-sdl2) if SDL2 is found" ON)
 option(ASTRO_SDL1 "Build the SDL 1.2 frontend (astro-sdl1) if SDL 1.2 is found" ON)
 option(ASTRO_HEADLESS "Build the headless test frontend (astro-headless)" ON)
+option(ASTRO_BOT "Build astro-bot, which plays the game by search (POSIX only)" ON)
 
 file(GLOB ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_*.c")
 if(NOT ASTRO_GEN_SOURCES)
@@ -100,6 +101,10 @@ if(ASTRO_HEADLESS)
     astro_frontend(astro-headless src/frontend/headless.c)
     enable_testing()
     add_subdirectory(tests)
+endif()
+
+if(ASTRO_BOT AND UNIX)
+    astro_frontend(astro-bot src/frontend/bot.c)
 endif()
 
 # Packaging (tools/make_package.py): on Windows the game is a GUI program (no

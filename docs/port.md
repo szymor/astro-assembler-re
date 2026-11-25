@@ -286,6 +286,7 @@ game on Windows 98/2000 was almost always 60 Hz (decided).
 | `ASTRO_VPAD="frame:control[:frames],…"` | SDL3: attach a virtual gamepad and press `a`, `b`, `left`, `right`, `up`, `down` at given frames |
 | `ASTRO_RECORD=<file>` | record every input the core reads (any frontend), see below |
 | `ASTRO_REPLAY=<file>` | play a recording back instead of live input; the user's configuration is not saved |
+| `ASTRO_KEYS_FILE=<file>` | read the `ASTRO_KEYS` script from a file (one environment string is limited to 128 KiB on Linux) |
 | `ASTRO_KEYS="frame:dik[:frames],…"` | hold DirectInput key `dik` (hex) from a given frame; e.g. `800:39` presses Space at frame 800 |
 | `ASTRO_WATCH=<byte>` | debug builds with `-DRT_WATCH` only: histogram of writes of that byte into the frame buffer, or into a level-relative range with `ASTRO_WATCH_RANGE=<lo>:<hi>` |
 
@@ -329,6 +330,80 @@ ASTRO_RECORD=mygame.rec build/cmake/astro assets            # play
 ASTRO_REPLAY=mygame.rec build/cmake/astro-headless assets   # hashes of that session
 ```
 
+### Playthroughs by search (astro-bot)
+
+`astro-bot` (Linux, built with the headless frontend) plays the game by
+itself and writes the inputs it chose as an `ASTRO_KEYS` script; `ASTRO_RECORD`
+with astro-headless then turns the script into a recording. It is the same
+deterministic game as astro-headless, plus a search:
+
+- every 20 gameplay frames it forks copies of itself ("rollouts") that each
+  play a random plan of six 20-frame segments (O/P/Q/A, fire held or tapped,
+  assembling RAIDEN at the final boss)
+  and report back: a death, else level, lives, score, hits (plays of the
+  impact sounds 28-31, since hitting a boss scores nothing until it dies),
+  RAIDEN's parts (other ships' parts count against it) and energy; the main line keeps
+  the first segment of the best plan
+- every second decision it leaves a paused fork behind as a save state; when
+  every rollout dies it resumes an earlier save state (twice as far back after
+  each further failure there) with a new random seed and more rollouts
+- a death is accepted only after that keeps failing and a ship is left; the
+  older save states are then dropped, so later failures cannot undo it
+- the process that was started stays as a supervisor and exits with the
+  search's result; stopping it stops the whole search
+
+It reads player 1's lives (`0x47004f`), the "player in game" flag
+(`0x46ffe4`, cleared by the last death), the score (`0x470050`), the level
+the shell runs (`shell_current_level`) and the sound play counts
+(`sound_play_count`).
+
+```bash
+ASTRO_KEYS="800:39,1100:1c" ASTRO_BOT_OUT=run.keys build/cmake/astro-bot assets
+ASTRO_KEYS_FILE=run.keys ASTRO_FRAMES=<frames it printed> ASTRO_RECORD=run.rec build/cmake/astro-headless assets
+```
+
+| Variable | Default | |
+|---|---|---|
+| `ASTRO_BOT_OUT` | | output script (also written at every level change) |
+| `ASTRO_BOT_LEVEL` | 6 | stop when this level is done |
+| `ASTRO_BOT_FRAMES` | | stop at this frame |
+| `ASTRO_BOT_FROM` | | press nothing before this frame, to continue an earlier script passed as `ASTRO_KEYS_FILE` |
+| `ASTRO_BOT_SEG`, `ASTRO_BOT_HORIZON`, `ASTRO_BOT_ROLLOUTS` | 20, 6, 24 | segment length (frames), plan length (segments), rollouts per decision |
+| `ASTRO_BOT_CP_EVERY`, `ASTRO_BOT_JOBS`, `ASTRO_BOT_SEED` | 2, CPUs, fixed | save state interval (decisions), parallel rollouts, random seed |
+
+Results (8 cores, one run from the start, 40 minutes):
+
+| Level | Ended at frame | Score | Notes |
+|---|---|---|---|
+| 1 | 20 400 | 39 700 | |
+| 2 | 49 200 | 203 600 | one death |
+| 3 | 67 200 | 348 300 | |
+| 4 | 88 800 | 561 450 | RAIDEN's three parts collected |
+| 5 | 111 600 | 809 900 | |
+| 6 | 131 252 | 1 615 950 | dome: RAIDEN's mega bomb; core: plain fire |
+
+`tests/replays/full/bot-full-game.rec` is that run plus the ending, a hall of
+fame entry ("BOT", first place) and Escape, after which the game quits by
+itself at frame 137 158 (test `replay-full-bot-full-game`, about 1:40 min).
+
+Bosses: hitting a boss scores nothing until it dies, so the search also
+rewards hits (impact sounds); with score alone it survived the level 4 boss
+for 60 000 frames without aiming at it. The final boss (the station's dome)
+takes no damage from any shot at all: only RAIDEN's mega bomb kills it (see
+modules.md, "Game logic: special ships and bosses"). So the search rewards
+collecting RAIDEN's parts, penalises every other ship's part (which would
+block RAIDEN's), rewards energy (RAIDEN needs 24), and at the dome offers an
+"assemble" action (fire 2 twice, 14 frames apart); the bomb's 100 000 points
+do the rest.
+
+Action set: directions, fire held, fire tapped (3 of every 8 frames: each press
+fires the missiles, which the manual recommends against ground targets), and
+"assemble" when RAIDEN can be used. The output script expands the taps into single
+presses, so it is long: pass it with `ASTRO_KEYS_FILE`.
+
+The play looks nothing like a person's, which does not matter for regression
+tests.
+
 ### Test suite (ctest)
 
 `tests/` holds recordings (`tests/replays/*.rec`, inputs only, no game data)
@@ -348,7 +423,7 @@ ctest --test-dir build/cmake -j8 --output-on-failure
 | `replay-two-players` | TWO PLAYERS chosen in Options > Controls, then a two-player game: player 1 runs out of ships first, player 2 plays on, game over |
 | `replay-level2-start` … `replay-level6-start` | 70 s of each later level started with `ASTRO_LEVEL` (no state from earlier levels; on level 6 no player ship appears) |
 | `replay-ending` | the ending sequence to the game's own quit |
-| `replay-full-<name>` | every `tests/replays/full/*.rec`, e.g. whole playthroughs |
+| `replay-full-<name>` | every `tests/replays/full/*.rec`, labelled `long` (`ctest -LE long` skips them); `bot-full-game` is astro-bot's playthrough of the whole game, the ending and a hall of fame entry |
 
 Menu keys for writing `ASTRO_KEYS` scripts: Q/A (`10`/`1e`) move up/down,
 Enter (`1c`) selects, O/P (`18`/`19`) change a value; Space (`39`) skips the

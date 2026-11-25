@@ -47,9 +47,14 @@ endforeach()
 astro_regression(replay-ending REPLAY ending.rec)
 
 # Every *.rec dropped into replays/full/ (e.g. whole playthroughs recorded with
-# ASTRO_RECORD) becomes a test of its own; bless it once to record its hashes.
+# ASTRO_RECORD, or astro-bot runs) becomes a test of its own, labelled "long"
+# (minutes each; `ctest -LE long` skips them); bless it once to record its
+# hashes. bot-full-game: astro-bot's playthrough of the whole game (RAIDEN's
+# mega bomb for the final boss), the ending, a hall of fame entry ("BOT") and
+# quitting (137 158 frames).
 file(GLOB _full RELATIVE "${_dir}/replays" CONFIGURE_DEPENDS "${_dir}/replays/full/*.rec")
 foreach(r IN LISTS _full)
     get_filename_component(n "${r}" NAME_WE)
     astro_regression(replay-full-${n} REPLAY ${r})
+    set_tests_properties(replay-full-${n} PROPERTIES LABELS "regression;long")
 endforeach()

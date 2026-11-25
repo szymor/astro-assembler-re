@@ -193,6 +193,9 @@
 0055cbe0	l	g_cfgRunCount
 0046f440	l	g_cfgPlayers_q
 0046f498	l	g_cfgHallOfFame	8 entries {char name[3]; u8 level; u32 score}, best first; saved in ASTRO_CC.CFG.
+0047004f	l	g_livesP1_q	Spare ships of player 1 (byte); drops at the moment of a death.
+0046ffe4	l	g_playerInGame_q	1 while player 1 is in the game; cleared by the last death (game over).
+0046ffa0	l	g_levelTime_q	Frames since the level started (counts once per gameplay frame).
 00470050	l	g_scoreP1_q	Score of player 1 (dword); 0x470054 held the same value in a one-player game.
 0046f444	l	g_cfgControlP1_q
 0046f448	l	g_cfgControlP2_q
@@ -200,3 +203,23 @@
 00556abc	l	g_cfgDifficulty	0..2; selects one of 3 script variants per level section (Core_GetLevelScript).
 0055a7c8	l	g_modeTable	Display modes, stride 0x48.
 00556b4c	l	g_modeCount
+0043ef55	f	Boss6_Damage	Final boss (level 6): health -= eax unless 0x4b1f94 is set; at 0 awards 100000 points and starts the death sequence. Every bullet handler passes 0.
+004a9774	l	g_boss6Health	Final boss health (32000 when it appears).
+004328bc	f	KillAll_Bosses	Part of the destroy-everything sweep: damages each living boss by its whole health.
+004241f2	f	KillAll	Destroy-everything sweep (calls the per-type kill routines); used by the mega bomb and a script opcode.
+004191e1	f	Bomb_Update	Live mega bombs (table 0x51f39c, count 0x4b0e98): KillAll during a bomb's first 8 frames, then shock waves.
+0041b337	f	Bomb_Spawn	Creates a mega bomb (at most 2).
+0041b28f	f	Raiden_Fire	RAIDEN (special ship 9) weapon: a mega bomb when fire is pressed, every 140 frames; empties the energy.
+00418443	f	Player1_Weapon	Calls the weapon handler for player 1's ship type (table 0x4b0894, 10 entries).
+004700f2	l	g_ship1Type	Player 1's ship: 0 main ship, 1-9 special ships (ALPHA..RAIDEN).
+004700f3	l	g_ship1Assembling	Special ship being assembled (0x4700f6 counts the animation down).
+0047008c	l	g_ship1Parts	Collected special-ship parts of player 1: 3 bits per ship (ship n: bits 3(n-1)..3(n-1)+2).
+00470090	l	g_ship1Complete	Ships whose three parts have been collected.
+0047004e	l	g_energy1	Player 1's energy (byte): ships 1-3 need 8, 4-6 need 16, 7-9 need 24 to assemble.
+00416d9b	f	Ship1_SelectOrAssemble	Fire 2 for player 1: opens the ship window, or assembles the selected ship if its parts are complete and the energy suffices (uses the parts up).
+00414abb	f	Ship1_Disassemble	Special ship falls apart (back to ship 0).
+004346d4	f	Part_Collect	The floating ship part (0x4b0620 = part+1) touched: sets its bit and clears every other incomplete set.
+004b0620	l	g_floatingPart	Ship part released by a capsule (1-27), 0 if none.
+004234be	f	Capsules_Update	Capsules (table 0x51f3b8, 8 bytes: state, x, y, contents): when opened, contents high byte 1-27 releases that ship part, low byte an item (0xff: chosen from the player's state).
+0044705b	f	Sound_PlayFromList	Plays a random sound of the current group (list 0x5188ec: count, ids).
+00441eaf	f	Impact_Spawn	Impact spark at a hit, plays an impact sound (Impacto01-04).

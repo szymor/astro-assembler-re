@@ -102,6 +102,7 @@ void astro_exit(void);                      /* save settings/config and leave   
 bool shell_init(const char *assets_dir);
 void shell_run(void);
 void core_command(uint32_t cmd);
+extern int shell_current_level;             /* 1-6 playing, 7 ending, 0 menus */
 
 /* ---- settings.c (the port's own settings) ------------------------------- */
 typedef enum { FILTER_SHARP, FILTER_NEAREST, FILTER_SMOOTH } scale_filter;
@@ -192,7 +193,11 @@ void cd_stop(void);
 void cd_pause(void);
 void cd_resume(void);
 
+/* ---- callbacks.c ---------------------------------------------------------- */
+extern unsigned long sound_play_count[256];  /* Sound_Play calls per sound id */
+
 /* ---- input.c (common part of input) ------------------------------------------- */
 void input_fill_keystate(void);                /* Input_PollKeyboard */
 void input_poll_joystick(int index, int slot); /* Input_PollJoystick */
 uint8_t input_dik_from_usb(int usb_scancode);  /* SDL2/SDL3 scancode -> DIK */
+const char *input_key_script(void);            /* ASTRO_KEYS_FILE contents or ASTRO_KEYS */

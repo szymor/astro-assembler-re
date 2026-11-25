@@ -145,8 +145,12 @@ Options:
       `tests/` (see port.md, "Test suite")
 - [x] Scripted recordings: game over with a hall of fame entry, a
       two-player game set up through the options menu
-- [ ] Recordings of whole playthroughs (1 and 2 players) in
-      `tests/replays/full/` (need a human player)
+- [x] `astro-bot`: playthroughs by search (fork-based rollouts and save
+      states); its playthrough of the whole game, ending and hall of fame
+      entry is a test (`replay-full-bot-full-game`)
+- [x] The final boss: only RAIDEN's mega bomb hurts it (modules.md, "Game
+      logic: special ships and bosses")
+- [ ] Two-player playthroughs
 - [x] Side-by-side runs against Wine: menus and attract mode identical (RGB565),
       level 1 gameplay the same frame sequence (see port.md, "Checking against
       the original"); timing not comparable (unpaced under Wine)

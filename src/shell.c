@@ -273,6 +273,8 @@ static void run_ending(void)
     core_command(15);
 }
 
+int shell_current_level;   /* level being played (1-6), 7 = ending, 0 = menus */
+
 /* Game_RunLevels (0x402f60). ASTRO_LEVEL=<n> (debugging) starts at level n;
  * the core then lacks the state earlier levels would have left behind. */
 static void run_levels(void)
@@ -287,13 +289,16 @@ static void run_levels(void)
         wr32(G_LOAD_PTR, base + size);
         wr32(G_LEVEL_DATA_END, base + size);   /* end of the level data: scratch buffers follow */
         astro_log("level %d", level);
+        shell_current_level = level;
         audio_load_set(k_soundset_level[level], true);
         core_command((uint32_t)level);
         audio_stop_set(k_soundset_level[level]);
         audio_load_set(k_soundset_level[level], false);
-        if (rd32(G_QUIT_GAME) != 0) return;
+        if (rd32(G_QUIT_GAME) != 0) { shell_current_level = 0; return; }
     }
+    shell_current_level = 7;
     run_ending();
+    shell_current_level = 0;
     wr32(G_QUIT_GAME, 1);
 }
 

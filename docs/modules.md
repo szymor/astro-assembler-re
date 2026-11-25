@@ -164,6 +164,44 @@ DirectInput keyboard (256-byte state) and one joystick per player (axes
 −1000..1000 with dead zone, buttons 0 and 1). Each direction and button is kept
 as a 2-bit history (previous, current) for edge detection.
 
+## Game logic: special ships and bosses
+
+Decoded while teaching `astro-bot` to finish the game (names in
+`re/symbols.tsv`).
+
+**Player state** (player 1; player 2's copy is at +0x158): lives `0x47004f`,
+energy `0x47004e`, score `0x470050`, ship type `0x4700f2` (0 main ship, 1-9
+ALPHA, SEEKER, CANNON, ARMOR, PLASMA, STORM, ATOMIC, POWER, RAIDEN), "in game"
+`0x46ffe4` (cleared by the last death), respawn invulnerability `0x4700a4`
+(140 frames; fire 2 is ignored meanwhile).
+
+**Special-ship parts.** `0x47008c` holds 3 bits per ship (ship n: bits
+3(n-1)..3(n-1)+2); `0x470090` records completed sets. Capsules (table
+`0x51f3b8`, 8 bytes: state, x, y, contents) are created by script opcode 4,
+each with a list of possible contents chosen by the frame counter. A choice
+`0xFC00 | mask` is a part capsule for the ships in the 9-bit mask: a ship of
+the mask that already has parts gets its next missing part, otherwise the
+last eligible ship in the mask gets its first part; complete ships are
+skipped. Collecting a part (`Part_Collect`) wipes every other incomplete
+set, so a ship's three parts must be collected without another ship's part
+in between.
+
+**Assembling.** Fire 2 (`Ship1_SelectOrAssemble`) opens the ship window with
+the first complete ship selected (left/right move the cursor); fire 2 again
+closes it and, if the selected set is complete and the energy suffices
+(ships 1-3: 8, 4-6: 16, 7-9: 24), assembles that ship (30 frames), using up
+its parts. Each ship type has its own weapon handler (table `0x4b0894`).
+
+**The final boss** (level 6, the dome of the station): health `0x4a9774`
+(32 000). Every bullet handler passes damage 0 to `Boss6_Damage`; the only
+thing that hurts it is the destroy-everything sweep `KillAll`, which runs in
+the first 8 frames of a mega bomb, and the mega bomb is RAIDEN's weapon
+(`Raiden_Fire`: fire, every 140 frames, empties the energy). So the game can
+only be finished with RAIDEN: collect its three parts, keep at least 24
+energy, assemble it at the boss and fire. The dome is worth 100 000 points;
+the station's core that follows (`0x4a9990`) takes normal hits (500 000
+points).
+
 ## Rebuilding the database
 
 1. `python3 tools/extract_assets.py img/Astro_Assembler.cue`

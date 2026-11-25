@@ -51,9 +51,12 @@ static void cb_pump_messages(void)
     }
 }
 
+unsigned long sound_play_count[256];   /* plays per sound id (astro-bot's hit counting) */
+
 /* Sound_Play (0x407980): exact integer arithmetic of the original. */
 static void cb_sound_play(void)
 {
+    sound_play_count[rd32(G_SHELL_PARAM) & 0xff]++;
     uint32_t flags = rd32(G_SOUND_FLAGS);
     int pan = 0, volume = 0;
     if (flags & 2) pan = (int)((uint32_t)(rd32(G_CFG_PAN_RANGE) * rd32(G_SOUND_PANX)) / 0x280u) - 10000;
