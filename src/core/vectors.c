@@ -264,28 +264,56 @@ HAND_FN(4299b8)
  * the last position, EDI the last offset. Flags: those of the last compare, or
  * of the test of the first record without a path.
  */
+typedef struct { uint32_t eax, edx, ebp, edi; } points_regs;
+
+/* One record at `b` (path offset at +0, position +4, scale +8): nvals products
+ * of the scale with the dwords at the position go to out[0..], the position
+ * advances by `adv` (to 0 at a 0x80000000 end marker). */
+static void points_record(points_regs *r, uint32_t b, unsigned nvals, const uint32_t out[2], uint32_t adv)
+{
+    r->edi = rd32(b);
+    test32(r->edi, 0xffffffffu);
+    if (flag(R_ZF)) { r->edi = 0; return; }
+    r->edi += rd32(0x556ac8u);
+    r->ebp = rd32(b + 4);
+    for (unsigned k = 0; k < nvals; k++) {
+        r->eax = rd32(b + 8);
+        const int64_t p = (int64_t)(int32_t)r->eax * (int32_t)rd32(r->ebp + r->edi + 4 * k);
+        r->edx = (uint32_t)((uint64_t)p >> 32);
+        r->eax = (uint32_t)(((uint64_t)p >> 16) & 0xffffffffu);
+        wr32(out[k], r->eax);
+    }
+    r->ebp = add32(r->ebp, adv);
+    cmp32(rd32(r->ebp + r->edi), 0x80000000u);
+    if (flag(R_ZF)) { r->ebp = 0; flags_szp32(0); set_flag(R_CF, false); set_flag(R_OF, false); }
+    wr32(b + 4, r->ebp);
+}
+
 HAND_FN(42aee4)
 {
-    uint32_t eax = EAX, edx = EDX, ebp = EBP, edi = EDI;
+    points_regs r = {EAX, EDX, EBP, EDI};
     for (uint32_t b = 0x497db2u; b <= 0x497db2u + 3 * 0xb0; b += 0xb0) {
-        edi = rd32(b);
-        test32(edi, 0xffffffffu);
-        if (flag(R_ZF)) { edi = 0; continue; }
-        edi += rd32(0x556ac8u);
-        ebp = rd32(b + 4);
-        for (unsigned k = 0; k < 2; k++) {
-            eax = rd32(b + 8);
-            const int64_t p = (int64_t)(int32_t)eax * (int32_t)rd32(ebp + edi + 4 * k);
-            edx = (uint32_t)((uint64_t)p >> 32);
-            eax = (uint32_t)(((uint64_t)p >> 16) & 0xffffffffu);
-            wr32(b - 0x18 + 0xc * k, eax);
-        }
-        ebp = add32(ebp, 8);
-        cmp32(rd32(ebp + edi), 0x80000000u);
-        if (flag(R_ZF)) { ebp = 0; flags_szp32(0); set_flag(R_CF, false); set_flag(R_OF, false); }
-        wr32(b + 4, ebp);
+        const uint32_t out[2] = {b - 0x18, b - 0xc};
+        points_record(&r, b, 2, out, 8);
     }
-    WR_REG(R_EAX, 4, eax); WR_REG(R_EDX, 4, edx); WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi);
+    WR_REG(R_EAX, 4, r.eax); WR_REG(R_EDX, 4, r.edx); WR_REG(R_EBP, 4, r.ebp); WR_REG(R_EDI, 4, r.edi);
+    x86_ret();
+}
+
+/* Core_StepPoints2 (0x42e495): the same for a record with one product (at
+ * 0x4985fc, position step 4) and four with two (0x498686, 0x4986fe, 0x498776,
+ * 0x4987ee). */
+HAND_FN(42e495)
+{
+    points_regs r = {EAX, EDX, EBP, EDI};
+    static const uint32_t one[2] = {0x4985f4, 0};
+    points_record(&r, 0x4985fcu, 1, one, 4);
+    static const uint32_t rec[4] = {0x498686, 0x4986fe, 0x498776, 0x4987ee};
+    for (unsigned i = 0; i < 4; i++) {
+        const uint32_t out[2] = {rec[i] - 0x18, rec[i] - 0xc};
+        points_record(&r, rec[i], 2, out, 8);
+    }
+    WR_REG(R_EAX, 4, r.eax); WR_REG(R_EDX, 4, r.edx); WR_REG(R_EBP, 4, r.ebp); WR_REG(R_EDI, 4, r.edi);
     x86_ret();
 }
 
@@ -341,5 +369,49 @@ HAND_FN(41be2a)
     } while (!flag(R_ZF));
     WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_ECX, 4, (ecx & 0xffff0000u) | cx);
     WR_REG(R_EDX, 4, edx); WR_REG(R_EDI, 4, edi);
+    x86_ret();
+}
+
+/*
+ * Math_BuildRotation (0x4434c4): three angles (words at EBP, +4, +8: indices into
+ * the sine table at 0x1f4f74 of the arena) and the factor ECX give three
+ * values at 0x4b94b4, 0x4b94b8 and 0x4b94bc (products of sines and cosines, in
+ * 14-bit fixed point). EAX, EBX, ECX, EDX, EDI keep the last intermediate
+ * values. Flags: those of the last arithmetic shift (OF of the preceding addition).
+ */
+HAND_FN(4434c4)
+{
+    const uint32_t arena = rd32(0x556ac8u);
+    uint32_t ebp = EBP, ecx = ECX;
+#define SIN(i) ((uint32_t)(int32_t)(int16_t)rd16((i) + 0x1f4f74u))
+#define COS(i) ((uint32_t)(int32_t)(int16_t)rd16((i) + 0x1f4f76u))
+#define SAR14(v) ((uint32_t)((int32_t)(v) >> 14))
+    uint32_t edx = rd16(ebp) + arena;
+    uint32_t eax = SAR14(0u - SIN(edx) * ecx);
+    uint32_t ebx = COS(edx);
+    ecx = SAR14(ecx * ebx);
+    edx = rd16(ebp + 8) + arena;
+    ebx = SAR14(0u - SIN(edx) * ecx);
+    edx = COS(edx);
+    ecx = SAR14(ecx * edx);
+    wr32(0x4b94b8u, ecx);
+    edx = rd16(ebp + 4) + arena;
+    ecx = SIN(edx);
+    edx = COS(edx);
+    uint32_t edi = edx;
+    edx *= eax;
+    edi *= ebx;
+    eax *= ecx;
+    ebx *= ecx;
+    edx = sub32(edx, ebx);
+    eax = add32(eax, edi);
+    edx = sar32(edx, 14);
+    eax = sar32(eax, 14);
+    wr32(0x4b94b4u, edx);
+    wr32(0x4b94bcu, eax);
+#undef SIN
+#undef COS
+#undef SAR14
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_ECX, 4, ecx); WR_REG(R_EDX, 4, edx); WR_REG(R_EDI, 4, edi);
     x86_ret();
 }

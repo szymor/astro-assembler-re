@@ -215,6 +215,10 @@ Replaced so far:
 | `0x42ad07` | `Core_StepGauges` | `tables.c` | 3 495 calls in the full-game recording |
 | `0x42aee4` | `Core_StepPoints` | `vectors.c` | 3 495 calls in the full-game recording |
 | `0x41be2a` | `Core_ProjectPoints` | `vectors.c` | 430 584 calls in the full-game recording |
+| `0x442758` | `Core_DrawSpriteRemap` | `sprite.c` | 6 485 695 calls in the full-game recording, every clipping branch reached (left start 341 598, entirely left 25 616, past the right edge 787 979, entirely right 59 840, above 2 420 396, below 138 919) |
+| `0x42e241` | `Core_StepGauges2` | `tables.c` | 5 020 calls in the full-game recording |
+| `0x42e495` | `Core_StepPoints2` | `vectors.c` | 5 020 calls in the full-game recording |
+| `0x4434c4` | `Math_BuildRotation` | `vectors.c` | one call per recording that reaches it |
 
 ## Known gaps / next steps
 

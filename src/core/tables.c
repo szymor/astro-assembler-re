@@ -496,35 +496,51 @@ HAND_FN(41ee75)
  * grows by the step up to the limit, where rising ends. EAX = the last dword
  * read. Flags: those of the last compare or arithmetic.
  */
+/* One gauge record at `b` (see Core_StepGauges); returns the updated EAX. */
+static uint32_t step_gauge(uint32_t b, uint32_t eax)
+{
+    cmp16(rd16(b + 4), 0);
+    if (!flag(R_ZF)) {
+        eax = rd32(b + 0xc);
+        wr32(b, sub32(rd32(b), eax));
+        if (!(!flag(R_ZF) && flag(R_SF) == flag(R_OF))) {          /* not JG */
+            wr32(b, 0);
+            wr16(b + 4, 0);
+            wr16(b + 6, 1);
+            eax = rd32(b + 8);
+            wr32(b - 8, eax);
+            wr32(b - 4, 0);
+        }
+    }
+    cmp16(rd16(b + 6), 0);
+    if (!flag(R_ZF)) {
+        eax = rd32(b + 0xc);
+        wr32(b, add32(rd32(b), eax));
+        eax = rd32(b + 0x10);
+        cmp32(rd32(b), eax);
+        if (!cond_l()) {
+            wr32(b, eax);
+            wr16(b + 6, 0);
+        }
+    }
+    return eax;
+}
+
 HAND_FN(42ad07)
 {
     uint32_t eax = EAX;
-    for (uint32_t b = 0x497dbau; b <= 0x497dbau + 3 * 0xb0; b += 0xb0) {
-        cmp16(rd16(b + 4), 0);
-        if (!flag(R_ZF)) {
-            eax = rd32(b + 0xc);
-            wr32(b, sub32(rd32(b), eax));
-            if (!(!flag(R_ZF) && flag(R_SF) == flag(R_OF))) {          /* not JG */
-                wr32(b, 0);
-                wr16(b + 4, 0);
-                wr16(b + 6, 1);
-                eax = rd32(b + 8);
-                wr32(b - 8, eax);
-                wr32(b - 4, 0);
-            }
-        }
-        cmp16(rd16(b + 6), 0);
-        if (!flag(R_ZF)) {
-            eax = rd32(b + 0xc);
-            wr32(b, add32(rd32(b), eax));
-            eax = rd32(b + 0x10);
-            cmp32(rd32(b), eax);
-            if (!cond_l()) {
-                wr32(b, eax);
-                wr16(b + 6, 0);
-            }
-        }
-    }
+    for (uint32_t b = 0x497dbau; b <= 0x497dbau + 3 * 0xb0; b += 0xb0) eax = step_gauge(b, eax);
+    WR_REG(R_EAX, 4, eax);
+    x86_ret();
+}
+
+/* Core_StepGauges2 (0x42e241): the same for five records at 0x498604, 0x49868e,
+ * 0x498706, 0x49877e and 0x4987f6. */
+HAND_FN(42e241)
+{
+    static const uint32_t rec[5] = {0x498604, 0x49868e, 0x498706, 0x49877e, 0x4987f6};
+    uint32_t eax = EAX;
+    for (unsigned i = 0; i < 5; i++) eax = step_gauge(rec[i], eax);
     WR_REG(R_EAX, 4, eax);
     x86_ret();
 }
