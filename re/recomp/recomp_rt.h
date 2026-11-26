@@ -149,10 +149,14 @@ rt_func rt_lookup(uint32_t addr);
  * registers, flags, return address and memory (the stack below the final ESP
  * is dead and not compared). Replaced functions called while a check runs
  * use the same side's version (generated during the generated run,
- * hand-written during the other), so the whole call tree is compared. A
- * function that reaches the shell cannot be checked (its side effects would
- * happen twice) and aborts too. */
+ * hand-written during the other), so the whole call tree is compared. Shell
+ * callbacks reached during a check are made once and replayed to the
+ * hand-written side (rt_diff_shell). */
 void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name);
+/* A replaced dispatcher (HAND_UNCHECKED in src/core/replaced.h): outside a
+ * check it runs the hand-written version only, so what it calls is checked
+ * per call; inside a check it follows that check's side. */
+void rt_diff_pass(rt_func ref, rt_func hand, uint32_t addr, const char *name);
 
 /* Supplied by the host (shell / platform layer): called for computed calls to
  * addresses outside the core, i.e. ILT slots 0x401000..0x401244. The host must

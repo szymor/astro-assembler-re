@@ -203,7 +203,7 @@ static void diff_forget(size_t from)
     diff_len = from;
 }
 
-static struct diff_stat { uint32_t addr; const char *name; unsigned long calls, nested; } diff_stats[256];
+static struct diff_stat { uint32_t addr; const char *name; unsigned long calls, nested, unchecked; } diff_stats[256];
 
 static struct diff_stat *diff_stat_for(uint32_t addr, const char *name)
 {
@@ -217,8 +217,12 @@ static struct diff_stat *diff_stat_for(uint32_t addr, const char *name)
 static void diff_report(void)
 {
     for (int i = 0; i < 256 && diff_stats[i].name; i++)
-        fprintf(stderr, "diff: %s (%06x): %lu calls checked, identical; %lu more inside other checks\n",
-                diff_stats[i].name, diff_stats[i].addr, diff_stats[i].calls, diff_stats[i].nested);
+        if (diff_stats[i].unchecked)
+            fprintf(stderr, "diff: %s (%06x): %lu calls run unchecked (dispatcher); %lu more inside other checks\n",
+                    diff_stats[i].name, diff_stats[i].addr, diff_stats[i].unchecked, diff_stats[i].nested);
+        else
+            fprintf(stderr, "diff: %s (%06x): %lu calls checked, identical; %lu more inside other checks\n",
+                    diff_stats[i].name, diff_stats[i].addr, diff_stats[i].calls, diff_stats[i].nested);
 }
 
 static const char *reg_name(unsigned off)
@@ -232,6 +236,27 @@ static const char *reg_name(unsigned off)
     return "?";
 }
 
+static void diff_init(void)
+{
+    if (diff_seen) return;
+    diff_seen = calloc(RT_MEM_SIZE / 8, 1);
+    if (!diff_seen) { fprintf(stderr, "recomp: out of memory\n"); abort(); }
+    atexit(diff_report);
+}
+
+void rt_diff_pass(rt_func ref, rt_func hand, uint32_t addr, const char *name)
+{
+    diff_init();
+    struct diff_stat *st = diff_stat_for(addr, name);
+    if (rt_diff_active) {                    /* inside a check: that check's side */
+        if (st && !diff_phase_ref) st->nested++;
+        (diff_phase_ref ? ref : hand)();
+        return;
+    }
+    if (st) st->unchecked++;
+    hand();
+}
+
 void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
 {
     if (rt_diff_active) {                    /* nested: same side as the outer call */
@@ -240,11 +265,7 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
         (diff_phase_ref ? ref : hand)();
         return;
     }
-    if (!diff_seen) {
-        diff_seen = calloc(RT_MEM_SIZE / 8, 1);
-        if (!diff_seen) { fprintf(stderr, "recomp: out of memory\n"); abort(); }
-        atexit(diff_report);
-    }
+    diff_init();
     struct diff_stat *st = diff_stat_for(addr, name);
 
     static rt_cpu before, after_ref;

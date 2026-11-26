@@ -9,6 +9,14 @@
  * hand-written version. In differential builds (-DASTRO_DIFF=ON) every call
  * runs both and compares them (recomp_rt.h, rt_diff_check); the regression
  * tests then check each one on real game states.
+ *
+ *   HAND_UNCHECKED(<address>, <name>)
+ *
+ * marks a dispatcher whose call runs a whole command (a level, a menu): it is
+ * replaced the same way, but differential builds run it without a check of its
+ * own, so the functions it reaches are each checked per call. (Checking it
+ * would compare once per level and, in recordings that end inside a level,
+ * never run the hand-written side at all.)
  */
 HAND(408f8c, Core_Random)
 HAND(442454, Core_DrawSprite)
@@ -95,7 +103,7 @@ HAND(409639, Core_ApplyCdVolume)
 HAND(4096ae, Core_CopyRecord1)
 HAND(4096df, Core_CopyRecord2)
 HAND(409791, Core_FillMarkerPairs)
-HAND(408c44, Core_CallCommand)
+HAND_UNCHECKED(408c44, Core_CallCommand)
 HAND(408cc2, Core_SetRanges)
 HAND(40b81c, Core_ClearBlock55cab0)
 HAND(41d288, Core_ClearBlock3e80)

@@ -157,15 +157,21 @@ one with readable C, each checked against the generated version.
   different sequence aborts the check. Host code must write emulated memory
   through the memory macros or call `rt_diff_note_range` first (the keyboard
   poll does); a write that bypasses both is invisible to the replay and makes
-  the hand-written side diverge. A function whose callers are all replaced
-  (`Core_CallShell`) is checked inside the check of the outermost one
-  (`Core_CallCommand` wraps a whole frame).
+  the hand-written side diverge.
+- **Dispatchers**: `Core_CallCommand` runs a whole shell command (a level, a
+  menu, the ending) per call. Checking it would compare once per level, say
+  nothing about which function differs, let errors that later frames overwrite
+  go unnoticed, and in recordings that end inside a level never run the
+  hand-written side at all. It is listed as `HAND_UNCHECKED` in `replaced.h`:
+  differential builds run its hand-written version without a check of its own
+  (`rt_diff_pass`), so everything it reaches is checked per call.
 - **Limits**: a function nobody calls in any recording cannot be checked, so
   it is not kept (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
   in the `0x4240xx`-`0x4244xx` range). Functions that patch their own code, use
   the FPU, recurse or share tails with their neighbours are still generated.
 
-Replaced so far:
+Replaced so far (counts are of the hand-written side's calls, including
+those inside the checks of other replaced functions):
 
 | Address | Name | File | Checked on |
 |---|---|---|---|
@@ -232,35 +238,35 @@ Replaced so far:
 | `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
 | `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
 | `0x42414a`, `0x424154`, `0x42415e` | `Core_Set_<addr>` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
-| `0x408cb5` | `Core_CallShell` | `shellcall.c` | 455 182 nested calls in the full-game recording, inside `Core_CallCommand` checks |
-| `0x408c44` | `Core_CallCommand` | `shellcall.c` | 4 to 12 whole frames per recording (calls everything else of the frame) |
-| `0x409639` | `Core_ApplyCdVolume` | `shellcall.c` | 1 to 8 nested calls |
-| `0x4096ae`, `0x4096df` | `Core_CopyRecord1/2` | `shellcall.c` | 1 to 3 nested calls each |
-| `0x409791` | `Core_FillMarkerPairs` | `shellcall.c` | 2 nested calls |
-| `0x408cc2` | `Core_SetRanges` | `small.c` | 11 nested calls |
-| `0x40b81c`, `0x41d288` | `Core_ClearBlock55cab0`, `Core_ClearBlock3e80` | `small.c` | 19 and 278 nested calls |
-| `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 nested calls |
-| `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 nested calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
-| `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 nested call |
-| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `Core_Box1`-`Core_Box9` | `hitbox.c` | 5 371 to 67 776 nested calls each (bounding boxes of objects) |
-| `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `Core_FixedBox1`-`5` | `hitbox.c` | about 31 000 nested calls each |
-| `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 nested calls (`0x42d529` is not called by any recording) |
-| `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 nested calls |
-| `0x4138f9`, `0x413953` | `Core_StepBytes10`, `Core_StepWords10` | `counters.c` | 30 290 and 387 304 nested calls (loops over 10-byte records) |
-| `0x42abf9` | `Core_StepTimers4` | `counters.c` | 3 495 nested calls |
-| `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 nested calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
-| `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 nested calls each |
-| `0x41bd40`, `0x419446`, `0x419971`, `0x41abba` | `Core_StepDeadlines`, `Core_StepEntriesA/B/C` | `lists.c` | 46 and 137 037 nested calls each (per-frame steps over entry lists) |
-| `0x446bc6`, `0x41b944` | `Core_AddEntry5`, `Core_AddPhaseEntry` | `lists.c` | 6 542 and 62 nested calls |
-| `0x42ac52` | `Core_StepShotTable` | `lists.c` | 3 495 nested calls |
-| `0x424030` | `Core_NextRecord18` | `lists.c` | 7 nested calls |
-| `0x415b51`, `0x41ef8b` | `Core_MaskRows8`, `Core_CopyBlock16x20` | `lists.c` | 1 144 and 1 412 nested calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
-| `0x42d38b`, `0x42d3c8`, `0x429a5f` | `Core_StepTowards1/2/3` | `misc.c` | 4 303, 4 303 and 3 495 nested calls (clamped steppers) |
-| `0x41cf17`, `0x415fe8`, `0x416283` | `Core_FindFreeSlot28/30/14` | `misc.c` | 80, 740 and 611 nested calls (carry = table full) |
-| `0x415d5c`, `0x415d7f`, `0x4233c9` | `Core_BoxOutside`, `Core_ScaledPos`, `Core_VectorOffset` | `misc.c` | 63 341, 5 986 and 30 845 nested calls |
-| `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 nested calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |
-| `0x4139d0`, `0x4139e8`, `0x413a79`, `0x413a95`, `0x413b94`, `0x413cbb`, `0x413da1` | `Core_PlotMaskedB`, `Core_PlotMaskedTable`, `Core_RemapLayer`, `Core_RemapPair`, `Core_RemapMask400`, `Core_RemapMaskAnd`, `Core_RemapMask320` | `recs.c` | 42 168, 42 168, 42 996, 42 996, 21 058, 50 194 and 37 236 nested calls (loops over 10-byte records; five of them read a displacement patched into their own code, from the code bytes at `0x413a8a`, `0x413aac`, `0x413ba8`/`0x413bb4`, `0x413ccf`/`0x413cd8`/`0x413ce3`, `0x413db5`) |
-| `0x444a7c`, `0x41b740`, `0x414a91` | `Core_InsertRank`, `Core_LookupSigned`, `Core_StepTimerPairs` | `stage.c` | 1 (thin: the carry-set path with the backward copy), 1 530 and 274 074 nested calls |
+| `0x408cb5` | `Core_CallShell` | `shellcall.c` | 455 182 calls in the full-game recording (454 962 checked on their own); the shell callbacks it makes are recorded and replayed |
+| `0x408c44` | `Core_CallCommand` | `shellcall.c` | not checked itself (`HAND_UNCHECKED`): one call runs a whole command, 4 to 12 per recording; what it calls is checked per call |
+| `0x409639` | `Core_ApplyCdVolume` | `shellcall.c` | 1 to 8 calls |
+| `0x4096ae`, `0x4096df` | `Core_CopyRecord1/2` | `shellcall.c` | 1 to 3 calls each |
+| `0x409791` | `Core_FillMarkerPairs` | `shellcall.c` | 2 calls |
+| `0x408cc2` | `Core_SetRanges` | `small.c` | 11 calls |
+| `0x40b81c`, `0x41d288` | `Core_ClearBlock55cab0`, `Core_ClearBlock3e80` | `small.c` | 19 and 278 calls |
+| `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 calls |
+| `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
+| `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 call |
+| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `Core_Box1`-`Core_Box9` | `hitbox.c` | 5 371 to 67 776 calls each (bounding boxes of objects) |
+| `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `Core_FixedBox1`-`5` | `hitbox.c` | about 31 000 calls each |
+| `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 calls (`0x42d529` is not called by any recording) |
+| `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 calls |
+| `0x4138f9`, `0x413953` | `Core_StepBytes10`, `Core_StepWords10` | `counters.c` | 30 290 and 387 304 calls (loops over 10-byte records) |
+| `0x42abf9` | `Core_StepTimers4` | `counters.c` | 3 495 calls |
+| `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
+| `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 calls each |
+| `0x41bd40`, `0x419446`, `0x419971`, `0x41abba` | `Core_StepDeadlines`, `Core_StepEntriesA/B/C` | `lists.c` | 46 and 137 037 calls each (per-frame steps over entry lists) |
+| `0x446bc6`, `0x41b944` | `Core_AddEntry5`, `Core_AddPhaseEntry` | `lists.c` | 6 542 and 62 calls |
+| `0x42ac52` | `Core_StepShotTable` | `lists.c` | 3 495 calls |
+| `0x424030` | `Core_NextRecord18` | `lists.c` | 7 calls |
+| `0x415b51`, `0x41ef8b` | `Core_MaskRows8`, `Core_CopyBlock16x20` | `lists.c` | 1 144 and 1 412 calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
+| `0x42d38b`, `0x42d3c8`, `0x429a5f` | `Core_StepTowards1/2/3` | `misc.c` | 4 303, 4 303 and 3 495 calls (clamped steppers) |
+| `0x41cf17`, `0x415fe8`, `0x416283` | `Core_FindFreeSlot28/30/14` | `misc.c` | 80, 740 and 611 calls (carry = table full) |
+| `0x415d5c`, `0x415d7f`, `0x4233c9` | `Core_BoxOutside`, `Core_ScaledPos`, `Core_VectorOffset` | `misc.c` | 63 341, 5 986 and 30 845 calls |
+| `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |
+| `0x4139d0`, `0x4139e8`, `0x413a79`, `0x413a95`, `0x413b94`, `0x413cbb`, `0x413da1` | `Core_PlotMaskedB`, `Core_PlotMaskedTable`, `Core_RemapLayer`, `Core_RemapPair`, `Core_RemapMask400`, `Core_RemapMaskAnd`, `Core_RemapMask320` | `recs.c` | 42 168, 42 168, 42 996, 42 996, 21 058, 50 194 and 37 236 calls (loops over 10-byte records; five of them read a displacement patched into their own code, from the code bytes at `0x413a8a`, `0x413aac`, `0x413ba8`/`0x413bb4`, `0x413ccf`/`0x413cd8`/`0x413ce3`, `0x413db5`) |
+| `0x444a7c`, `0x41b740`, `0x414a91` | `Core_InsertRank`, `Core_LookupSigned`, `Core_StepTimerPairs` | `stage.c` | 1 (thin: the carry-set path with the backward copy), 1 530 and 274 074 calls |
 
 ## Known gaps / next steps
 

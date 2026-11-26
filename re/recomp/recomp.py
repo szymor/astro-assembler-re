@@ -433,9 +433,9 @@ def write_if_changed(path: Path, text: str) -> None:
 
 
 def load_replaced(path: Path) -> dict[int, str]:
-    """HAND(<hex>, <name>) lines of src/core/replaced.h."""
+    """HAND(<hex>, <name>) and HAND_UNCHECKED(<hex>, <name>) lines of src/core/replaced.h."""
     out = {}
-    for m in re.finditer(r"^\s*HAND\(\s*([0-9a-fA-F]+)\s*,\s*(\w+)\s*\)", path.read_text(), re.M):
+    for m in re.finditer(r"^\s*HAND(?:_UNCHECKED)?\(\s*([0-9a-fA-F]+)\s*,\s*(\w+)\s*\)", path.read_text(), re.M):
         out[int(m.group(1), 16)] = m.group(2)
     return out
 
