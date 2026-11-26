@@ -62,7 +62,7 @@ endif()
 
 # Hand-written replacements of core functions (warnings on, unlike the
 # generated code).
-set(ASTRO_HAND_SOURCES src/core/replaced.c src/core/random.c src/core/sprite.c src/core/pools.c src/core/spawn.c src/core/vectors.c src/core/init.c src/core/keys.c src/core/tables.c src/core/setters.c src/core/shellcall.c src/core/small.c src/core/hitbox.c src/core/counters.c src/core/lists.c)
+set(ASTRO_HAND_SOURCES src/core/replaced.c src/core/random.c src/core/sprite.c src/core/pools.c src/core/spawn.c src/core/vectors.c src/core/init.c src/core/keys.c src/core/tables.c src/core/setters.c src/core/shellcall.c src/core/small.c src/core/hitbox.c src/core/counters.c src/core/lists.c src/core/misc.c)
 
 if(MINGW)
     set(ZLIB_USE_STATIC_LIBS ON)                  # one DLL less to ship

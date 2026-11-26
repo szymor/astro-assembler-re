@@ -255,6 +255,10 @@ Replaced so far:
 | `0x42ac52` | `Core_StepShotTable` | `lists.c` | 3 495 nested calls |
 | `0x424030` | `Core_NextRecord18` | `lists.c` | 7 nested calls |
 | `0x415b51`, `0x41ef8b` | `Core_MaskRows8`, `Core_CopyBlock16x20` | `lists.c` | 1 144 and 1 412 nested calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
+| `0x42d38b`, `0x42d3c8`, `0x429a5f` | `Core_StepTowards1/2/3` | `misc.c` | 4 303, 4 303 and 3 495 nested calls (clamped steppers) |
+| `0x41cf17`, `0x415fe8`, `0x416283` | `Core_FindFreeSlot28/30/14` | `misc.c` | 80, 740 and 611 nested calls (carry = table full) |
+| `0x415d5c`, `0x415d7f`, `0x4233c9` | `Core_BoxOutside`, `Core_ScaledPos`, `Core_VectorOffset` | `misc.c` | 63 341, 5 986 and 30 845 nested calls |
+| `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 nested calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |
 
 ## Known gaps / next steps
 
