@@ -149,14 +149,17 @@ one with readable C, each checked against the generated version.
   the other, so the whole call tree is compared (this is how a function that
   is only ever reached from another one, like the blitter's clipping path,
   gets checked).
-- **Limits**: a function that reaches a shell callback (sound, input,
-  presentation) cannot run twice without doubling those effects; the check
-  aborts if one does, so for now only functions that stay inside the core
-  can be replaced. This rules out, for example, the object steps at
-  `0x437c3a`, `0x437ea0` and `0x4384b7`: the handler they call reaches the
-  sound callback (found when the first check aborted). `0x40b866` (three
-  counter steps) was left out because no recording ever calls it, so a
-  replacement could not be checked; the same goes for `0x4422c2`.
+- **Shell callbacks**: a function that reaches a shell callback (sound,
+  input, presentation) must not run the host twice. During a check the
+  generated side really calls the host once and records the callback and every
+  byte it wrote (`rt_diff_shell`); the hand-written side must make the same
+  callbacks in the same order and gets the recorded writes replayed. A
+  different sequence aborts the check. Writes that bypass the memory macros
+  (the video present) are not recorded.
+- **Limits**: a function nobody calls in any recording cannot be checked, so
+  it is not kept (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
+  in the `0x4240xx`-`0x4244xx` range). Functions that patch their own code, use
+  the FPU, recurse or share tails with their neighbours are still generated.
 
 Replaced so far:
 
@@ -232,3 +235,7 @@ Replaced so far:
   original machine code.
 - **Host layer**: `host_shell_call()` and the memory/stack/arena setup are the
   next piece: the SDL3 shell.
+| `0x437c3a` | `Core_RunObjectExit` | `spawn.c` | 10 calls in the full-game recording (calls a handler through a pointer) |
+| `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
+| `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
+| `0x42414a`, `0x424154`, `0x42415e` | `Core_Set_<addr>` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |

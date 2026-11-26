@@ -267,6 +267,16 @@ static inline void x86_ret(void)
         RT_CALL(fn, (ret));                                                 \
     } while (0)
 
+/* CALL through a pointer (the handler tables): the target may be another core
+ * function or a shell callback. Same rules as HAND_CALL. */
+#define HAND_CALLIND(target, ret)                                           \
+    do {                                                                    \
+        WR_REG(R_ESP, 4, ESP - 4);                                          \
+        MEM_WR(ESP, 4, (ret));                                              \
+        rt_callind((uint32_t)(target), (ret));                              \
+        if (cpu.ret_addr != (ret)) return;                                  \
+    } while (0)
+
 /* Startup check that the generated core was made with the current list of
  * replacements (replaced.h); false with a message otherwise. */
 bool core_check_replaced(void);

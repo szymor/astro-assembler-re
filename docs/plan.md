@@ -79,7 +79,7 @@ replacement of generated functions with readable C. See
       against the generated version on every call in the regression
       recordings (recompiler.md, "Replacing generated functions")
 - [x] Replaced so far: `Core_Random`, the sprite blitter (`Core_DrawSprite`,
-      `Core_DrawSpriteClipped`) and its one-colour variant (`Core_DrawSilhouette`), and the pool helpers in `pools.c`; 74 functions in all (`src/core/`: sprites, pools, vectors, tables, init, spawn, keys), listed in recompiler.md
+      `Core_DrawSpriteClipped`) and its one-colour variant (`Core_DrawSilhouette`), and the pool helpers in `pools.c`; 81 functions in all (`src/core/`: sprites, pools, vectors, tables, init, spawn, keys, setters), listed in recompiler.md
 - [x] SDL3 host layer (`src/`, see [port.md](port.md)): logos, title, menus
       and level 1 gameplay run on the recompiled core
 - [x] Sound effects and CD music from FLAC (see port.md, "Audio")
@@ -124,7 +124,7 @@ Options:
 
 - [x] Timing model: no refresh rate is requested (driver default, typically
       60 Hz on Win98/2000 with DX7); logic runs once per frame. Decided: 60 Hz
-- [ ] Remaining generated functions: those that reach shell callbacks (cannot be diff-checked), patch their own code (the 3D/texture set-up), use the FPU, recurse, or share tails with their neighbours (see recompiler.md, "Limits")
+- [ ] Remaining generated functions: those that patch their own code (the 3D/texture set-up), use the FPU, recurse, or share tails with their neighbours (see recompiler.md, "Limits")
 - [ ] Wave spawner (default script handler `41f757–4227e1`) and remaining opcodes
 - [ ] Game states: intro, logos, menu, play, pause, game over, ending
 - [ ] Entities: player, ship combining, energy, shields, enemies, bullets,

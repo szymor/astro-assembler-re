@@ -75,6 +75,7 @@ void rt_watch(uint32_t addr, uint64_t value, int size);
 extern int rt_diff_active;
 void rt_diff_note(uint32_t a, int size);
 void rt_diff_note_range(uint32_t a, uint32_t n);
+void rt_diff_shell(uint32_t target);   /* shell callback inside a check (recorded / replayed) */
 #endif
 static inline void MEM_WR(uint32_t a, int size, uint64_t v) {
     if ((uint64_t)a + (uint64_t)size > RT_MEM_SIZE) rt_bad_access(a, -size);

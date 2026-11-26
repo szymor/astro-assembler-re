@@ -57,8 +57,10 @@ void rt_callind(uint32_t target, uint32_t ret)
     if (target >= 0x401000u && target < 0x401244u) {
 #ifdef RT_DIFF
         if (rt_diff_active) {
-            fprintf(stderr, "recomp: shell callback %08x during a differential check\n", target);
-            abort();
+            rt_diff_shell(target);
+            WR_REG(R_ESP, 4, ESP + 4);
+            cpu.ret_addr = ret;
+            return;
         }
 #endif
         host_shell_call(target);
@@ -118,8 +120,33 @@ static uint8_t *diff_seen;                  /* bitmap of bytes written so far */
 static struct diff_byte { uint32_t addr; uint8_t old, ref; } *diff_log;
 static size_t diff_len, diff_cap;
 
+/* Shell callbacks inside a check: the generated side really calls the host
+ * once and records the target and the bytes the host wrote; the hand-written
+ * side must make the same calls in the same order and gets the recorded
+ * writes replayed instead of calling the host again. */
+static struct shell_rec { uint32_t target; size_t first, count; } *shell_log;
+static size_t shell_len, shell_cap, shell_pos;
+static struct shell_wr { uint32_t addr; uint8_t val; } *shell_wr;
+static size_t shell_wr_len, shell_wr_cap;
+
+static int shell_recording;
+static void *grow(void *p, size_t *cap, size_t need, size_t elem)
+{
+    if (need <= *cap) return p;
+    *cap = *cap ? *cap * 2 : 256;
+    p = realloc(p, *cap * elem);
+    if (!p) { fprintf(stderr, "recomp: out of memory\n"); abort(); }
+    return p;
+}
+
 void rt_diff_note(uint32_t a, int size)
 {
+    if (shell_recording) {
+        for (int i = 0; i < size; i++) {
+            shell_wr = grow(shell_wr, &shell_wr_cap, shell_wr_len + 1, sizeof *shell_wr);
+            shell_wr[shell_wr_len++].addr = a + (uint32_t)i;
+        }
+    }
     for (int i = 0; i < size; i++, a++) {
         if (diff_seen[a >> 3] & (1u << (a & 7))) continue;
         diff_seen[a >> 3] |= (uint8_t)(1u << (a & 7));
@@ -139,6 +166,33 @@ void rt_diff_note_range(uint32_t a, uint32_t n)
         rt_diff_note(a, k);
         a += (uint32_t)k;
         n -= (uint32_t)k;
+    }
+}
+
+void rt_diff_shell(uint32_t target)
+{
+    if (diff_phase_ref) {
+        shell_log = grow(shell_log, &shell_cap, shell_len + 1, sizeof *shell_log);
+        struct shell_rec *r = &shell_log[shell_len++];
+        r->target = target;
+        r->first = shell_wr_len;
+        shell_recording = 1;
+        host_shell_call(target);
+        shell_recording = 0;
+        r->count = shell_wr_len - r->first;
+        for (size_t i = r->first; i < shell_wr_len; i++) shell_wr[i].val = mem[shell_wr[i].addr];
+        return;
+    }
+    if (shell_pos >= shell_len || shell_log[shell_pos].target != target) {
+        fprintf(stderr, "diff: hand-written version called shell callback %08x, generated version %s %08x\n",
+                target, shell_pos < shell_len ? "called" : "made no more calls, last was",
+                shell_pos < shell_len ? shell_log[shell_pos].target : shell_len ? shell_log[shell_len - 1].target : 0);
+        abort();
+    }
+    const struct shell_rec *r = &shell_log[shell_pos++];
+    for (size_t i = 0; i < r->count; i++) {
+        rt_diff_note(shell_wr[r->first + i].addr, 1);
+        mem[shell_wr[r->first + i].addr] = shell_wr[r->first + i].val;
     }
 }
 
@@ -193,6 +247,7 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
     struct diff_stat *st = diff_stat_for(addr, name);
 
     static rt_cpu before, after_ref;
+    shell_len = shell_wr_len = shell_pos = 0;
     before = cpu;
     rt_diff_active = 1;
     diff_phase_ref = 1;
@@ -207,6 +262,10 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
     cpu = before;
     hand();
     rt_diff_active = 0;
+    if (shell_pos != shell_len) {
+        fprintf(stderr, "diff: %s: hand-written version made %zu shell calls, generated version %zu\n", name, shell_pos, shell_len);
+        abort();
+    }
 
     unsigned long call = st ? ++st->calls : 0;
     int bad = 0;

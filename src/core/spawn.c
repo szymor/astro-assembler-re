@@ -171,3 +171,52 @@ HAND_FN(41cae3)
     WR_REG(R_EBP, 4, ebp);
     x86_ret();
 }
+
+/* 437c3a: a live record (EDI) has its running total (through the pointer at
+ * 46ffe8) advanced by its field 2c, calls the handler stored at field 30
+ * (a core function or a shell callback), then is marked free. */
+HAND_FN(437c3a)
+{
+    cmp16(rd16(EDI), 0);
+    if (!flag(R_ZF)) {
+        const uint32_t eax = rd32(EDI + 0x2c);
+        WR_REG(R_EAX, 4, eax);
+        const uint32_t ebp = rd32(0x46ffe8);
+        WR_REG(R_EBP, 4, ebp);
+        wr32(ebp, add32(rd32(ebp), eax));
+        const uint32_t h = rd32(EDI + 0x30);
+        WR_REG(R_EAX, 4, h);
+        wr32(0x46ffb8, h);
+        HAND_CALLIND(rd32(0x46ffb8), 0x437c5au);
+        wr16(EDI, 0);
+        wr16(0x496334, dec16(rd16(0x496334)));
+    }
+    x86_ret();
+}
+
+/* 437ea0 and 4384b7: a record (EDI) in state 1 advances the running total by
+ * its field 36, calls the handler in field 3a, copies a word from `src` to
+ * field 0e and moves to state 2. */
+#define OBJECT_START(addr, src)                                             \
+    HAND_FN(addr)                                                           \
+    {                                                                       \
+        cmp16(rd16(EDI), 1);                                                \
+        if (flag(R_ZF)) {                                                   \
+            const uint32_t eax = rd32(EDI + 0x36);                          \
+            WR_REG(R_EAX, 4, eax);                                          \
+            const uint32_t ebp = rd32(0x46ffe8);                            \
+            WR_REG(R_EBP, 4, ebp);                                          \
+            wr32(ebp, add32(rd32(ebp), eax));                               \
+            const uint32_t h = rd32(EDI + 0x3a);                            \
+            WR_REG(R_EAX, 4, h);                                            \
+            wr32(0x46ffb8, h);                                              \
+            HAND_CALLIND(rd32(0x46ffb8), 0x##addr + 0x20u);                 \
+            const uint16_t w = rd16(EDI + (src));                           \
+            set_ax(w);                                                      \
+            wr16(EDI + 0xe, w);                                             \
+            wr16(EDI, 2);                                                   \
+        }                                                                   \
+        x86_ret();                                                          \
+    }
+OBJECT_START(437ea0, 0x4a)
+OBJECT_START(4384b7, 0x44)
