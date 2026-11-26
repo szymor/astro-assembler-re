@@ -237,6 +237,11 @@ Replaced so far:
 | `0x409639` | `Core_ApplyCdVolume` | `shellcall.c` | 1 to 8 nested calls |
 | `0x4096ae`, `0x4096df` | `Core_CopyRecord1/2` | `shellcall.c` | 1 to 3 nested calls each |
 | `0x409791` | `Core_FillMarkerPairs` | `shellcall.c` | 2 nested calls |
+| `0x408cc2` | `Core_SetRanges` | `small.c` | 11 nested calls |
+| `0x40b81c`, `0x41d288` | `Core_ClearBlock55cab0`, `Core_ClearBlock3e80` | `small.c` | 19 and 278 nested calls |
+| `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 nested calls |
+| `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 nested calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
+| `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 nested call |
 
 ## Known gaps / next steps
 
