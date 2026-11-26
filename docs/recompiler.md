@@ -260,6 +260,7 @@ Replaced so far:
 | `0x415d5c`, `0x415d7f`, `0x4233c9` | `Core_BoxOutside`, `Core_ScaledPos`, `Core_VectorOffset` | `misc.c` | 63 341, 5 986 and 30 845 nested calls |
 | `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 nested calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |
 | `0x4139d0`, `0x4139e8`, `0x413a79`, `0x413a95`, `0x413b94`, `0x413cbb`, `0x413da1` | `Core_PlotMaskedB`, `Core_PlotMaskedTable`, `Core_RemapLayer`, `Core_RemapPair`, `Core_RemapMask400`, `Core_RemapMaskAnd`, `Core_RemapMask320` | `recs.c` | 42 168, 42 168, 42 996, 42 996, 21 058, 50 194 and 37 236 nested calls (loops over 10-byte records; five of them read a displacement patched into their own code, from the code bytes at `0x413a8a`, `0x413aac`, `0x413ba8`/`0x413bb4`, `0x413ccf`/`0x413cd8`/`0x413ce3`, `0x413db5`) |
+| `0x444a7c`, `0x41b740`, `0x414a91` | `Core_InsertRank`, `Core_LookupSigned`, `Core_StepTimerPairs` | `stage.c` | 1 (thin: the carry-set path with the backward copy), 1 530 and 274 074 nested calls |
 
 ## Known gaps / next steps
 
