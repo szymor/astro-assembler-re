@@ -154,8 +154,12 @@ one with readable C, each checked against the generated version.
   generated side really calls the host once and records the callback and every
   byte it wrote (`rt_diff_shell`); the hand-written side must make the same
   callbacks in the same order and gets the recorded writes replayed. A
-  different sequence aborts the check. Writes that bypass the memory macros
-  (the video present) are not recorded.
+  different sequence aborts the check. Host code must write emulated memory
+  through the memory macros or call `rt_diff_note_range` first (the keyboard
+  poll does); a write that bypasses both is invisible to the replay and makes
+  the hand-written side diverge. A function whose callers are all replaced
+  (`Core_CallShell`) is checked inside the check of the outermost one
+  (`Core_CallCommand` wraps a whole frame).
 - **Limits**: a function nobody calls in any recording cannot be checked, so
   it is not kept (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
   in the `0x4240xx`-`0x4244xx` range). Functions that patch their own code, use
@@ -228,6 +232,11 @@ Replaced so far:
 | `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
 | `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
 | `0x42414a`, `0x424154`, `0x42415e` | `Core_Set_<addr>` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
+| `0x408cb5` | `Core_CallShell` | `shellcall.c` | 455 182 nested calls in the full-game recording, inside `Core_CallCommand` checks |
+| `0x408c44` | `Core_CallCommand` | `shellcall.c` | 4 to 12 whole frames per recording (calls everything else of the frame) |
+| `0x409639` | `Core_ApplyCdVolume` | `shellcall.c` | 1 to 8 nested calls |
+| `0x4096ae`, `0x4096df` | `Core_CopyRecord1/2` | `shellcall.c` | 1 to 3 nested calls each |
+| `0x409791` | `Core_FillMarkerPairs` | `shellcall.c` | 2 nested calls |
 
 ## Known gaps / next steps
 

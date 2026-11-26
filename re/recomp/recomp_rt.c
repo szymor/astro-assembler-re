@@ -130,6 +130,7 @@ static struct shell_wr { uint32_t addr; uint8_t val; } *shell_wr;
 static size_t shell_wr_len, shell_wr_cap;
 
 static int shell_recording;
+static const char *diff_cur_name;
 static void *grow(void *p, size_t *cap, size_t need, size_t elem)
 {
     if (need <= *cap) return p;
@@ -184,8 +185,8 @@ void rt_diff_shell(uint32_t target)
         return;
     }
     if (shell_pos >= shell_len || shell_log[shell_pos].target != target) {
-        fprintf(stderr, "diff: hand-written version called shell callback %08x, generated version %s %08x\n",
-                target, shell_pos < shell_len ? "called" : "made no more calls, last was",
+        fprintf(stderr, "diff: %s: hand-written version called shell callback %08x (call %zu), generated version %s %08x\n",
+                diff_cur_name, target, shell_pos, shell_pos < shell_len ? "called" : "made no more calls, last was",
                 shell_pos < shell_len ? shell_log[shell_pos].target : shell_len ? shell_log[shell_len - 1].target : 0);
         abort();
     }
@@ -248,6 +249,7 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
 
     static rt_cpu before, after_ref;
     shell_len = shell_wr_len = shell_pos = 0;
+    diff_cur_name = name;
     before = cpu;
     rt_diff_active = 1;
     diff_phase_ref = 1;

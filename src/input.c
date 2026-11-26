@@ -92,6 +92,9 @@ void input_fill_keystate(void)
     plat_keys(state);
     scripted_keys(state);
     replay_keys(state);
+#ifdef RT_DIFF
+    if (rt_diff_active) rt_diff_note_range(G_KEY_STATE, sizeof state);   /* the check records host writes */
+#endif
     memcpy(&mem[G_KEY_STATE], state, sizeof state);
 }
 

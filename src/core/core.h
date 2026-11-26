@@ -267,6 +267,52 @@ static inline void x86_ret(void)
         RT_CALL(fn, (ret));                                                 \
     } while (0)
 
+/* PUSHF / POPF: the flags are packed into the word kept in Ghidra's EFLAGS
+ * slot (0x280) and pushed, and unpacked again by POPF. */
+static inline void x86_pushf(void)
+{
+    const uint16_t w = (uint16_t)((flag(0x20d) << 14) | (flag(R_OF) << 11) | (flag(0x20a) << 10) |
+                                  (flag(0x209) << 9) | (flag(0x208) << 8) | (flag(R_SF) << 7) |
+                                  (flag(R_ZF) << 6) | (flag(0x204) << 4) | (flag(0x202) << 2) | flag(R_CF));
+    WR_REG(0x280, 2, w);
+    WR_REG(R_ESP, 4, ESP - 2);
+    MEM_WR(ESP, 2, w);
+}
+static inline void x86_popf(void)
+{
+    const uint16_t w = (uint16_t)MEM_RD(ESP, 2);
+    WR_REG(0x280, 2, w);
+    WR_REG(R_ESP, 4, ESP + 2);
+    set_flag(0x20d, (w & 0x4000) != 0);
+    set_flag(R_OF, (w & 0x800) != 0);
+    set_flag(0x20a, (w & 0x400) != 0);
+    set_flag(0x209, (w & 0x200) != 0);
+    set_flag(0x208, (w & 0x100) != 0);
+    set_flag(R_SF, (w & 0x80) != 0);
+    set_flag(R_ZF, (w & 0x40) != 0);
+    set_flag(0x204, (w & 0x10) != 0);
+    set_flag(0x202, (w & 0x4) != 0);
+    set_flag(R_CF, (w & 0x1) != 0);
+}
+/* PUSHAD / POPAD (POPAD drops the saved ESP). */
+static inline void x86_pushad(void)
+{
+    const uint32_t v[8] = {EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI};
+    for (int i = 0; i < 8; i++) {
+        WR_REG(R_ESP, 4, ESP - 4);
+        MEM_WR(ESP, 4, v[i]);
+    }
+}
+static inline void x86_popad(void)
+{
+    static const unsigned reg[8] = {R_EDI, R_ESI, R_EBP, 0, R_EBX, R_EDX, R_ECX, R_EAX};
+    for (int i = 0; i < 8; i++) {
+        const uint32_t v = (uint32_t)MEM_RD(ESP, 4);
+        WR_REG(R_ESP, 4, ESP + 4);
+        if (i != 3) WR_REG(reg[i], 4, v);
+    }
+}
+
 /* CALL through a pointer (the handler tables): the target may be another core
  * function or a shell callback. Same rules as HAND_CALL. */
 #define HAND_CALLIND(target, ret)                                           \
