@@ -246,6 +246,10 @@ Replaced so far:
 | `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `Core_FixedBox1`-`5` | `hitbox.c` | about 31 000 nested calls each |
 | `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 nested calls (`0x42d529` is not called by any recording) |
 | `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 nested calls |
+| `0x4138f9`, `0x413953` | `Core_StepBytes10`, `Core_StepWords10` | `counters.c` | 30 290 and 387 304 nested calls (loops over 10-byte records) |
+| `0x42abf9` | `Core_StepTimers4` | `counters.c` | 3 495 nested calls |
+| `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 nested calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
+| `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 nested calls each |
 
 ## Known gaps / next steps
 
