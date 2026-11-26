@@ -255,6 +255,18 @@ static inline void x86_ret(void)
     RT_RET(ra);
 }
 
+/* CALL to another core function (f_<addr>, generated or hand-written): pushes
+ * the return address `ret` and runs it, as the generated code does; returns
+ * from the calling hand-written function if the callee returned somewhere
+ * else (a caller further up dropped the return address). Use only directly
+ * in a HAND_FN body. */
+#define HAND_CALL(fn, ret)                                                  \
+    do {                                                                    \
+        WR_REG(R_ESP, 4, ESP - 4);                                          \
+        MEM_WR(ESP, 4, (ret));                                              \
+        RT_CALL(fn, (ret));                                                 \
+    } while (0)
+
 /* Startup check that the generated core was made with the current list of
  * replacements (replaced.h); false with a message otherwise. */
 bool core_check_replaced(void);

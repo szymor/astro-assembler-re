@@ -4,6 +4,9 @@
  */
 #include "core.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #define G_PLAYER_MASK 0x46ffe4u    /* bit 0: player 1 takes part, bit 1: player 2 */
 
 /*
@@ -416,5 +419,82 @@ timer:
     }
     WR_REG(R_EAX, 4, eax);
     WR_REG(R_ESI, 4, esi);
+    x86_ret();
+}
+
+/*
+ * Core_PlayerDistance (0x41b494): the distance from the point (AX, BX) to the
+ * player Core_PickNearerPlayer chooses (its position words at 0x46fffc/0x46fffe,
+ * offset by 0x1a and 0x24, and the word at 0x4b1f9a): returns CF = 1 when the
+ * point is outside the visible area (AX outside -0x14..0x15e, BX above 0x320 as
+ * an unsigned value) or has no distance; otherwise EBX = the distance in 16.16
+ * fixed point (a square root by 12 Newton steps) and CF = 0 if it is above
+ * 0x100000. Also stores the point times 16 (0x46ff64/0x46ff66) and the scaled
+ * differences (0x46ffcc, 0x46ffc8).
+ */
+HAND_FN(41b494)
+{
+    HAND_CALL(f_4422d6, 0x41b499u);
+    uint32_t eax = EAX, ebx = EBX, ecx = ECX, edx = EDX;
+    uint16_t cx = rd16(0x46fffeu), dx = rd16(0x46fffcu);
+    cx = add16(cx, 0x24);
+    dx = add16(dx, 0x1a);
+    uint16_t ax = (uint16_t)eax, bx = (uint16_t)ebx;
+    cmp16(ax, 0xffec);
+    if (cond_l()) goto fail;
+    cmp16(ax, 0x15e);
+    if (!flag(R_ZF) && flag(R_SF) == flag(R_OF)) goto fail;       /* JG */
+    cmp16(bx, 0x320);
+    if (cond_a()) goto fail;
+    wr16(0x46ff64u, ax);
+    wr16(0x46ff66u, bx);
+    wr16(0x46ff64u, (uint16_t)(rd16(0x46ff64u) << 4));
+    wr16(0x46ff66u, (uint16_t)(rd16(0x46ff66u) << 4));
+    ax = sub16(ax, cx);
+    dx = add16(dx, rd16(0x4b1f9au));
+    bx = sub16(bx, dx);
+    bx = add16(bx, 2);
+    {
+        const int32_t p = (int32_t)(int16_t)ax * 0x4ccd;
+        ax = (uint16_t)p;
+        dx = (uint16_t)((uint32_t)p >> 16);
+    }
+    eax = (uint32_t)(int32_t)(int16_t)dx;
+    bx = (uint16_t)((int16_t)bx >> 2);
+    wr32(0x46ffccu, eax);
+    ebx = (uint32_t)(int32_t)(int16_t)bx;
+    wr32(0x46ffc8u, ebx);
+    eax *= eax;
+    ebx *= ebx;
+    eax = add32(eax, ebx);
+    if (flag(R_ZF)) { set_lo16(&edx, dx); goto fail_regs; }
+    {
+        const uint32_t ebp = eax;
+        uint16_t n = 0xc;
+        ebx = 0x10000;
+        do {
+            const uint64_t dividend = (uint64_t)ebp << 32;
+            const uint64_t q = dividend / ebx;
+            if (q > 0xffffffffu) { fprintf(stderr, "Core_PlayerDistance: divide overflow\n"); abort(); }
+            eax = (uint32_t)q;
+            edx = (uint32_t)(dividend % ebx);
+            ebx += eax;
+            ebx >>= 1;
+            n--;
+        } while (n != 0);
+        cx = 0;
+        set_lo16(&ecx, cx);
+        cmp32(ebx, 0x100000u);
+        if (!cond_a()) set_flag(R_CF, true);
+        WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_ECX, 4, ecx); WR_REG(R_EDX, 4, edx);
+        x86_ret();
+        return;
+    }
+fail:
+    set_lo16(&eax, ax); set_lo16(&ebx, bx); set_lo16(&edx, dx);
+fail_regs:
+    set_lo16(&ecx, cx);
+    set_flag(R_CF, true);
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_ECX, 4, ecx); WR_REG(R_EDX, 4, edx);
     x86_ret();
 }

@@ -219,6 +219,8 @@ Replaced so far:
 | `0x42e241` | `Core_StepGauges2` | `tables.c` | 5 020 calls in the full-game recording |
 | `0x42e495` | `Core_StepPoints2` | `vectors.c` | 5 020 calls in the full-game recording |
 | `0x4434c4` | `Math_BuildRotation` | `vectors.c` | one call per recording that reaches it |
+| `0x41cd6f`, `0x41cae3` | `Core_FillRandomPairs`, `Core_FillRandomFlags` | `spawn.c` | 88 and 5 335 calls in the full-game recording; they call `Core_Random` (the first hand-written functions to call another core function, through `HAND_CALL` in `core.h`) |
+| `0x41b494` | `Core_PlayerDistance` | `init.c` | 200 720 calls in the full-game recording; calls `Core_PickNearerPlayer` |
 
 ## Known gaps / next steps
 

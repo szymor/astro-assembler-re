@@ -81,3 +81,93 @@ HAND_FN(423f3f)
     WR_REG(R_ESI, 4, e);
     x86_ret();
 }
+
+/* DIV r/m16 with DX = 0: AX = AX / d, DX = AX % d (the original traps on d = 0). */
+static void div16_dx0(uint32_t *eax, uint32_t *edx, uint16_t d)
+{
+    const uint16_t a = (uint16_t)*eax;
+    *eax = (*eax & 0xffff0000u) | (a / d);
+    *edx = (*edx & 0xffff0000u) | (a % d);
+}
+
+/*
+ * Core_FillRandomPairs (0x41cd6f): EBP points to an object with a count word at
+ * +0xa; if it is below 200, a random number (Core_Random) mod (200 - count),
+ * times 4, is added to the dword at +6. Then `count` byte pairs are written
+ * from EBP + 0x10: ((level time | 1) * 2 * k) & 0x3f and 0.
+ */
+HAND_FN(41cd6f)
+{
+    uint16_t cx = rd16(EBP + 0xa);
+    WR_REG(R_ECX, 2, cx);
+    uint16_t bx = sub16(0xc8, cx);
+    WR_REG(R_EBX, 2, bx);
+    if (!flag(R_ZF)) {
+        HAND_CALL(f_408f8c, 0x41cd81u);
+        uint32_t eax = EAX, edx = 0;
+        div16_dx0(&eax, &edx, (uint16_t)EBX);
+        edx <<= 2;
+        wr32(EBP + 6, add32(rd32(EBP + 6), edx));
+        WR_REG(R_EAX, 4, eax);
+        WR_REG(R_EDX, 4, edx);
+    }
+    uint32_t ebp = add32(EBP, 0x10);
+    uint16_t ax = rd16(0x46ffa6u) | 1;
+    bx = ax;
+    do {
+        ax = add16(ax, bx);
+        ax &= 0x3f;
+        wr8(ebp, (uint8_t)ax);
+        wr8(ebp + 1, 0);
+        ebp += 2;
+        cx = dec16(cx);
+    } while (!flag(R_ZF));
+    set_ax(ax);
+    WR_REG(R_EBX, 2, bx);
+    WR_REG(R_ECX, 2, cx);
+    WR_REG(R_EBP, 4, ebp);
+    x86_ret();
+}
+
+/*
+ * Core_FillRandomFlags (0x41cae3): as Core_FillRandomPairs with one byte per
+ * step: (level time | 1) stepped as above and masked with 0xf, OR'ed with DL
+ * when bit 2 of it is set and with DH otherwise. DX is preserved.
+ */
+HAND_FN(41cae3)
+{
+    const uint16_t dx_in = (uint16_t)EDX;
+    uint16_t cx = rd16(EBP + 0xa);
+    WR_REG(R_ECX, 2, cx);
+    uint16_t bx = sub16(0xc8, cx);
+    WR_REG(R_EBX, 2, bx);
+    if (!flag(R_ZF)) {
+        HAND_CALL(f_408f8c, 0x41caf2u);
+        uint32_t eax = EAX, edx = 0;
+        div16_dx0(&eax, &edx, (uint16_t)EBX);
+        edx <<= 2;
+        wr32(EBP + 6, add32(rd32(EBP + 6), edx));
+        WR_REG(R_EAX, 4, eax);
+        WR_REG(R_EDX, 4, edx);
+    }
+    WR_REG(R_EDX, 2, dx_in);
+    uint32_t ebp = add32(EBP, 0x10);
+    uint16_t ax = rd16(0x46ffa6u) | 1;
+    bx = ax;
+    do {
+        ax = add16(ax, bx);
+        ax &= 0xf;
+        wr8(ebp, (uint8_t)ax);
+        const uint8_t extra = (ax & 4) ? (uint8_t)dx_in : (uint8_t)(dx_in >> 8);
+        const uint8_t v = (uint8_t)(rd8(ebp) | extra);
+        wr8(ebp, v);
+        test8(v);
+        ebp++;
+        cx = dec16(cx);
+    } while (!flag(R_ZF));
+    set_ax(ax);
+    WR_REG(R_EBX, 2, bx);
+    WR_REG(R_ECX, 2, cx);
+    WR_REG(R_EBP, 4, ebp);
+    x86_ret();
+}
