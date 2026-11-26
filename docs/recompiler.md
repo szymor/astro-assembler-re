@@ -242,6 +242,10 @@ Replaced so far:
 | `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 nested calls |
 | `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 nested calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
 | `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 nested call |
+| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `Core_Box1`-`Core_Box9` | `hitbox.c` | 5 371 to 67 776 nested calls each (bounding boxes of objects) |
+| `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `Core_FixedBox1`-`5` | `hitbox.c` | about 31 000 nested calls each |
+| `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 nested calls (`0x42d529` is not called by any recording) |
+| `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 nested calls |
 
 ## Known gaps / next steps
 
