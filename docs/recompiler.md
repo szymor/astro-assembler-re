@@ -250,6 +250,11 @@ Replaced so far:
 | `0x42abf9` | `Core_StepTimers4` | `counters.c` | 3 495 nested calls |
 | `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 nested calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
 | `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 nested calls each |
+| `0x41bd40`, `0x419446`, `0x419971`, `0x41abba` | `Core_StepDeadlines`, `Core_StepEntriesA/B/C` | `lists.c` | 46 and 137 037 nested calls each (per-frame steps over entry lists) |
+| `0x446bc6`, `0x41b944` | `Core_AddEntry5`, `Core_AddPhaseEntry` | `lists.c` | 6 542 and 62 nested calls |
+| `0x42ac52` | `Core_StepShotTable` | `lists.c` | 3 495 nested calls |
+| `0x424030` | `Core_NextRecord18` | `lists.c` | 7 nested calls |
+| `0x415b51`, `0x41ef8b` | `Core_MaskRows8`, `Core_CopyBlock16x20` | `lists.c` | 1 144 and 1 412 nested calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
 
 ## Known gaps / next steps
 
