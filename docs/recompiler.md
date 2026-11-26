@@ -224,6 +224,10 @@ Replaced so far:
 | `0x4434c4` | `Math_BuildRotation` | `vectors.c` | one call per recording that reaches it |
 | `0x41cd6f`, `0x41cae3` | `Core_FillRandomPairs`, `Core_FillRandomFlags` | `spawn.c` | 88 and 5 335 calls in the full-game recording; they call `Core_Random` (the first hand-written functions to call another core function, through `HAND_CALL` in `core.h`) |
 | `0x41b494` | `Core_PlayerDistance` | `init.c` | 200 720 calls in the full-game recording; calls `Core_PickNearerPlayer` |
+| `0x437c3a` | `Core_RunObjectExit` | `spawn.c` | 10 calls in the full-game recording (calls a handler through a pointer) |
+| `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
+| `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
+| `0x42414a`, `0x424154`, `0x42415e` | `Core_Set_<addr>` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
 
 ## Known gaps / next steps
 
@@ -235,7 +239,3 @@ Replaced so far:
   original machine code.
 - **Host layer**: `host_shell_call()` and the memory/stack/arena setup are the
   next piece: the SDL3 shell.
-| `0x437c3a` | `Core_RunObjectExit` | `spawn.c` | 10 calls in the full-game recording (calls a handler through a pointer) |
-| `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
-| `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
-| `0x42414a`, `0x424154`, `0x42415e` | `Core_Set_<addr>` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
