@@ -124,7 +124,7 @@ Options:
 
 - [x] Timing model: no refresh rate is requested (driver default, typically
       60 Hz on Win98/2000 with DX7); logic runs once per frame. Decided: 60 Hz
-- [ ] Remaining generated functions: those that patch their own code (the 3D/texture set-up), use the FPU, recurse, or share tails with their neighbours (see recompiler.md, "Limits")
+- [ ] Remaining generated functions (1 106; recompiler.md, "What is left"): none is blocked by its features any more; still generated with such features: `0x413616`, `0x443d40`, `0x44413a`, `0x442b14`, `Script_Run` and the menu's jump-table functions
 - [ ] Wave spawner (default script handler `41f757–4227e1`) and remaining opcodes
 - [ ] Game states: intro, logos, menu, play, pause, game over, ending
 - [ ] Entities: player, ship combining, energy, shields, enemies, bullets,

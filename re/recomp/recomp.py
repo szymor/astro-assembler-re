@@ -412,6 +412,7 @@ class FuncGen:
         name = self.names.get(self.entry, "")
         prefix = "ref" if self.entry in REPLACED else "f"
         head = [f"/* {name} */", f"void {prefix}_{self.entry:x}(void)", "{"] + decl
+        head.append(f"  RT_ENTER(0x{self.entry:x}u);")      # call counts in profiling builds
         if addrs and addrs[0] != self.entry:
             head.append(f"  goto L_{self.entry:x};")
         return "\n".join(head + lines + ["}", ""])

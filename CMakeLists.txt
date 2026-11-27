@@ -17,6 +17,7 @@ option(ASTRO_BOT "Build astro-bot, which plays the game by search (POSIX only)" 
 
 option(ASTRO_DIFF "Differential build: check every hand-written core function against its generated version on each call (slow)" OFF)
 option(ASTRO_COVERAGE "Line and branch coverage (gcov) of the hand-written core functions (GCC/Clang)" OFF)
+option(ASTRO_PROFILE "Count the calls of every generated core function (ASTRO_PROFILE_OUT=<file>)" OFF)
 
 # Functions rewritten by hand replace generated ones (src/core/replaced.h).
 # With Ghidra's p-code export at hand (docs/recompiler.md, step 2), the core
@@ -63,7 +64,7 @@ endif()
 
 # Hand-written replacements of core functions (warnings on, unlike the
 # generated code).
-set(ASTRO_HAND_SOURCES src/core/replaced.c src/core/random.c src/core/sprite.c src/core/pools.c src/core/spawn.c src/core/vectors.c src/core/init.c src/core/keys.c src/core/tables.c src/core/setters.c src/core/shellcall.c src/core/small.c src/core/hitbox.c src/core/counters.c src/core/lists.c src/core/misc.c src/core/recs.c src/core/stage.c)
+set(ASTRO_HAND_SOURCES src/core/replaced.c src/core/random.c src/core/sprite.c src/core/pools.c src/core/spawn.c src/core/vectors.c src/core/init.c src/core/keys.c src/core/tables.c src/core/setters.c src/core/shellcall.c src/core/small.c src/core/hitbox.c src/core/counters.c src/core/lists.c src/core/misc.c src/core/recs.c src/core/stage.c src/core/math.c src/core/level.c src/core/texture.c)
 
 if(MINGW)
     set(ZLIB_USE_STATIC_LIBS ON)                  # one DLL less to ship
@@ -100,6 +101,9 @@ else()
 endif()
 if(ASTRO_DIFF)
     target_compile_definitions(astro_core PUBLIC RT_DIFF)
+endif()
+if(ASTRO_PROFILE)
+    target_compile_definitions(astro_core PUBLIC RT_PROFILE)
 endif()
 
 # Frontend-neutral code (the replacement for the original shell), compiled once

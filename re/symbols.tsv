@@ -379,3 +379,20 @@
 004700a0	l	g_protectWeaponP1	Set: the next hit keeps the main weapon power (script entries 24/27).
 004700a2	l	g_protectWeapon2P1	Set: the next hit keeps the second weapon level (script entries 25/28).
 0047019e	l	g_speedP1	Ship speed in half pixels per frame (2-4); the main ship's record (0x470168) takes it.
+# ---- More hand-written core functions (self-modifying code, x87, recursion) -------
+0041faa8	f	Math_PlanMove3D	A straight 3D move from the point at EDI to the point at ESI at the speed in 0x46ff6c: frames in EBX, velocity to EBP, the point at ESI moved to where the frames end (x87 square root).
+0042aab2	f	Math_VectorAngle	The angle of the vector (ECX, EDX) in BX (8 units per degree): the length through the x87, an arc-sine table in the arena (0x1f4e73) and the quadrant table at 0x4b0bbe.
+0044360c	f	Render_DrawFaces	The 3D renderer: 0x46ffa4 faces of 0x14 bytes from ESI are culled (one-sided ones facing away), sorted by depth (Core_SortDescending), shaded against the light at 0x4b94b4 (x87 square root) and filled by 0x44392c or 0x443d40.
+004438bc	f	Core_SortDescending	Recursive quicksort of the dwords at EBP (byte offsets EBX..ECX) into descending order, moving the dwords at EAX along.
+004431db	f	Math_RotateVertices	Patches the rotation matrix of the three angles at EBP into its own IMUL immediates and rotates the 0x46ffa4 vertices from ESI to EDI (2.14 results).
+0044334b	f	Math_RotateVerticesScaled	As Math_RotateVertices, the results scaled back by 2^14.
+0041ec5f	f	Level_Scroll	The vertical scroll advances by its speed (and the speed list); every 0x4b0 units the level script runs (a jump into Script_Run).
+0041cf84	f	Level_ScrollAndDraw	One frame of the background: Level_Scroll, the strips coming into view, then the layers (0x41cfaf).
+0041f0d0	f	Level_SkipAhead	Level_ScrollAndDraw as many times as the word at 0x4b1f68 says (a script command fast-forwarding the level).
+00427312	f	Obj_PickPath_q	Picks a random path (one of eight, never the last one, starting away from the player) for the object at EBP and takes its first point.
+004273e3	f	Obj_NextPathPoint_q	The next (x, y) of the object's path at ESI into +0x14/+0x12; at the end marker Obj_PickPath_q picks a new path.
+00413ab7	f	Core_RemapSetsMask400	Plots the four record sets (two here, two through Core_RemapMask400) where the mask plane at EBX (400-byte pitch; patched in) is set.
+00413bc2	f	Core_RemapSetsMaskAnd	As Core_RemapSetsMask400 where both the source at EBP and the mask at EBX are set (Core_RemapMaskAnd).
+00413cee	f	Core_RemapSetsMask320	As Core_RemapSetsMask400 with the mask plane at EBP indexed like the frame (Core_RemapMask320).
+00442e3d	f	Render_RemapSpan2_q	Remaps a clipped span of ECX pixels on one or two frame rows through the colour tables patched into 0x442e68 / 0x442e8d.
+00442ecc	f	Render_TextureAffine	The affine texture mapper: patches the texture's width shift, base and steps into its own loop and draws a colour-keyed textured quad.

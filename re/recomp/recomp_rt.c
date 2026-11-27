@@ -324,3 +324,30 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
     }
 }
 #endif
+
+#ifdef RT_PROFILE
+/* ---- call counts of generated functions ------------------------------------ */
+#define PROF_LO 0x401000u
+#define PROF_HI 0x449000u
+static unsigned long *prof_count;
+
+static void profile_write(void)
+{
+    const char *path = getenv("ASTRO_PROFILE_OUT");
+    FILE *f = path ? fopen(path, "a") : NULL;
+    if (!f) return;
+    for (uint32_t a = PROF_LO; a < PROF_HI; a++)
+        if (prof_count[a - PROF_LO]) fprintf(f, "%x %lu\n", a, prof_count[a - PROF_LO]);
+    fclose(f);
+}
+
+void rt_profile_enter(uint32_t addr)
+{
+    if (!prof_count) {
+        prof_count = calloc(PROF_HI - PROF_LO, sizeof *prof_count);
+        if (!prof_count) { fprintf(stderr, "recomp: out of memory\n"); abort(); }
+        atexit(profile_write);
+    }
+    if (addr >= PROF_LO && addr < PROF_HI) prof_count[addr - PROF_LO]++;
+}
+#endif

@@ -176,8 +176,28 @@ one with readable C, each checked against the generated version.
   (`rt_diff_pass`), so everything it reaches is checked per call.
 - **Limits**: a function nobody calls in any recording cannot be checked, so
   it is not kept unless the fuzz check below calls it (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
-  in the `0x4240xx`-`0x4244xx` range). Functions that patch their own code, use
-  the FPU, recurse or share tails with their neighbours are still generated.
+  in the `0x4240xx`-`0x4244xx` range).
+- **What is left** (survey of 2026-11-27, `ASTRO_PROFILE` below): of 1 272
+  functions 1 106 are still generated, about 660 of them called in the
+  recordings. Few have anything in the way: none of the obstacles once
+  expected stops a replacement. Self-modifying code is read from (and patched
+  into) the code bytes in emulated memory, the x87 square root has a helper
+  (`x87_isqrt`, which leaves the FPU registers as the p-code does), recursion
+  and jumps into other functions are calls (`HAND_CALL`, or a plain call and
+  return for a jump), and jump tables are switches. Of the functions with such
+  features, these are still generated: four that patch or read patched code
+  (`0x413616`, the palette converter, whose trapping ModRM patches lie on a
+  path no recording takes; `0x443d40`, the textured polygon filler; `0x44413a`
+  in the menu; `0x442b14`, never called), the level-script interpreter
+  `Script_Run` (2 577 instructions), and 16 menu functions with jump tables
+  (11 never called). 137 functions share instructions with a neighbour, which
+  only means the generated code has copies; the hand-written one replaces its
+  own entry.
+- **Call counts** (`cmake -DASTRO_PROFILE=ON`): every generated function
+  starts with `RT_ENTER(<address>)`, empty in normal builds; in a profiling
+  build it counts the calls, and at exit the counts are appended to the file
+  named by `ASTRO_PROFILE_OUT` (`<hex address> <calls>` per line, one block per
+  run), e.g. `ASTRO_PROFILE_OUT=calls.txt ctest` in that build directory.
 - **Coverage**: a check only covers the paths that get run. The coverage
   build (`cmake --preset coverage && cmake --build --preset coverage -j`, then
   `ctest` in `build/coverage` and `gcov -b` on the `.gcda` files in
@@ -302,6 +322,14 @@ those inside the checks of other replaced functions):
 | `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |
 | `0x4139d0`, `0x4139e8`, `0x413a79`, `0x413a95`, `0x413b94`, `0x413cbb`, `0x413da1` | `Core_PlotMaskedB`, `Core_PlotMaskedTable`, `Core_RemapLayer`, `Core_RemapPair`, `Core_RemapMask400`, `Core_RemapMaskAnd`, `Core_RemapMask320` | `recs.c` | 42 168, 42 168, 42 996, 42 996, 21 058, 50 194 and 37 236 calls (loops over 10-byte records; five of them read a displacement patched into their own code, from the code bytes at `0x413a8a`, `0x413aac`, `0x413ba8`/`0x413bb4`, `0x413ccf`/`0x413cd8`/`0x413ce3`, `0x413db5`) |
 | `0x444a7c`, `0x41b740`, `0x414a91` | `Core_InsertRank`, `Core_LookupSigned`, `Core_StepTimerPairs` | `stage.c` | 1 (thin: the carry-set path with the backward copy), 1 530 and 274 074 calls |
+| `0x41faa8`, `0x42aab2` | `Math_PlanMove3D`, `Math_VectorAngle` | `math.c` | 226 calls (inside other checks) and 61 933 calls; the x87 square root through `x87_isqrt` |
+| `0x44360c` | `Render_DrawFaces` | `math.c` | 148 132 calls (the 3D renderer: culling, depth sort, shading with the x87 square root) |
+| `0x4438bc` | `Core_SortDescending` | `math.c` | 22 420 calls and 9 104 765 recursive ones inside them (quicksort; registers pass through `cpu` around the recursive calls) |
+| `0x4431db`, `0x44334b` | `Math_RotateVertices`, `Math_RotateVerticesScaled` | `math.c` | 165 637 and 71 443 calls in the full-game recording (they patch the rotation matrix into their own IMUL immediates) |
+| `0x41ec5f`, `0x41cf84`, `0x41f0d0` | `Level_Scroll`, `Level_ScrollAndDraw`, `Level_SkipAhead` | `level.c` | 130 168 calls (inside `Level_ScrollAndDraw`'s), 130 157 and 4; the scroll jumps into `Script_Run` |
+| `0x427312`, `0x4273e3` | `Obj_PickPath_q`, `Obj_NextPathPoint_q` | `level.c` | 4 and 253 calls (they fall into each other) |
+| `0x413ab7`, `0x413bc2`, `0x413cee` | `Core_RemapSetsMask400`, `Core_RemapSetsMaskAnd`, `Core_RemapSetsMask320` | `recs.c` | 10 529, 25 097 and 18 618 calls (inside other checks); patch their own mask bases, read the frame constants patched into them |
+| `0x442e3d`, `0x442ecc` | `Render_RemapSpan2_q`, `Render_TextureAffine` | `texture.c` | 2 716 226 and 233 515 calls; the texture mapper patches its shift, texture and steps into its own loop |
 
 ## Known gaps / next steps
 

@@ -136,6 +136,16 @@ static inline int64_t RT_SREM(int64_t a, int64_t b) { if (!b) rt_divide_error();
  * frame expects ends at the outermost caller (rt_bad_return there). */
 _Noreturn void rt_bad_return(uint32_t expected, uint32_t got);
 #define RT_CALL(fn, ret) do { fn(); if (cpu.ret_addr != (ret)) return; } while (0)
+
+/* Profiling builds (-DASTRO_PROFILE=ON): every generated function counts its
+ * calls; at exit the counts are appended to the file named by ASTRO_PROFILE_OUT
+ * ("<hex address> <calls>" lines, one run after another). */
+#ifdef RT_PROFILE
+void rt_profile_enter(uint32_t addr);
+#define RT_ENTER(addr) rt_profile_enter(addr)
+#else
+#define RT_ENTER(addr) ((void)0)
+#endif
 #define RT_RET(addr) (cpu.ret_addr = (addr))
 
 void rt_callind(uint32_t target, uint32_t ret);     /* computed call      */

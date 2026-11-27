@@ -9,6 +9,7 @@
  * produces, in Ghidra's p-code semantics (no AF for additions).
  */
 #pragma once
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -165,6 +166,8 @@ static inline uint16_t sub16(uint16_t a, uint16_t b)
     return r;
 }
 #define cmp16(a, b) ((void)sub16((a), (b)))
+/* NEG r32: CF = (a != 0), the other flags as for 0 - a. */
+static inline uint32_t neg32(uint32_t a) { return sub32(0, a); }
 /* NEG r16: CF = (a != 0), the other flags as for 0 - a. */
 static inline uint16_t neg16(uint16_t a) { return sub16(0, a); }
 
@@ -268,6 +271,10 @@ static inline void x86_ret(void)
         RT_CALL(fn, (ret));                                                 \
     } while (0)
 
+/* PUSH / POP of a dword on the emulated stack. */
+static inline void x86_push(uint32_t v) { WR_REG(R_ESP, 4, ESP - 4); MEM_WR(ESP, 4, v); }
+static inline uint32_t x86_pop(void) { const uint32_t v = (uint32_t)MEM_RD(ESP, 4); WR_REG(R_ESP, 4, ESP + 4); return v; }
+
 /* PUSHF / POPF: the flags are packed into the word kept in Ghidra's EFLAGS
  * slot (0x280) and pushed, and unpacked again by POPF. */
 static inline void x86_pushf(void)
@@ -323,6 +330,24 @@ static inline void x86_popad(void)
         rt_callind((uint32_t)(target), (ret));                              \
         if (cpu.ret_addr != (ret)) return;                                  \
     } while (0)
+
+/*
+ * FILD m32 / FSQRT / FISTP m32 on the dword at `at`, as the generated code does
+ * them (Ghidra's p-code, the x87 registers held as doubles): stores and returns
+ * the square root of the signed dword v, rounded to nearest (the x87 default).
+ * ST0-ST6 end as they were and ST7 holds the old ST6 (the push and the pop
+ * rotate the register file); the FPU instruction pointer (0x10ac) is left at
+ * `fistp`, the address of the FISTP.
+ */
+static inline uint32_t x87_isqrt(uint32_t at, int32_t v, uint32_t fistp)
+{
+    const double root = nearbyint(sqrt((double)v));
+    WR_F80(0x1170, RD_F80(0x1160));
+    WR_REG(0x10ac, 4, fistp);
+    const uint32_t r = (uint32_t)(uint64_t)(int64_t)root;
+    wr32(at, r);
+    return r;
+}
 
 /* Startup check that the generated core was made with the current list of
  * replacements (replaced.h); false with a message otherwise. */
