@@ -28,9 +28,9 @@ static void step_towards(uint32_t cur, uint32_t limit, uint32_t step)
     wr32(cur, eax);
     x86_ret();
 }
-HAND_FN(42d38b) { step_towards(0x49849c, 0x4984a0, 0x4984a4); }
-HAND_FN(42d3c8) { step_towards(0x4984a8, 0x4984ac, 0x4984b0); }
-HAND_FN(429a5f) { step_towards(0x497c3c, 0x497c40, 0x497c44); }
+HAND_FN(42d38b) { step_towards(BOSS3_SPEED, BOSS3_SPEED_TARGET, BOSS3_SPEED_STEP); }
+HAND_FN(42d3c8) { step_towards(BOSS3_PATH_SCALE, BOSS3_SCALE_TARGET, BOSS3_SCALE_STEP); }
+HAND_FN(429a5f) { step_towards(BOSS2_SPEED, BOSS2_SPEED_TARGET, BOSS2_SPEED_STEP); }
 
 /*
  * The first free slot (word 0 is zero) after the first in a table of
@@ -88,7 +88,7 @@ HAND_FN(415d7f)
     int32_t a = (int16_t)rd16(edi), d = (int16_t)rd16(esi + 0x1c);
     uint16_t ax = (uint16_t)(a / d);
     WR_REG(R_EDX, 2, (uint16_t)(a % d));
-    ax = sub16(ax, rd16(0x4b1f9a));
+    ax = sub16(ax, rd16(G_SCROLL_X));
     set_flag(R_CF, ax & 1);                                  /* SAR AX, 1 */
     ax = (uint16_t)((int16_t)ax >> 1);
     set_flag(R_OF, false);
@@ -157,7 +157,7 @@ HAND_FN(446c99)
 HAND_FN(4233c9)
 {
     uint16_t ax = rd16(0x46ff50), bx = rd16(0x46ff52);
-    const uint32_t edx = (EDX << 2) + rd32(0x556ac8);
+    const uint32_t edx = (EDX << 2) + rd32(G_ARENA_BASE);
     int32_t ecx = (int16_t)rd16(edx + 0x1f4f74), dx = (int16_t)rd16(edx + 0x1f4f76);
     const uint32_t esi = rd16(EBP + 0x48);
     ecx = (int32_t)((uint32_t)ecx * esi);

@@ -21,7 +21,7 @@ HAND_FN(41a93d)
     uint32_t edi = 0x51e6f4u;
     for (;;) {
         do { edi = add32(edi, 0xc); cmp16(rd16(edi), 0); } while (flag(R_ZF));
-        test32(rd32(0x46ffa0u), 1);
+        test32(rd32(G_GAME_TIME), 1);
         if (flag(R_ZF)) {
             cmp32(rd32(edi + 4), 0);
             if (!flag(R_ZF)) wr32(edi + 4, sub32(rd32(edi + 4), 4));
@@ -69,7 +69,7 @@ HAND_FN(41b026)
                 if (cond_l()) {
                     free_it = true;
                 } else {
-                    test32(rd32(0x46ffa0u), 1);
+                    test32(rd32(G_GAME_TIME), 1);
                     if (flag(R_ZF)) {
                         wr32(edi + 6, add32(rd32(edi + 6), 4));
                         cmp32(rd32(edi + 6), 0x38);
@@ -264,22 +264,23 @@ HAND_FN(4135ba)
 }
 
 /*
- * Boss3_StartLimbMoves_q (0x42e61e): like Boss2_StartArmMoves_q (init.c) for five
- * records, at 0x498692, 0x49870a, 0x498782 and 0x4987fa (0x78 apart) and
- * 0x498608.
+ * Boss3_StartLimbMoves_q (0x42e61e): as Boss2_StartArmMoves_q (init.c) for the
+ * level-3 boss's parts, when an attack starts: parts 1-4 and then part 0 take
+ * the next paths from the five dwords at ESI.
  */
 HAND_FN(42e61e)
 {
-    static const uint32_t rec[5] = {0x498692, 0x49870a, 0x498782, 0x4987fa, 0x498608};
+    static const unsigned order[BOSS3_PARTS] = {1, 2, 3, 4, 0};
     uint32_t esi = ESI, eax = 0;
-    for (unsigned i = 0; i < 5; i++) {
+    for (unsigned i = 0; i < BOSS3_PARTS; i++) {
+        const uint32_t reach = k_boss3_part_path[order[i]] + REACH_FROM_PATH;
         eax = rd32(esi);
         esi += 4;
-        wr16(rec[i], 1);
-        wr16(rec[i] + 2, 0);
-        wr32(rec[i] + 4, eax);
-        wr32(rec[i] + 8, EBX);
-        wr32(rec[i] + 0xc, ECX);
+        wr16(reach + REACH_RETRACT, 1);
+        wr16(reach + REACH_EXTEND, 0);
+        wr32(reach + REACH_NEXT_PATH, eax);
+        wr32(reach + REACH_STEP, EBX);
+        wr32(reach + REACH_LIMIT, ECX);
     }
     WR_REG(R_ESI, 4, esi);
     WR_REG(R_EAX, 4, eax);
@@ -350,7 +351,7 @@ HAND_FN(419819)
         }
         eax = rd32(edi + 0xc);
         wr32(edi + 4, add32(rd32(edi + 4), eax));
-        eax = (eax & 0xffff0000u) | div_ax_by_byte(rd8(0x46ffa0u), rd8(0x4b0a16u));
+        eax = (eax & 0xffff0000u) | div_ax_by_byte(rd8(G_GAME_TIME), rd8(0x4b0a16u));
         test8((uint8_t)(eax >> 8));
         if (flag(R_ZF)) {
             uint16_t si = add16(rd16(edi + 0x12), 2);
@@ -440,7 +441,7 @@ HAND_FN(41ed70)
     uint32_t ebp = EBP, edi = EDI, esi = 0, eax = 0, edx = 0x14;
     do {
         eax = (uint32_t)rd16(ebp) * 0x190u;
-        esi = rd32(0x556ac8u);
+        esi = rd32(G_ARENA_BASE);
         ebp += 2;
         esi += rd32(0x4b1f74u);
         esi += eax;
@@ -450,7 +451,7 @@ HAND_FN(41ed70)
         esi = eax;
         edi += 0x27100;
         esi += rd32(0x4b1f78u);
-        esi += rd32(0x556ac8u);
+        esi += rd32(G_ARENA_BASE);
         copy_block(&edi, &esi, 0x17c);
         edi = sub32(edi, 0x2af6c);
         edx = dec32(edx);
@@ -470,7 +471,7 @@ HAND_FN(41ee75)
     uint32_t ebp = EBP, edi = EDI, esi = 0, eax = 0, edx = 0x10;
     do {
         eax = (uint32_t)rd16(ebp) * 0x190u;
-        esi = rd32(0x556ac8u);
+        esi = rd32(G_ARENA_BASE);
         ebp += 2;
         esi += rd32(0x4b1fa4u);
         esi += eax;
@@ -482,7 +483,7 @@ HAND_FN(41ee75)
             esi = eax;
             edi += 0x1f400;
             esi += rd32(0x4b1fa8u);
-            esi += rd32(0x556ac8u);
+            esi += rd32(G_ARENA_BASE);
             copy_block(&edi, &esi, 0x12c);
             edi -= 0x20d00;
         }
@@ -495,39 +496,39 @@ HAND_FN(41ee75)
 }
 
 /*
- * Boss2_StepArmReach_q (0x42ad07): four records 0xb0 apart from 0x497dba, each a dword
- * value (+0) with a "falling" word (+4) and a "rising" word (+6), a step (+0xc)
- * and a limit (+0x10). Falling: the value drops by the step; at 0 or below it
- * stops falling and starts rising, and the dword at +8 is copied to the record's
- * dword 8 bytes before it (and the dword 4 before cleared). Rising: the value
- * grows by the step up to the limit, where rising ends. EAX = the last dword
- * read. Flags: those of the last compare or arithmetic.
+ * Boss2_StepArmReach_q (0x42ad07): the reach of the level-2 boss's four arms
+ * (the REACH_* records, game.h). A retracting arm shrinks by its step; at 0 or
+ * below it stops at 0, takes its next path (written to its path record, at the
+ * start) and starts extending. An extending arm grows by its step up to its
+ * limit. EAX = the last dword read. Flags: those of the last compare or
+ * arithmetic.
  */
-/* One gauge record at `b` (see Boss2_StepArmReach_q); returns the updated EAX. */
-static uint32_t step_gauge(uint32_t b, uint32_t eax)
+/* One reach record at `r`; returns the updated EAX. */
+static uint32_t step_reach(uint32_t r, uint32_t eax)
 {
-    cmp16(rd16(b + 4), 0);
+    const uint32_t path = r - REACH_FROM_PATH;
+    cmp16(rd16(r + REACH_RETRACT), 0);
     if (!flag(R_ZF)) {
-        eax = rd32(b + 0xc);
-        wr32(b, sub32(rd32(b), eax));
-        if (!(!flag(R_ZF) && flag(R_SF) == flag(R_OF))) {          /* not JG */
-            wr32(b, 0);
-            wr16(b + 4, 0);
-            wr16(b + 6, 1);
-            eax = rd32(b + 8);
-            wr32(b - 8, eax);
-            wr32(b - 4, 0);
+        eax = rd32(r + REACH_STEP);
+        wr32(r + REACH_VALUE, sub32(rd32(r + REACH_VALUE), eax));
+        if (!(!flag(R_ZF) && flag(R_SF) == flag(R_OF))) {          /* not JG: fully retracted */
+            wr32(r + REACH_VALUE, 0);
+            wr16(r + REACH_RETRACT, 0);
+            wr16(r + REACH_EXTEND, 1);
+            eax = rd32(r + REACH_NEXT_PATH);
+            wr32(path + PATH_OFFSET, eax);
+            wr32(path + PATH_POS, 0);
         }
     }
-    cmp16(rd16(b + 6), 0);
+    cmp16(rd16(r + REACH_EXTEND), 0);
     if (!flag(R_ZF)) {
-        eax = rd32(b + 0xc);
-        wr32(b, add32(rd32(b), eax));
-        eax = rd32(b + 0x10);
-        cmp32(rd32(b), eax);
+        eax = rd32(r + REACH_STEP);
+        wr32(r + REACH_VALUE, add32(rd32(r + REACH_VALUE), eax));
+        eax = rd32(r + REACH_LIMIT);
+        cmp32(rd32(r + REACH_VALUE), eax);
         if (!cond_l()) {
-            wr32(b, eax);
-            wr16(b + 6, 0);
+            wr32(r + REACH_VALUE, eax);
+            wr16(r + REACH_EXTEND, 0);
         }
     }
     return eax;
@@ -536,18 +537,16 @@ static uint32_t step_gauge(uint32_t b, uint32_t eax)
 HAND_FN(42ad07)
 {
     uint32_t eax = EAX;
-    for (uint32_t b = 0x497dbau; b <= 0x497dbau + 3 * 0xb0; b += 0xb0) eax = step_gauge(b, eax);
+    for (unsigned arm = 0; arm < BOSS2_ARMS; arm++) eax = step_reach(boss2_arm(arm, ARM_REACH), eax);
     WR_REG(R_EAX, 4, eax);
     x86_ret();
 }
 
-/* Boss3_StepLimbReach_q (0x42e241): the same for five records at 0x498604, 0x49868e,
- * 0x498706, 0x49877e and 0x4987f6. */
+/* Boss3_StepLimbReach_q (0x42e241): the same for the level-3 boss's five parts. */
 HAND_FN(42e241)
 {
-    static const uint32_t rec[5] = {0x498604, 0x49868e, 0x498706, 0x49877e, 0x4987f6};
     uint32_t eax = EAX;
-    for (unsigned i = 0; i < 5; i++) eax = step_gauge(rec[i], eax);
+    for (unsigned i = 0; i < BOSS3_PARTS; i++) eax = step_reach(k_boss3_part_path[i] + REACH_FROM_PATH, eax);
     WR_REG(R_EAX, 4, eax);
     x86_ret();
 }

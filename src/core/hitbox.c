@@ -27,7 +27,7 @@ static void box_store(const box_regs *r)
 #define SET_CX(v) set_lo16(&r.ecx, (v))
 #define SET_DX(v) set_lo16(&r.edx, (v))
 #define F16(off) rd16(EDI + (off))
-#define SCROLL rd16(0x4b1f9a)
+#define SCROLL rd16(G_SCROLL_X)
 
 /* SAR r16, n for n >= 2: CF = the last bit out, SF, ZF, PF; OF unchanged. */
 static uint16_t sar16(uint16_t a, unsigned n)
@@ -153,13 +153,13 @@ static void add_list_entry(uint32_t counter, uint32_t base, uint32_t stride, boo
         if (four_values) {
             wr32(ebp + 2, EAX);
             wr32(ebp + 6, EBX);
-            const uint32_t ecx = add32(ECX, rd32(0x556ac8));
+            const uint32_t ecx = add32(ECX, rd32(G_ARENA_BASE));
             WR_REG(R_ECX, 4, ecx);
             wr32(ebp + 0xa, ecx);
             wr32(ebp + 0xe, EDX);
         } else {
             wr32(ebp + 2, EBX);
-            const uint32_t ecx = add32(ECX, rd32(0x556ac8));
+            const uint32_t ecx = add32(ECX, rd32(G_ARENA_BASE));
             WR_REG(R_ECX, 4, ecx);
             wr32(ebp + 6, ecx);
             wr32(ebp + 0xa, EDX);
@@ -185,7 +185,7 @@ static void layer_offset(uint32_t counter, uint32_t row_bytes, uint32_t off1, ui
     WR_REG(R_EBX, 4, 0x3c);
     const uint32_t eax = (n / 0x3c) * row_bytes;
     WR_REG(R_EAX, 4, eax);
-    uint32_t esi = rd32(0x556ac8);
+    uint32_t esi = rd32(G_ARENA_BASE);
     esi = add32(esi, rd32(off1));
     esi = add32(esi, add1);
     esi = add32(esi, rd32(off2));
@@ -201,12 +201,12 @@ HAND_FN(41d1e9)
     WR_REG(R_EBX, 4, 0x3c);
     const uint32_t eax = (n / 0x3c) * 0x190;
     WR_REG(R_EAX, 4, eax);
-    uint32_t esi = rd32(0x556ac8);
+    uint32_t esi = rd32(G_ARENA_BASE);
     esi = add32(esi, rd32(0x4b1f70));
     esi = add32(esi, 0x1f40);
     esi = add32(esi, rd32(0x4b1f84));
     esi = sub32(esi, eax);
-    const uint32_t edx = ((uint32_t)rd16(0x4b1f9a) + 1) >> 1;
+    const uint32_t edx = ((uint32_t)rd16(G_SCROLL_X) + 1) >> 1;
     WR_REG(R_EDX, 4, edx);
     esi = add32(esi, edx);
     WR_REG(R_ESI, 4, esi);

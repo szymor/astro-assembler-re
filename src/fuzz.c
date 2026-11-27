@@ -116,7 +116,6 @@ static unsigned slots(uint32_t first, uint32_t stride, unsigned n, int width, un
 }
 
 /* ---- per-function inputs ---------------------------------------------------- */
-#define LEVEL_TIME 0x46ffa0u
 
 /* The per-frame list steps: the counter = the live entries (sometimes fewer). */
 static void list_step(uint32_t counter, uint32_t first, uint32_t stride, int width)
@@ -125,7 +124,7 @@ static void list_step(uint32_t counter, uint32_t first, uint32_t stride, int wid
     unsigned count = live;
     if (count && chance(15)) count = 1 + below(count);
     wr16(counter, (uint16_t)count);
-    wr32(LEVEL_TIME, rnd());
+    wr32(G_GAME_TIME, rnd());
 }
 static void in_clear_finished_a(void) { list_step(0x4b0c60, 0x51e700, 0xc, 2); }
 static void in_clear_finished_b(void) { list_step(0x4b0dc8, 0x51f354, 0xe, 2); }
@@ -174,17 +173,17 @@ static void in_copy_screen(void)
     rand_bytes(SCRATCH, 64);                          /* the rest is whatever is there */
 }
 static void in_set_record_fields(void) { wr32(0x4a95d0, below(5)); }
-static void in_bind_keys(void) { rand_bytes(0x46f450, 24); }
+static void in_bind_keys(void) { rand_bytes(G_KEY_LAYOUTS, 24); }
 /* 444a7c: a high-score table of 8 (name, score) pairs, scores descending. */
 static void in_insert_rank(void)
 {
     uint32_t s = edge32() | 0x100000u;
     for (uint32_t i = 0; i < 8; i++) {
-        wr32(0x46f498 + 8 * i, rnd());
-        wr32(0x46f498 + 8 * i + 4, s);
+        wr32(G_HALL_OF_FAME + 8 * i, rnd());
+        wr32(G_HALL_OF_FAME + 8 * i + 4, s);
         s -= below(2) ? 0 : below(s / 4 + 1);
     }
-    const uint32_t pick = rd32(0x46f498 + 8 * below(8) + 4);
+    const uint32_t pick = rd32(G_HALL_OF_FAME + 8 * below(8) + 4);
     WR_REG(R_EAX, 4, chance(50) ? pick + below(3) - 1 : edge32());
 }
 /* The free-slot searches: the used count (one word or the sum of two) is
@@ -222,16 +221,16 @@ static void in_find_entry(void)
     wr16(0x4ba740, (uint16_t)live);
     if (chance(50)) WR_REG(R_EDI, 4, rd32(0x519a60 + 0x30 * below(10) + 0xe));
 }
-static void in_grow_slot(void) { wr8(0x47004c, (uint8_t)(chance(30) ? 0x20 : 0x19 + below(8))); }
+static void in_grow_slot(void) { wr8(P1_ENERGY_MAX, (uint8_t)(chance(30) ? 0x20 : 0x19 + below(8))); }
 static void in_count_up(void)
 {
-    wr8(0x47004e, (uint8_t)edge16());
-    wr8(0x47004c, (uint8_t)edge16());
+    wr8(P1_ENERGY, (uint8_t)edge16());
+    wr8(P1_ENERGY_MAX, (uint8_t)edge16());
 }
 static void in_next_record(void)
 {
-    wr8(0x47005a, (uint8_t)below(4));
-    wr8(0x47005b, (uint8_t)below(3));
+    wr8(P1_LEVEL_B, (uint8_t)below(4));
+    wr8(P1_LEVEL_B_STEP, (uint8_t)below(3));
     rand_bytes(0x519a00, 0x36);
 }
 static void in_timed_entry(void)
@@ -276,14 +275,14 @@ static void path(uint32_t off_at, uint32_t cursor_at, uint32_t speed_at)
 }
 static void in_follow_path(void)
 {
-    path(0x498494, 0x498498, 0x49849c);
-    wr32(0x4984a8, edge32());
+    path(BOSS3_PATH + PATH_OFFSET, BOSS3_PATH + PATH_POS, BOSS3_SPEED);
+    wr32(BOSS3_PATH_SCALE, edge32());
 }
 static void in_follow_path2(void)
 {
-    path(0x497c34, 0x497c38, 0x497c3c);
-    wr32(0x497aec, chance(40) ? 1 : edge32());
-    wr32(0x497ae8, SCRATCH + 0x100);
+    path(BOSS2_PATH + PATH_OFFSET, BOSS2_PATH + PATH_POS, BOSS2_SPEED);
+    wr32(BOSS2_DRIFT_LEFT, chance(40) ? 1 : edge32());
+    wr32(BOSS2_DRIFT_LIST, SCRATCH + 0x100);
     rand_bytes(SCRATCH + 0x100, 16);
 }
 
@@ -312,12 +311,11 @@ static void point_record(uint32_t b, uint32_t k)
 }
 static void in_step_points(void)
 {
-    for (uint32_t k = 0; k < 4; k++) point_record(0x497db2u + k * 0xb0, k);
+    for (uint32_t k = 0; k < BOSS2_ARMS; k++) point_record(boss2_arm(k, ARM_PATH), k);
 }
 static void in_step_points2(void)
 {
-    static const uint32_t rec[5] = {0x4985fc, 0x498686, 0x4986fe, 0x498776, 0x4987ee};
-    for (uint32_t k = 0; k < 5; k++) point_record(rec[k], k);
+    for (uint32_t k = 0; k < BOSS3_PARTS; k++) point_record(k_boss3_part_path[k], k);
 }
 
 /* ---- the run ---------------------------------------------------------------- */

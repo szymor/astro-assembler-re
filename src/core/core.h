@@ -14,6 +14,7 @@
 
 #include "gen_funcs.h"
 #include "recomp_rt.h"
+#include "game.h"
 
 /* Defines the hand-written version of the core function at `addr` (hex,
  * without 0x). Differential builds rename it so a checking wrapper can

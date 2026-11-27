@@ -196,7 +196,7 @@
 0046f498	l	g_cfgHallOfFame	8 entries {char name[3]; u8 level; u32 score}, best first; saved in ASTRO_CC.CFG.
 0047004f	l	g_livesP1_q	Spare ships of player 1 (byte); drops at the moment of a death.
 0046ffe4	l	g_playerInGame_q	1 while player 1 is in the game; cleared by the last death (game over).
-0046ffa0	l	g_levelTime_q	Frames since the level started (counts once per gameplay frame).
+0046ffa0	l	g_gameTime	Gameplay frames since the game began (counts once per gameplay frame; not reset when a level starts).
 00470050	l	g_scoreP1_q	Score of player 1 (dword); 0x470054 held the same value in a one-player game.
 0046f444	l	g_cfgControlP1_q
 0046f448	l	g_cfgControlP2_q

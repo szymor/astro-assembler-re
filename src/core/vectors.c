@@ -147,7 +147,7 @@ HAND_FN(41b676)
     cmp16(bp, 0x5a00);
     if (flag(R_CF) == 0) bp = sub16(bp, 0x5a00);
     bp >>= 3;
-    const uint32_t ebp = ((EBP & 0xffff0000u) | bp) + rd32(0x556ac8u);
+    const uint32_t ebp = ((EBP & 0xffff0000u) | bp) + rd32(G_ARENA_BASE);
     int64_t p = (int64_t)(int16_t)rd16(ebp + 0x1f4f74u) * (int32_t)rd32(0x46ffc4u);
     p = (int64_t)(int32_t)(uint32_t)p * (int32_t)rd32(0x4b104cu);
     uint32_t edx = add32((uint32_t)((uint64_t)p >> 32), 0x100);
@@ -166,118 +166,124 @@ HAND_FN(41b676)
 }
 
 /*
- * Boss3_FollowPath (0x42d318): a point on a path: the dword at 0x498494 is the
- * path's offset (0 = none), 0x498498 the position in it. The point at that position
- * (two words, scaled by the dword at 0x4984a8 and offset by 0x4983a8 and 0x4983ac)
- * goes to 0x4983b0 / 0x4983b4, and the position advances by the step (the dword
- * at 0x49849c rounded to whole 4-byte units, at most 0x20); a word of 0x8000 at
- * the new position ends the path (position 0). EDI = the offset in the arena, EAX
- * and EBX the last values.
+ * The rounded speed (16.16 bytes per frame) as whole 4-byte path steps, at
+ * most 0x20 bytes, with the flags of that compare.
+ */
+static uint32_t path_advance(uint32_t speed_at)
+{
+    uint32_t step = ((rd32(speed_at) + 0x8000u) >> 16) << 2;
+    cmp32(step, 0x20);
+    if (cond_a()) step = 0x20;
+    return step;
+}
+
+/*
+ * Boss3_FollowPath (0x42d318): the level-3 boss's movement. Its position is
+ * its origin plus the point of its path (BOSS3_PATH, two words per point)
+ * times the path's scale; the path position advances by the rounded speed,
+ * back to 0 at a word of 0x8000. Nothing happens without a path (EDI = 0).
+ * EDI = the path in the arena, EAX the advance and EBX the y.
  */
 HAND_FN(42d318)
 {
-    const uint32_t off = rd32(0x498494u);
+    const uint32_t off = rd32(BOSS3_PATH + PATH_OFFSET);
     test32(off, 0xffffffffu);
     if (flag(R_ZF)) { WR_REG(R_EDI, 4, 0); x86_ret(); return; }
-    const uint32_t edi = off + rd32(0x556ac8u);
-    uint32_t ebp = rd32(0x498498u);
-    uint32_t eax = (uint32_t)((int32_t)(int16_t)rd16(ebp + edi) * (int32_t)rd32(0x4984a8u));
-    uint32_t ebx = (uint32_t)((int32_t)(int16_t)rd16(ebp + edi + 2) * (int32_t)rd32(0x4984a8u));
-    eax = add32(eax, rd32(0x4983a8u));
-    ebx = add32(ebx, rd32(0x4983acu));
-    wr32(0x4983b0u, eax);
-    wr32(0x4983b4u, ebx);
-    eax = ((rd32(0x49849cu) + 0x8000u) >> 16) << 2;
-    cmp32(eax, 0x20);
-    if (cond_a()) eax = 0x20;
-    ebp = add32(ebp, eax);
-    cmp16(rd16(ebp + edi), 0x8000);
-    if (flag(R_ZF)) {
-        ebp = 0;
+    const uint32_t path = off + rd32(G_ARENA_BASE);
+    uint32_t pos = rd32(BOSS3_PATH + PATH_POS);
+    const int32_t scale = (int32_t)rd32(BOSS3_PATH_SCALE);
+    uint32_t x = (uint32_t)((int32_t)(int16_t)rd16(path + pos) * scale);
+    uint32_t y = (uint32_t)((int32_t)(int16_t)rd16(path + pos + 2) * scale);
+    x = add32(x, rd32(BOSS3_ORIGIN_X));
+    y = add32(y, rd32(BOSS3_ORIGIN_Y));
+    wr32(BOSS3_POS_X, x);
+    wr32(BOSS3_POS_Y, y);
+    const uint32_t step = path_advance(BOSS3_SPEED);
+    pos = add32(pos, step);
+    cmp16(rd16(path + pos), 0x8000);
+    if (flag(R_ZF)) {                                               /* the end: XOR EBP, EBP */
+        pos = 0;
         flags_szp32(0);
         set_flag(R_CF, false);
         set_flag(R_OF, false);
     }
-    wr32(0x498498u, ebp);
-    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_EBP, 4, ebp); WR_REG(R_EDI, 4, edi);
+    wr32(BOSS3_PATH + PATH_POS, pos);
+    WR_REG(R_EAX, 4, step); WR_REG(R_EBX, 4, y); WR_REG(R_EBP, 4, pos); WR_REG(R_EDI, 4, path);
     x86_ret();
 }
 
 /*
- * Boss2_FollowPath (0x4299b8): as Boss3_FollowPath for the path at 0x497c34 (position
- * 0x497c38, step 0x497c3c, point 0x497b00/0x497b04 from the words scaled by 1024
- * and offset by 0x497af8/0x497afc), and then the point drifts: a countdown at
- * 0x497aec; when it runs out, the next (countdown, dx, dy) triple of the list
- * pointed to by 0x497ae8 is loaded. Each call adds (dx, dy) at 0x497af0/0x497af4
- * to the offsets. Flags: those of the last addition.
+ * Boss2_FollowPath (0x4299b8): the level-2 boss's movement: as Boss3_FollowPath
+ * for its path (points scaled by 1024), and then its origin drifts: each frame
+ * by (dx, dy); when the drift's frames run out the next (frames, dx, dy) entry
+ * of the drift list is taken. Flags: those of the last addition.
  */
 HAND_FN(4299b8)
 {
     uint32_t eax = EAX;
-    const uint32_t off = rd32(0x497c34u);
-    uint32_t edi = 0, ebp = EBP, ebx = EBX;
+    const uint32_t off = rd32(BOSS2_PATH + PATH_OFFSET);
+    uint32_t path = 0, pos = EBP, y = EBX;
     test32(off, 0xffffffffu);
     if (!flag(R_ZF)) {
-        edi = off + rd32(0x556ac8u);
-        ebp = rd32(0x497c38u);
-        eax = (uint32_t)(int32_t)(int16_t)rd16(ebp + edi) << 10;
-        ebx = (uint32_t)(int32_t)(int16_t)rd16(ebp + edi + 2) << 10;
-        eax = add32(eax, rd32(0x497af8u));
-        ebx = add32(ebx, rd32(0x497afcu));
-        wr32(0x497b00u, eax);
-        wr32(0x497b04u, ebx);
-        eax = ((rd32(0x497c3cu) + 0x8000u) >> 16) << 2;
-        cmp32(eax, 0x20);
-        if (cond_a()) eax = 0x20;
-        ebp = add32(ebp, eax);
-        cmp16(rd16(ebp + edi), 0x8000);
-        if (flag(R_ZF)) ebp = 0;
-        wr32(0x497c38u, ebp);
+        path = off + rd32(G_ARENA_BASE);
+        pos = rd32(BOSS2_PATH + PATH_POS);
+        uint32_t x = (uint32_t)(int32_t)(int16_t)rd16(path + pos) << 10;
+        y = (uint32_t)(int32_t)(int16_t)rd16(path + pos + 2) << 10;
+        x = add32(x, rd32(BOSS2_ORIGIN_X));
+        y = add32(y, rd32(BOSS2_ORIGIN_Y));
+        wr32(BOSS2_POS_X, x);
+        wr32(BOSS2_POS_Y, y);
+        eax = path_advance(BOSS2_SPEED);
+        pos = add32(pos, eax);
+        cmp16(rd16(path + pos), 0x8000);
+        if (flag(R_ZF)) pos = 0;
+        wr32(BOSS2_PATH + PATH_POS, pos);
     }
     uint32_t esi = ESI;
-    const uint32_t left = dec32(rd32(0x497aecu));
-    wr32(0x497aecu, left);
-    if (flag(R_ZF)) {
-        esi = rd32(0x497ae8u);
-        wr32(0x497aecu, rd32(esi));
-        wr32(0x497af0u, rd32(esi + 4));
-        wr32(0x497af4u, rd32(esi + 8));
+    const uint32_t left = dec32(rd32(BOSS2_DRIFT_LEFT));
+    wr32(BOSS2_DRIFT_LEFT, left);
+    if (flag(R_ZF)) {                                               /* the next drift */
+        esi = rd32(BOSS2_DRIFT_LIST);
+        wr32(BOSS2_DRIFT_LEFT, rd32(esi));
+        wr32(BOSS2_DRIFT_DX, rd32(esi + 4));
+        wr32(BOSS2_DRIFT_DY, rd32(esi + 8));
         esi += 12;
         eax = rd32(esi - 4);
-        wr32(0x497ae8u, esi);
+        wr32(BOSS2_DRIFT_LIST, esi);
     }
-    eax = rd32(0x497af0u);
-    wr32(0x497af8u, add32(rd32(0x497af8u), eax));
-    eax = rd32(0x497af4u);
-    wr32(0x497afcu, add32(rd32(0x497afcu), eax));
-    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, ebx); WR_REG(R_EBP, 4, ebp);
-    WR_REG(R_ESI, 4, esi); WR_REG(R_EDI, 4, edi);
+    eax = rd32(BOSS2_DRIFT_DX);
+    wr32(BOSS2_ORIGIN_X, add32(rd32(BOSS2_ORIGIN_X), eax));
+    eax = rd32(BOSS2_DRIFT_DY);
+    wr32(BOSS2_ORIGIN_Y, add32(rd32(BOSS2_ORIGIN_Y), eax));
+    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, y); WR_REG(R_EBP, 4, pos);
+    WR_REG(R_ESI, 4, esi); WR_REG(R_EDI, 4, path);
     x86_ret();
 }
 
 /*
- * Boss2_StepArmPaths_q (0x42aee4): four records 0xb0 apart (from 0x497db2: path
- * offset, +4 position, +8 scale, results at -0x18 and -0xc): for each record
- * with a path, the two dwords at the position are multiplied by the scale
- * (64-bit, >> 16) into the results and the position moves on by 8 (to 0 at a
- * 0x80000000 end marker). EAX = the last result, EDX = its high dword, EBP =
+ * Boss2_StepArmPaths_q (0x42aee4): the level-2 boss's arms follow their paths
+ * (each arm's ARM_PATH record): for an arm with a path, the two dwords at the
+ * position times the reach (64-bit, >> 16) are the arm's offsets (-0x18 and
+ * -0xc from the record), and the position moves on by 8 (to 0 at a 0x80000000
+ * end marker). EAX = the last result, EDX = its high dword, EBP =
  * the last position, EDI the last offset. Flags: those of the last compare, or
  * of the test of the first record without a path.
  */
 typedef struct { uint32_t eax, edx, ebp, edi; } points_regs;
 
-/* One record at `b` (path offset at +0, position +4, scale +8): nvals products
- * of the scale with the dwords at the position go to out[0..], the position
- * advances by `adv` (to 0 at a 0x80000000 end marker). */
+/* One part's path record at `b` (PATH_*, game.h): the part's offsets are the
+ * path's values at the position (nvals dwords, 16.16) times the scale (its
+ * reach), written to out[0..]; the position advances by `adv`, back to 0 at a
+ * 0x80000000 end marker. */
 static void points_record(points_regs *r, uint32_t b, unsigned nvals, const uint32_t out[2], uint32_t adv)
 {
-    r->edi = rd32(b);
+    r->edi = rd32(b + PATH_OFFSET);
     test32(r->edi, 0xffffffffu);
-    if (flag(R_ZF)) { r->edi = 0; return; }
-    r->edi += rd32(0x556ac8u);
-    r->ebp = rd32(b + 4);
+    if (flag(R_ZF)) { r->edi = 0; return; }                         /* no path */
+    r->edi += rd32(G_ARENA_BASE);
+    r->ebp = rd32(b + PATH_POS);
     for (unsigned k = 0; k < nvals; k++) {
-        r->eax = rd32(b + 8);
+        r->eax = rd32(b + PATH_SCALE);
         const int64_t p = (int64_t)(int32_t)r->eax * (int32_t)rd32(r->ebp + r->edi + 4 * k);
         r->edx = (uint32_t)((uint64_t)p >> 32);
         r->eax = (uint32_t)(((uint64_t)p >> 16) & 0xffffffffu);
@@ -286,32 +292,32 @@ static void points_record(points_regs *r, uint32_t b, unsigned nvals, const uint
     r->ebp = add32(r->ebp, adv);
     cmp32(rd32(r->ebp + r->edi), 0x80000000u);
     if (flag(R_ZF)) { r->ebp = 0; flags_szp32(0); set_flag(R_CF, false); set_flag(R_OF, false); }
-    wr32(b + 4, r->ebp);
+    wr32(b + PATH_POS, r->ebp);
 }
 
 HAND_FN(42aee4)
 {
     points_regs r = {EAX, EDX, EBP, EDI};
-    for (uint32_t b = 0x497db2u; b <= 0x497db2u + 3 * 0xb0; b += 0xb0) {
-        const uint32_t out[2] = {b - 0x18, b - 0xc};
+    for (unsigned arm = 0; arm < BOSS2_ARMS; arm++) {
+        const uint32_t b = boss2_arm(arm, ARM_PATH);
+        const uint32_t out[2] = {b - 0x18, b - 0xc};                /* the arm's offsets (fields still unnamed) */
         points_record(&r, b, 2, out, 8);
     }
     WR_REG(R_EAX, 4, r.eax); WR_REG(R_EDX, 4, r.edx); WR_REG(R_EBP, 4, r.ebp); WR_REG(R_EDI, 4, r.edi);
     x86_ret();
 }
 
-/* Boss3_StepLimbPaths_q (0x42e495): the same for a record with one product (at
- * 0x4985fc, position step 4) and four with two (0x498686, 0x4986fe, 0x498776,
- * 0x4987ee). */
+/* Boss3_StepLimbPaths_q (0x42e495): the same for the level-3 boss's parts:
+ * part 0 with one value per step (position step 4), parts 1-4 with two. */
 HAND_FN(42e495)
 {
     points_regs r = {EAX, EDX, EBP, EDI};
-    static const uint32_t one[2] = {0x4985f4, 0};
-    points_record(&r, 0x4985fcu, 1, one, 4);
-    static const uint32_t rec[4] = {0x498686, 0x4986fe, 0x498776, 0x4987ee};
-    for (unsigned i = 0; i < 4; i++) {
-        const uint32_t out[2] = {rec[i] - 0x18, rec[i] - 0xc};
-        points_record(&r, rec[i], 2, out, 8);
+    const uint32_t one[2] = {k_boss3_part_path[0] - 8, 0};
+    points_record(&r, k_boss3_part_path[0], 1, one, 4);
+    for (unsigned i = 1; i < BOSS3_PARTS; i++) {
+        const uint32_t b = k_boss3_part_path[i];
+        const uint32_t out[2] = {b - 0x18, b - 0xc};
+        points_record(&r, b, 2, out, 8);
     }
     WR_REG(R_EAX, 4, r.eax); WR_REG(R_EDX, 4, r.edx); WR_REG(R_EBP, 4, r.ebp); WR_REG(R_EDI, 4, r.edi);
     x86_ret();
@@ -356,7 +362,7 @@ HAND_FN(41be2a)
         eax = sar32(eax, 14);
         uint16_t dx = (uint16_t)edx;
         cmp8(rd8(ebp + 0x1a), 0);
-        if (!flag(R_ZF)) dx = (uint16_t)(dx - rd16(0x4b1f9au));
+        if (!flag(R_ZF)) dx = (uint16_t)(dx - rd16(G_SCROLL_X));
         dx = (uint16_t)(dx + 1);
         dx = (uint16_t)((int16_t)dx >> 1);
         edx = (edx & 0xffff0000u) | dx;
@@ -381,7 +387,7 @@ HAND_FN(41be2a)
  */
 HAND_FN(4434c4)
 {
-    const uint32_t arena = rd32(0x556ac8u);
+    const uint32_t arena = rd32(G_ARENA_BASE);
     uint32_t ebp = EBP, ecx = ECX;
 #define SIN(i) ((uint32_t)(int32_t)(int16_t)rd16((i) + 0x1f4f74u))
 #define COS(i) ((uint32_t)(int32_t)(int16_t)rd16((i) + 0x1f4f76u))

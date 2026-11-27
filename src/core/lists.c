@@ -208,45 +208,48 @@ HAND_FN(41b944)
     x86_ret();
 }
 
-/* 42ac52: the stepper of the shot table: every 4th tick of 49810c the next
- * value is taken from the table at 498110 + 498114 (the cursor falls by 4;
- * below 0 the tick restarts); then five timers count down by 4 to 0. */
+/* Boss2_StepFrames (0x42ac52): the level-2 boss's body animation: while a
+ * sequence runs (BOSS2_FRAME_TICK non-zero), every 4th tick takes the next
+ * frame from its list (the cursor falls by 4; below 0 the sequence ends); then
+ * the hit flashes of the body and the four arms count down by 4 to 0. */
 HAND_FN(42ac52)
 {
-    cmp16(rd16(0x49810c), 0);
+    cmp16(rd16(BOSS2_FRAME_TICK), 0);
     if (!flag(R_ZF)) {
-        uint16_t ax = rd16(0x49810c);
+        uint16_t ax = rd16(BOSS2_FRAME_TICK);
         set_ax(ax);
-        wr16(0x49810c, inc16(rd16(0x49810c)));
+        wr16(BOSS2_FRAME_TICK, inc16(rd16(BOSS2_FRAME_TICK)));
         WR_REG(R_EBX, 2, 4);
         WR_REG(R_EAX, 2, ax / 4);
         WR_REG(R_EDX, 2, ax % 4);
         test16(ax % 4);
         if (flag(R_ZF)) {
-            const uint32_t esi = add32(rd32(0x498110), rd32(0x498114));
+            const uint32_t esi = add32(rd32(BOSS2_FRAME_LIST), rd32(BOSS2_FRAME_LIST_BASE));
             WR_REG(R_ESI, 4, esi);
             const uint32_t v = rd32(esi);
             WR_REG(R_EAX, 4, v);
-            wr32(0x498108, v);
-            wr32(0x498110, sub32(rd32(0x498110), 4));
-            if (flag(R_SF)) wr16(0x49810c, 0);
+            wr32(BOSS2_FRAME, v);
+            wr32(BOSS2_FRAME_LIST, sub32(rd32(BOSS2_FRAME_LIST), 4));
+            if (flag(R_SF)) wr16(BOSS2_FRAME_TICK, 0);
         }
     }
-    static const uint32_t timer[5] = {0x49813c, 0x497d60, 0x497e10, 0x497ec0, 0x497f70};
+    const uint32_t flash[5] = {BOSS2_FLASH_TIMER, boss2_arm(0, ARM_FLASH_TIMER), boss2_arm(1, ARM_FLASH_TIMER),
+                               boss2_arm(2, ARM_FLASH_TIMER), boss2_arm(3, ARM_FLASH_TIMER)};
     for (int i = 0; i < 5; i++) {
-        cmp32(rd32(timer[i]), 0);
-        if (!flag(R_ZF)) wr32(timer[i], sub32(rd32(timer[i]), 4));
+        cmp32(rd32(flash[i]), 0);
+        if (!flag(R_ZF)) wr32(flash[i], sub32(rd32(flash[i]), 4));
     }
     x86_ret();
 }
 
-/* 424030: the next 18-byte record of the table at 519a00 is copied to 519a38;
- * the index at 47005b counts 0..2 and then moves the stage at 47005a on. */
+/* Core_NextRecord18 (0x424030): one pickup towards player 1's P1_LEVEL_B (up
+ * to 3): the 18-byte record for the current step is copied from the table at
+ * 0x519a00 to 0x519a38, and every third step raises the level. */
 HAND_FN(424030)
 {
-    cmp8(rd8(0x47005a), 3);
+    cmp8(rd8(P1_LEVEL_B), 3);
     if (!flag(R_ZF)) {
-        uint8_t bl = rd8(0x47005b);
+        uint8_t bl = rd8(P1_LEVEL_B_STEP);
         WR_REG(R_EBX, 1, bl);
         const uint32_t eax = 0x12u * bl;
         WR_REG(R_EAX, 4, eax);
@@ -258,13 +261,13 @@ HAND_FN(424030)
         bl = inc8(bl);
         cmp8(bl, 3);
         if (flag(R_ZF)) {
-            wr8(0x47005a, inc8(rd8(0x47005a)));
+            wr8(P1_LEVEL_B, inc8(rd8(P1_LEVEL_B)));
             bl = 0;
             set_flag(R_CF, false); set_flag(R_OF, false); set_flag(R_SF, false);
             set_flag(R_ZF, true); set_flag(0x202, true);          /* XOR BL, BL */
         }
         WR_REG(R_EBX, 1, bl);
-        wr8(0x47005b, bl);
+        wr8(P1_LEVEL_B_STEP, bl);
     }
     x86_ret();
 }
@@ -301,7 +304,7 @@ HAND_FN(41ef8b)
     const uint32_t keep = edi;
     do {
         eax = (uint32_t)rd16(ebp) * 0x190;
-        esi = rd32(0x556ac8);
+        esi = rd32(G_ARENA_BASE);
         ebp += 2;
         esi += rd32(0x4b1fc8);
         ebx = 0x14;

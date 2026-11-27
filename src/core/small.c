@@ -79,7 +79,7 @@ HAND_FN(41f0e1)
     const uint16_t dx = add16(rd16(0x4b1fb8), rd16(0x4b1fc2));
     WR_REG(R_EDX, 2, dx);
     wr16(0x4b1f88, dx);
-    wr16(0x4b1f9a, 0x50);
+    wr16(G_SCROLL_X, 0x50);
     wr16(0x4b1f9c, 0);
     x86_ret();
 }

@@ -50,12 +50,15 @@ HAND_FN(409639)
 }
 
 /*
- * 4096ae and 4096df: a 0x20-byte record is copied from slot `index` of the
- * table at 4702fc to `dest`, after the table's first dword is taken from
- * `first` and its pointer field (470304) is set to `tail`.
+ * Core_CopyRecord1 / 2 (0x4096ae, 0x4096df): the player's ship record
+ * (P1_SHIP_RECORD) is copied from the table of 0x20-byte records at 0x4702fc,
+ * slot P1_SHIP_TYPE. Slot 0 (the main ship) is filled in first: its first dword
+ * from the dword at P1_LEVEL_A, its pointer field (0x470304) = `tail`.
  */
-static void copy_record(uint32_t first, uint32_t tail, uint32_t index_at, uint32_t dest)
+static void copy_record(unsigned player, uint32_t tail)
 {
+    const uint32_t first = player_field(player, P1_LEVEL_A), index_at = player_field(player, P1_SHIP_TYPE);
+    const uint32_t dest = player_field(player, P1_SHIP_RECORD);
     const uint32_t v = rd32(first);
     WR_REG(R_EAX, 4, v);
     wr32(0x4702fc, v);
@@ -68,13 +71,13 @@ static void copy_record(uint32_t first, uint32_t tail, uint32_t index_at, uint32
     WR_REG(R_EDI, 4, dest + 0x20);
     WR_REG(R_ECX, 4, 0);
 }
-HAND_FN(4096ae) { copy_record(0x47019e, 0x47043c, 0x4700f2, 0x470168); x86_ret(); }
-HAND_FN(4096df) { copy_record(0x4702f6, 0x470450, 0x47024a, 0x4702c0); x86_ret(); }
+HAND_FN(4096ae) { copy_record(0, 0x47043c); x86_ret(); }
+HAND_FN(4096df) { copy_record(1, 0x470450); x86_ret(); }
 
 /* 409791: 0x1054 pairs of (0xffffffff, 0) are stored from EDI + the arena base. */
 HAND_FN(409791)
 {
-    uint32_t edi = add32(EDI, rd32(0x556ac8));
+    uint32_t edi = add32(EDI, rd32(G_ARENA_BASE));
     WR_REG(R_EAX, 4, 0xffffffffu);
     WR_REG(R_EBX, 4, 0);
     uint16_t n = 0x1054;

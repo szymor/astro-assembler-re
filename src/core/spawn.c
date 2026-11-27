@@ -44,7 +44,7 @@ HAND_FN(41bea9)
     wr16(e + 0x16, (uint16_t)EBX);
     wr16(e + 0x18, (uint16_t)EDX);
     wr16(e + 0x1a, rd16(0x46ff44u));
-    const uint32_t edi = add32(EDI, rd32(0x556ac8u));
+    const uint32_t edi = add32(EDI, rd32(G_ARENA_BASE));
     const uint32_t eax = (uint32_t)(int32_t)(int16_t)rd16(edi + 0x1f4f74u);
     const uint32_t ebx = (uint32_t)(int32_t)(int16_t)rd16(edi + 0x1f4f76u);
     wr32(e + 0xe, eax);
@@ -112,7 +112,7 @@ HAND_FN(41cd6f)
         WR_REG(R_EDX, 4, edx);
     }
     uint32_t ebp = add32(EBP, 0x10);
-    uint16_t ax = rd16(0x46ffa6u) | 1;
+    uint16_t ax = rd16(G_RANDOM_SEED) | 1;
     bx = ax;
     do {
         ax = add16(ax, bx);
@@ -152,7 +152,7 @@ HAND_FN(41cae3)
     }
     WR_REG(R_EDX, 2, dx_in);
     uint32_t ebp = add32(EBP, 0x10);
-    uint16_t ax = rd16(0x46ffa6u) | 1;
+    uint16_t ax = rd16(G_RANDOM_SEED) | 1;
     bx = ax;
     do {
         ax = add16(ax, bx);

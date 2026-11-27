@@ -15,13 +15,15 @@ static uint32_t inc32(uint32_t a)
 }
 
 /*
- * 444a7c: the first of eight 8-byte entries (at 0x46f498) whose second dword
- * is below EAX (unsigned): the entries from there on move down by one
- * (backward copy). Carry set: found (EDX = its index); clear: none.
+ * Core_InsertRank (0x444a7c): makes room in the hall of fame (G_HALL_OF_FAME,
+ * eight (name, score) entries, best first) for the score EAX: the first entry
+ * with a lower score (unsigned) and those after it move down one place, the
+ * last dropping out (a backward copy). CF = 1 and EDX = the free place when the
+ * score qualifies; CF = 0 otherwise.
  */
 HAND_FN(444a7c)
 {
-    uint32_t ebp = 0x46f498, edx = 0, ecx = 8;
+    uint32_t ebp = G_HALL_OF_FAME, edx = 0, ecx = 8;
     const uint32_t eax = EAX;
     for (;;) {
         cmp32(eax, rd32(ebp + 4));
@@ -40,7 +42,7 @@ HAND_FN(444a7c)
     ecx = dec32(ecx);
     if (!(flag(R_ZF) || cond_l())) {                         /* not JLE: move the tail down */
         ecx = add32(ecx, ecx);
-        uint32_t esi = 0x46f4cc, edi = 0x46f4d4;
+        uint32_t esi = G_HALL_OF_FAME + 0x34, edi = G_HALL_OF_FAME + 0x3c;     /* the last dwords */
         for (uint32_t i = 0; i < ecx; i++, esi -= 4, edi -= 4) wr32(edi, rd32(esi));
         WR_REG(R_ESI, 4, esi); WR_REG(R_EDI, 4, edi);
         ecx = 0;
@@ -67,7 +69,7 @@ HAND_FN(41b740)
     const int32_t rem = (int32_t)(dividend % divisor);
     int32_t esi = (int32_t)(0x80u + (uint32_t)quot) >> 8;
     if (esi < 0) { ecx |= 4; esi = -esi; }
-    const uint32_t eax = rd32(0x556ac8);
+    const uint32_t eax = rd32(G_ARENA_BASE);
     WR_REG(R_EAX, 4, (eax & 0xffff0000u) | rd8(eax + (uint32_t)esi + 0x1f4e73u));
     ecx = add32(ecx, 0x4b0bbe);
     uint16_t bx = sub16(rd16(ecx + 8), (uint16_t)rd8(eax + (uint32_t)esi + 0x1f4e73u));

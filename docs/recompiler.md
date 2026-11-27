@@ -127,6 +127,15 @@ one with readable C, each checked against the generated version.
   memory, the emulated stack, and on return the popped address in ESP, in
   Ghidra's EIP slot (`0x284`) and in `cpu.ret_addr` (`x86_ret()`).
   `core.h` has helpers for the common cases.
+- **Names for the data**: `game.h` names the game state whose meaning is known:
+  the frame (game time, random seed, horizontal scroll, arena), the player
+  record (`P1_*` fields; `player_field()` moves one to player 2, 0x158
+  further), the target player, the hall of fame, the control words, the
+  level-2 and level-3 bosses with their parts (a path record followed by a
+  reach record, `PATH_*` / `REACH_*`) and the nine enemy classes' tables.
+  Functions that work on these use the names and take the player or part as a
+  parameter where the original repeats the code (`init_ship`, `energy_up`,
+  `copy_record`, `step_reach`); fields still unknown stay as addresses.
 - **How it is checked**: the differential build (`cmake --preset diff`,
   `build/diff`, headless only) defines `RT_DIFF`. Every call of a replaced
   function then runs the generated version, records and undoes its memory

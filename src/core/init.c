@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define G_PLAYER_MASK 0x46ffe4u    /* bit 0: player 1 takes part, bit 1: player 2 */
 
 /*
  * Core_StoreFrameConstants (0x409658): EAX is stored as the immediate of 11
@@ -31,57 +30,34 @@ HAND_FN(409658)
 }
 
 /*
- * Core_InitPlayer1Ship (0x409e91): if player 1 takes part, sets the fields of
- * its ship (0x4700a4.., 0x470164 = x, 0x470166 = y): x = 0x120 (0xa2 when
- * player 2 takes part too), y = BX; the other fields fixed. AX = x.
+ * Core_InitPlayer1Ship / 2Ship (0x409e91, 0x409f04): if the player takes part,
+ * its ship starts at x = 0x120, or on its own side (player 1 0xa2, player 2
+ * 0x19e) when both play, and y = BX, with no invulnerability left; the other
+ * fields (meaning unknown) get fixed values. AX = x.
  */
-HAND_FN(409e91)
+static void init_ship(unsigned player)
 {
-    test32(rd32(G_PLAYER_MASK), 1);
+    test32(rd32(G_PLAYER_MASK), player ? 2 : 1);
     if (!flag(R_ZF)) {
         uint16_t x = 0x120;
-        test32(rd32(G_PLAYER_MASK), 2);
-        if (!flag(R_ZF)) x = 0xa2;
-        wr16(0x4700a4u, 0);
-        wr16(0x4700a6u, 0);
-        wr16(0x4700a8u, 0xfa);
-        wr16(0x4700e8u, 2);
-        wr16(0x470164u, x);
-        wr16(0x470166u, (uint16_t)EBX);
-        wr16(0x4700eau, x);
-        wr16(0x4700ecu, 0xb8);
-        wr16(0x4700eeu, 0);
-        wr16(0x4700f0u, 4);
+        test32(rd32(G_PLAYER_MASK), player ? 1 : 2);
+        if (!flag(R_ZF)) x = player ? 0x19e : 0xa2;
+        wr16(player_field(player, P1_INVULNERABLE), 0);
+        wr16(player_field(player, 0x4700a6u), 0);
+        wr16(player_field(player, 0x4700a8u), 0xfa);
+        wr16(player_field(player, 0x4700e8u), 2);
+        wr16(player_field(player, P1_X), x);
+        wr16(player_field(player, P1_Y), (uint16_t)EBX);
+        wr16(player_field(player, 0x4700eau), x);
+        wr16(player_field(player, 0x4700ecu), 0xb8);
+        wr16(player_field(player, 0x4700eeu), 0);
+        wr16(player_field(player, 0x4700f0u), 4);
         set_ax(x);
     }
     x86_ret();
 }
-
-/*
- * Core_InitPlayer2Ship (0x409f04): the same for player 2 (fields +0x158
- * from player 1's): x = 0x120, or 0x19e when player 1 takes part too.
- */
-HAND_FN(409f04)
-{
-    test32(rd32(G_PLAYER_MASK), 2);
-    if (!flag(R_ZF)) {
-        uint16_t x = 0x120;
-        test32(rd32(G_PLAYER_MASK), 1);
-        if (!flag(R_ZF)) x = 0x19e;
-        wr16(0x4701fcu, 0);
-        wr16(0x4701feu, 0);
-        wr16(0x470200u, 0xfa);
-        wr16(0x470240u, 2);
-        wr16(0x4702bcu, x);
-        wr16(0x4702beu, (uint16_t)EBX);
-        wr16(0x470242u, x);
-        wr16(0x470244u, 0xb8);
-        wr16(0x470246u, 0);
-        wr16(0x470248u, 4);
-        set_ax(x);
-    }
-    x86_ret();
-}
+HAND_FN(409e91) { init_ship(0); }
+HAND_FN(409f04) { init_ship(1); }
 
 /*
  * Core_ClearTables (0x445a93): four dwords cleared, then 150 dwords from
@@ -111,7 +87,7 @@ HAND_FN(445a93)
  */
 HAND_FN(40982e)
 {
-    uint32_t edi = add32(EDI, rd32(0x556ac8u));
+    uint32_t edi = add32(EDI, rd32(G_ARENA_BASE));
     fill_dwords(edi, 0, ECX);
     edi += 4 * ECX;
     const uint32_t n = EDX;
@@ -146,15 +122,17 @@ HAND_FN(409818)
 }
 
 /*
- * Core_SetBestTime1 / 2 (0x41851f, 0x418559): the word at `field` (player 1's
- * 0x470058, player 2's 0x4701b0) is set from AX if it is 0 and the mode word at
- * `mode` has bit 0; or, if it is non-zero and the mode word is 2, lowered to BX
- * when BX is below it. Only the first case returns to the caller; the others
+ * Core_SetBestTime1 / 2 (0x41851f, 0x418559): the player's word at 0x470058
+ * (player 2's 0x4701b0; the name is Sonnet's guess, the meaning is unclear) is
+ * set from AX if it is 0 and the player's control at +0x10 (the fifth of its
+ * layout list) is held; or, if it is non-zero and that control was just released (history 2),
+ * lowered to BX when BX is below it. Only the first case returns to the caller; the others
  * drop the caller's return address as well (ADD ESP, 4; RET), returning to its
  * caller. Flags: those of the last compare, or of that ADD.
  */
-static void set_best(uint32_t field, uint32_t mode)
+static void set_best(unsigned player)
 {
+    const uint32_t field = player_field(player, 0x470058u), mode = (player ? P2_CONTROLS : P1_CONTROLS) + 0x10;
     cmp16(rd16(field), 0);
     if (flag(R_ZF)) {
         test16m(rd16(mode), 1);
@@ -173,70 +151,70 @@ static void set_best(uint32_t field, uint32_t mode)
     WR_REG(R_ESP, 4, add32(ESP, 4));
     x86_ret();
 }
-HAND_FN(41851f) { set_best(0x470058u, 0x55c990u); }
-HAND_FN(418559) { set_best(0x4701b0u, 0x55c9a8u); }
+HAND_FN(41851f) { set_best(0); }
+HAND_FN(418559) { set_best(1); }
 
 /*
  * Core_PickNearerPlayer (0x4422d6): decides which player a pointer-using
  * routine follows. Nothing happens unless a player takes part. The target is
- * set from player 2's ship at 0x4702bc/0x4702be (marker 4, pointer 0x470258);
- * if player 1 takes part, from player 1's ship at 0x470164/0x470166 (marker 0,
- * pointer 0x470100); if both take part, player 2 is chosen when the point
- * (AX - 0x24, BX - 0x20) is closer to it (squared distance, 16-bit
- * coordinates). Result: words at 0x46fffc, 0x46fffe, the dword at 0x470000 and
- * the marker at 0x470004. All registers are preserved (PUSHAD/POPAD);
+ * player 2's ship, or player 1's if player 1 takes part; if both do, player 2
+ * when it is nearer the point (BX - 0x20, AX - 0x24) (squared distance, 16-bit
+ * coordinates). Result: G_TARGET_X/Y, G_TARGET_PLAYER (0 or 4) and
+ * G_TARGET_RECORD (a pointer into that player's record, 0x470100 + stride). All registers are preserved (PUSHAD/POPAD);
  * the flags are those of the deciding test or compare.
  */
 HAND_FN(4422d6)
 {
     test32(rd32(G_PLAYER_MASK), 3);
     if (flag(R_ZF)) { x86_ret(); return; }
-    uint16_t si = rd16(0x4702bcu), di = rd16(0x4702beu);
-    uint32_t marker = 4, ebp = 0x470258u;
+    const uint32_t p2_x = player_field(1, P1_X), p2_y = player_field(1, P1_Y);
+    uint16_t x = rd16(p2_x), y = rd16(p2_y);
+    uint32_t target = 4, record = player_field(1, 0x470100u);
     test32(rd32(G_PLAYER_MASK), 1);
     if (!flag(R_ZF)) {
-        si = rd16(0x470164u);
-        di = rd16(0x470166u);
-        marker = 0;
-        ebp = 0x470100u;
+        x = rd16(P1_X);
+        y = rd16(P1_Y);
+        target = 0;
+        record = 0x470100u;
         test32(rd32(G_PLAYER_MASK), 2);
         if (!flag(R_ZF)) {
-            const uint16_t ax = (uint16_t)(EAX - 0x24), bx = (uint16_t)(EBX - 0x20);
-            const int32_t a = (int16_t)(uint16_t)(ax - di), b = (int16_t)(uint16_t)(bx - si);
-            const int32_t c = (int16_t)(uint16_t)(ax - rd16(0x4702beu)), d = (int16_t)(uint16_t)(bx - rd16(0x4702bcu));
-            cmp32((uint32_t)(a * a + b * b), (uint32_t)(c * c + d * d));
+            /* both play: the nearer one to the point, AX the y and BX the x */
+            const uint16_t py = (uint16_t)(EAX - 0x24), px = (uint16_t)(EBX - 0x20);
+            const int32_t dy1 = (int16_t)(uint16_t)(py - y), dx1 = (int16_t)(uint16_t)(px - x);
+            const int32_t dy2 = (int16_t)(uint16_t)(py - rd16(p2_y)), dx2 = (int16_t)(uint16_t)(px - rd16(p2_x));
+            cmp32((uint32_t)(dy1 * dy1 + dx1 * dx1), (uint32_t)(dy2 * dy2 + dx2 * dx2));
             if (cond_a()) {
-                si = rd16(0x4702bcu);
-                di = rd16(0x4702beu);
-                ebp = 0x470258u;
-                marker = 4;
+                x = rd16(p2_x);
+                y = rd16(p2_y);
+                record = player_field(1, 0x470100u);
+                target = 4;
             }
         }
     }
-    wr32(0x470004u, marker);
-    wr16(0x46fffcu, si);
-    wr16(0x46fffeu, di);
-    wr32(0x470000u, ebp);
+    wr32(G_TARGET_PLAYER, target);
+    wr16(G_TARGET_X, x);
+    wr16(G_TARGET_Y, y);
+    wr32(G_TARGET_RECORD, record);
     x86_ret();
 }
 
 /*
- * Boss2_StartArmMoves_q (0x42b030): four records at 0x497dbe, 0x497e6e, 0x497f1e and
- * 0x497fce (0xb0 apart) are initialised from
- * the four dwords at ESI: in use (word 1), word 0, the dword, then EBX and ECX.
- * ESI ends after the list, EAX = the last dword.
+ * Boss2_StartArmMoves_q (0x42b030): every arm starts retracting, to take the
+ * next path from the four dwords at ESI (one per arm) and extend again by EBX
+ * per frame up to ECX. ESI ends after the list, EAX = the last dword.
  */
 HAND_FN(42b030)
 {
     uint32_t esi = ESI, eax = 0;
-    for (uint32_t rec = 0x497dbeu; rec <= 0x497fceu; rec += 0xb0) {
+    for (unsigned arm = 0; arm < BOSS2_ARMS; arm++) {
+        const uint32_t reach = boss2_arm(arm, ARM_REACH);
         eax = rd32(esi);
         esi += 4;
-        wr16(rec, 1);
-        wr16(rec + 2, 0);
-        wr32(rec + 4, eax);
-        wr32(rec + 8, EBX);
-        wr32(rec + 0xc, ECX);
+        wr16(reach + REACH_RETRACT, 1);
+        wr16(reach + REACH_EXTEND, 0);
+        wr32(reach + REACH_NEXT_PATH, eax);
+        wr32(reach + REACH_STEP, EBX);
+        wr32(reach + REACH_LIMIT, ECX);
     }
     WR_REG(R_ESI, 4, esi);
     WR_REG(R_EAX, 4, eax);
@@ -253,7 +231,7 @@ HAND_FN(42b030)
  */
 HAND_FN(4097d9)
 {
-    uint32_t esi = ESI, edi = EDI + rd32(0x556ac8u);
+    uint32_t esi = ESI, edi = EDI + rd32(G_ARENA_BASE);
     uint16_t outer = 3, mid, inner;
     do {
         mid = 3;
@@ -289,7 +267,7 @@ HAND_FN(4097d9)
  */
 HAND_FN(415a58)
 {
-    uint32_t edi = rd16(0x4b0640u + 2 * rd32(0x4b0624u)) + EAX + rd32(0x556ac8u);
+    uint32_t edi = rd16(0x4b0640u + 2 * rd32(0x4b0624u)) + EAX + rd32(G_ARENA_BASE);
     uint32_t esi = rd32(0x4b0632u), eax = 0;
     uint16_t cx = rd16(0x4b0630u);
     do {
@@ -370,13 +348,14 @@ HAND_FN(41599f)
 }
 
 /*
- * Boss3_StepPhase_q (0x42d1a0): the countdown dword at 0x4983cc drops by an amount
- * chosen by the word at 0x498868 (a level: 4 below 0xe, 6 below 0xd ... 0x18 for
- * 0). When it runs out and none of five entries (words at 0x4984c4, 0x498550,
- * 0x4984d0, 0x498502, 0x498536) is in use, the next pair of dwords from the list
- * at the pointer in 0x4983c8 is loaded (countdown, 0x4983d4) and a timer of 180
- * started. The timer (word at 0x4983d0) counts down, and when it reaches 0 with
- * the entry at 0x498550 unused, the dword at 0x4983c4 is set to 0x18000.
+ * Boss3_StepPhase_q (0x42d1a0): the level-3 boss's phases. The countdown to the
+ * next phase drops by an amount its damage stage chooses (4 at stage 14 and up
+ * ... 0x17 at stage 1, 0x18 at 0: the more damaged, the faster). When it runs
+ * out and none of its attacks is running, the next phase is taken from the list
+ * (countdown, mode; mode 4 lets the attacks start), the phase timer is set to
+ * 180 frames and the dword at 0x4983c4 (meaning unknown) to 0x20000; when the
+ * timer then runs out with the attack k_boss3_attack[1] idle, that dword is set
+ * to 0x18000.
  */
 HAND_FN(42d1a0)
 {
@@ -385,35 +364,32 @@ HAND_FN(42d1a0)
     unsigned i = 0;
     for (; i < 14; i++) {
         eax = amount[i];
-        cmp16(rd16(0x498868u), (uint16_t)(0xe - i));
+        cmp16(rd16(BOSS3_STAGE), (uint16_t)(0xe - i));
         if (cond_ae()) break;
     }
     if (i == 14) eax = 0x18;
-    const uint32_t left = sub32(rd32(0x4983ccu), eax);
-    wr32(0x4983ccu, left);
-    if (!flag(R_ZF) && flag(R_SF) == flag(R_OF)) goto timer;       /* JG */
-    {
-        static const uint32_t used[5] = {0x4984c4, 0x498550, 0x4984d0, 0x498502, 0x498536};
-        for (unsigned k = 0; k < 5; k++) {
-            cmp16(rd16(used[k]), 0);
-            if (!flag(R_ZF)) goto timer;
-        }
-        esi = rd32(0x4983c8u);
-        eax = rd32(esi);
-        wr32(0x4983ccu, eax);
-        eax = rd32(esi + 4);
-        wr32(0x4983d4u, eax);
-        esi += 8;
-        wr32(0x4983c8u, esi);
-        wr16(0x4983d0u, 0xb4);
-        wr32(0x4983c4u, 0x20000);
+    const uint32_t left = sub32(rd32(BOSS3_PHASE_LEFT), eax);
+    wr32(BOSS3_PHASE_LEFT, left);
+    if (!flag(R_ZF) && flag(R_SF) == flag(R_OF)) goto timer;       /* JG: not yet */
+    for (unsigned k = 0; k < 5; k++) {
+        cmp16(rd16(k_boss3_attack[k]), 0);
+        if (!flag(R_ZF)) goto timer;                               /* an attack is running */
     }
+    esi = rd32(BOSS3_PHASE_LIST);
+    eax = rd32(esi);
+    wr32(BOSS3_PHASE_LEFT, eax);
+    eax = rd32(esi + 4);
+    wr32(BOSS3_PHASE_MODE, eax);
+    esi += 8;
+    wr32(BOSS3_PHASE_LIST, esi);
+    wr16(BOSS3_PHASE_TIMER, 0xb4);
+    wr32(0x4983c4u, 0x20000);
 timer:
-    cmp16(rd16(0x4983d0u), 0);
+    cmp16(rd16(BOSS3_PHASE_TIMER), 0);
     if (!flag(R_ZF)) {
-        wr16(0x4983d0u, dec16(rd16(0x4983d0u)));
+        wr16(BOSS3_PHASE_TIMER, dec16(rd16(BOSS3_PHASE_TIMER)));
         if (flag(R_ZF)) {
-            cmp16(rd16(0x498550u), 0);
+            cmp16(rd16(k_boss3_attack[1]), 0);
             if (flag(R_ZF)) wr32(0x4983c4u, 0x18000);
         }
     }
@@ -424,8 +400,8 @@ timer:
 
 /*
  * Core_PlayerDistance (0x41b494): the distance from the point (AX, BX) to the
- * player Core_PickNearerPlayer chooses (its position words at 0x46fffc/0x46fffe,
- * offset by 0x1a and 0x24, and the word at 0x4b1f9a): returns CF = 1 when the
+ * player Core_PickNearerPlayer chooses (G_TARGET_X/Y offset by 0x1a and 0x24,
+ * and the scroll G_SCROLL_X; AX is the point's y, BX its x): returns CF = 1 when the
  * point is outside the visible area (AX outside -0x14..0x15e, BX above 0x320 as
  * an unsigned value) or has no distance; otherwise EBX = the distance in 16.16
  * fixed point (a square root by 12 Newton steps) and CF = 0 if it is above
@@ -436,7 +412,7 @@ HAND_FN(41b494)
 {
     HAND_CALL(f_4422d6, 0x41b499u);
     uint32_t eax = EAX, ebx = EBX, ecx = ECX, edx = EDX;
-    uint16_t cx = rd16(0x46fffeu), dx = rd16(0x46fffcu);
+    uint16_t cx = rd16(G_TARGET_Y), dx = rd16(G_TARGET_X);
     cx = add16(cx, 0x24);
     dx = add16(dx, 0x1a);
     uint16_t ax = (uint16_t)eax, bx = (uint16_t)ebx;
@@ -451,7 +427,7 @@ HAND_FN(41b494)
     wr16(0x46ff64u, (uint16_t)(rd16(0x46ff64u) << 4));
     wr16(0x46ff66u, (uint16_t)(rd16(0x46ff66u) << 4));
     ax = sub16(ax, cx);
-    dx = add16(dx, rd16(0x4b1f9au));
+    dx = add16(dx, rd16(G_SCROLL_X));
     bx = sub16(bx, dx);
     bx = add16(bx, 2);
     {

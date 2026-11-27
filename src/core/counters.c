@@ -61,24 +61,28 @@ HAND_FN(413953)
     x86_ret();
 }
 
-/* 4240e1 (4243b6, the second player's, is not called by any recording): the byte at `value` goes up by one (not below 0), at most to the byte at `limit`. */
-#define COUNT_UP_LIMITED(addr, value, limit)                                \
-    HAND_FN(addr)                                                           \
-    {                                                                       \
-        WR_REG(R_EBX, 1, 1);                                                \
-        uint8_t al = add8(rd8(value), 1);                                   \
-        if (flag(R_SF)) { al = 0; flags_xor_self(); }                       \
-        cmp8(al, rd8(limit));                                               \
-        if (flag(R_CF) == 0 && !flag(R_ZF)) al = rd8(limit);                \
-        WR_REG(R_EAX, 1, al);                                               \
-        wr8(value, al);                                                     \
-        x86_ret();                                                          \
-    }
-COUNT_UP_LIMITED(4240e1, 0x47004e, 0x47004c)
+/* Core_CountUp1 (0x4240e1; 0x4243b6, player 2's, is not called by any
+ * recording): the player's energy goes up by one (from 0 if it was negative),
+ * at most to its cap. */
+static void energy_up(unsigned player)
+{
+    const uint32_t energy = player_field(player, P1_ENERGY), cap = player_field(player, P1_ENERGY_MAX);
+    WR_REG(R_EBX, 1, 1);
+    uint8_t al = add8(rd8(energy), 1);
+    if (flag(R_SF)) { al = 0; flags_xor_self(); }
+    cmp8(al, rd8(cap));
+    if (flag(R_CF) == 0 && !flag(R_ZF)) al = rd8(cap);
+    WR_REG(R_EAX, 1, al);
+    wr8(energy, al);
+    x86_ret();
+}
+HAND_FN(4240e1) { energy_up(0); }
 
 /*
- * 424120 / 4243f5: a counter (at most 0x20) grows by one and the slot it
- * names in the table at `table` is given a lifetime of 0x48 and the value 1.
+ * Core_GrowSlot1 (0x424120; 0x4243f5 is player 2's): the energy cap grows by
+ * one (at most 0x20) and the slot it names in the table at `table` (one per
+ * cap step from 0x1a on; tentatively the energy gauge's cells) is given a
+ * lifetime of 0x48 and the value 1.
  */
 static void grow_slot(uint32_t count_at, uint32_t table)
 {
@@ -101,17 +105,17 @@ static void grow_slot(uint32_t count_at, uint32_t table)
     }
     x86_ret();
 }
-HAND_FN(424120) { grow_slot(0x47004c, 0x519d08); }
+HAND_FN(424120) { grow_slot(P1_ENERGY_MAX, 0x519d08); }
 
 /* 42abf9: on every fourth tick four timers count down by 12, wrapping to 204. */
 HAND_FN(42abf9)
 {
-    test32(rd32(0x46ffa0), 3);
+    test32(rd32(G_GAME_TIME), 3);
     if (flag(R_ZF)) {
-        static const uint32_t timer[4] = {0x497dae, 0x497e5e, 0x497f0e, 0x497fbe};
-        for (int i = 0; i < 4; i++) {
-            wr32(timer[i], sub32(rd32(timer[i]), 0xc));
-            if (flag(R_SF)) wr32(timer[i], 0xcc);
+        for (unsigned arm = 0; arm < BOSS2_ARMS; arm++) {
+            const uint32_t frame = boss2_arm(arm, ARM_FRAME);
+            wr32(frame, sub32(rd32(frame), 0xc));
+            if (flag(R_SF)) wr32(frame, 0xcc);
         }
     }
     x86_ret();
