@@ -235,35 +235,35 @@ those inside the checks of other replaced functions):
 | `0x41b026` | `Core_ClearFinishedB` | `tables.c` | 130 092 calls in the full-game recording |
 | `0x415e97` | `Core_FindEntryOrFree` | `tables.c` | 3 318 calls in the full-game recording |
 | `0x413849` | `Core_NextFrames` | `tables.c` | 130 092 calls in the full-game recording |
-| `0x42b030` | `Core_StoreFourEntries` | `init.c` | 4 calls in the full-game recording |
-| `0x42d0fc`, `0x42f888`, `0x43029b` | `Core_LevelEffectA`-`C` | `tables.c` | 4 303, 5 945 and 7 188 calls in the full-game recording |
+| `0x42b030` | `Boss2_StartArmMoves_q` | `init.c` | 4 calls in the full-game recording |
+| `0x42d0fc`, `0x42f888`, `0x43029b` | `Boss3_DamageFlash`, `Boss4_DamageFlash`, `Boss5_DamageFlash` | `tables.c` | 4 303, 5 945 and 7 188 calls in the full-game recording |
 | `0x4135ba` | `Palette_StartFade` | `tables.c` | one call (its 720 components) in the full-game recording |
-| `0x42e61e` | `Core_StoreFiveEntries` | `tables.c` | 15 calls in the full-game recording |
+| `0x42e61e` | `Boss3_StartLimbMoves_q` | `tables.c` | 15 calls in the full-game recording |
 | `0x430874` | `Core_SetRecordFields` | `tables.c` | 9 calls in the full-game recording (which of its four cases are reached is not recorded) |
 | `0x41b676` | `Core_SpawnShot` | `vectors.c` | 6 607 calls in the full-game recording |
-| `0x42d318` | `Core_FollowPath` | `vectors.c` | 4 303 calls in the full-game recording |
+| `0x42d318` | `Boss3_FollowPath` | `vectors.c` | 4 303 calls in the full-game recording |
 | `0x419819` / `0x41aa6d` | `Core_StepEntries24` / `Core_StepEntries14` | `tables.c` | 130 092 calls each in the full-game recording |
-| `0x42975e`, `0x431c25` | `Core_LevelEffectD`, `E` | `tables.c` | 17 475 and 11 726 calls in the full-game recording |
+| `0x42975e`, `0x431c25` | `Boss2_DamageFlash`, `Boss6Mid_DamageFlash` | `tables.c` | 17 475 and 11 726 calls in the full-game recording |
 | `0x4097d9` | `Core_CopyTiles` | `init.c` | 2 calls in the full-game recording |
 | `0x415a58` | `Core_MaskBlit` | `init.c` | 3 calls in the full-game recording |
 | `0x433acd` | `Core_Cross4` | `init.c` | 151 974 calls in the full-game recording |
-| `0x4299b8` | `Core_FollowPath2` | `vectors.c` | 3 495 calls in the full-game recording |
+| `0x4299b8` | `Boss2_FollowPath` | `vectors.c` | 3 495 calls in the full-game recording |
 | `0x41ed70`, `0x41ee75` | `Core_CopyStripA`, `B` | `tables.c` | up to 4 803 and 134 calls over the recordings (whether `B`'s optional second block is reached is not recorded) |
 | `0x41599f` | `Core_MaskBlitRows` | `init.c` | 974 calls in the full-game recording |
-| `0x42d1a0` | `Core_EnergyStep` | `init.c` | 4 303 calls in the full-game recording |
-| `0x42ad07` | `Core_StepGauges` | `tables.c` | 3 495 calls in the full-game recording |
-| `0x42aee4` | `Core_StepPoints` | `vectors.c` | 3 495 calls in the full-game recording |
+| `0x42d1a0` | `Boss3_StepPhase_q` | `init.c` | 4 303 calls in the full-game recording |
+| `0x42ad07` | `Boss2_StepArmReach_q` | `tables.c` | 3 495 calls in the full-game recording |
+| `0x42aee4` | `Boss2_StepArmPaths_q` | `vectors.c` | 3 495 calls in the full-game recording |
 | `0x41be2a` | `Core_ProjectPoints` | `vectors.c` | 430 584 calls in the full-game recording |
 | `0x442758` | `Core_DrawSpriteRemap` | `sprite.c` | 6 485 695 calls in the full-game recording, every clipping branch reached (left start 341 598, entirely left 25 616, past the right edge 787 979, entirely right 59 840, above 2 420 396, below 138 919) |
-| `0x42e241` | `Core_StepGauges2` | `tables.c` | 5 020 calls in the full-game recording |
-| `0x42e495` | `Core_StepPoints2` | `vectors.c` | 5 020 calls in the full-game recording |
+| `0x42e241` | `Boss3_StepLimbReach_q` | `tables.c` | 5 020 calls in the full-game recording |
+| `0x42e495` | `Boss3_StepLimbPaths_q` | `vectors.c` | 5 020 calls in the full-game recording |
 | `0x4434c4` | `Math_BuildRotation` | `vectors.c` | one call per recording that reaches it |
 | `0x41cd6f`, `0x41cae3` | `Core_FillRandomPairs`, `Core_FillRandomFlags` | `spawn.c` | 88 and 5 335 calls in the full-game recording; they call `Core_Random` (the first hand-written functions to call another core function, through `HAND_CALL` in `core.h`) |
 | `0x41b494` | `Core_PlayerDistance` | `init.c` | 200 720 calls in the full-game recording; calls `Core_PickNearerPlayer` |
 | `0x437c3a` | `Core_RunObjectExit` | `spawn.c` | 10 calls in the full-game recording (calls a handler through a pointer) |
 | `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
 | `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
-| `0x42414a`, `0x424154`, `0x42415e` | `Core_Set_<addr>` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
+| `0x42414a`, `0x424154`, `0x42415e` | `Script_ProtectLevel_47019e`, `_47005a`, `_47005c` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
 | `0x408cb5` | `Core_CallShell` | `shellcall.c` | 455 182 calls in the full-game recording (454 962 checked on their own); the shell callbacks it makes are recorded and replayed |
 | `0x408c44` | `Core_Dispatch` | `shellcall.c` | not checked itself (`HAND_UNCHECKED`): one call runs a whole command, 4 to 12 per recording; what it calls is checked per call |
 | `0x409639` | `Core_ApplyCdVolume` | `shellcall.c` | 1 to 8 calls |
@@ -274,20 +274,20 @@ those inside the checks of other replaced functions):
 | `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 calls |
 | `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
 | `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 call |
-| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `Core_Box1`-`Core_Box9` | `hitbox.c` | 5 371 to 67 776 calls each (bounding boxes of objects) |
-| `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `Core_FixedBox1`-`5` | `hitbox.c` | about 31 000 calls each |
+| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `EnemyClass1_Box`-`EnemyClass9_Box` | `hitbox.c` | 5 371 to 67 776 calls each (bounding boxes of objects) |
+| `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `BossArm_SegmentBox1_q`-`5_q` | `hitbox.c` | about 31 000 calls each |
 | `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 calls (`0x42d529` is not called by any recording) |
 | `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 calls |
 | `0x4138f9`, `0x413953` | `Core_StepBytes10`, `Core_StepWords10` | `counters.c` | 30 290 and 387 304 calls (loops over 10-byte records) |
-| `0x42abf9` | `Core_StepTimers4` | `counters.c` | 3 495 calls |
+| `0x42abf9` | `Boss2_StepArmFrames` | `counters.c` | 3 495 calls |
 | `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
 | `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 calls each |
 | `0x41bd40`, `0x419446`, `0x419971`, `0x41abba` | `Core_StepDeadlines`, `Core_StepEntriesA/B/C` | `lists.c` | 46 and 137 037 calls each (per-frame steps over entry lists) |
 | `0x446bc6`, `0x41b944` | `Core_AddEntry5`, `Core_AddPhaseEntry` | `lists.c` | 6 542 and 62 calls |
-| `0x42ac52` | `Core_StepShotTable` | `lists.c` | 3 495 calls |
+| `0x42ac52` | `Boss2_StepFrames` | `lists.c` | 3 495 calls |
 | `0x424030` | `Core_NextRecord18` | `lists.c` | 7 calls |
 | `0x415b51`, `0x41ef8b` | `Core_MaskRows8`, `Core_CopyBlock16x20` | `lists.c` | 1 144 and 1 412 calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
-| `0x42d38b`, `0x42d3c8`, `0x429a5f` | `Core_StepTowards1/2/3` | `misc.c` | 4 303, 4 303 and 3 495 calls (clamped steppers) |
+| `0x42d38b`, `0x42d3c8`, `0x429a5f` | `Boss3_StepPathSpeed`, `Boss3_StepPathScale`, `Boss2_StepPathSpeed` | `misc.c` | 4 303, 4 303 and 3 495 calls (clamped steppers) |
 | `0x41cf17`, `0x415fe8`, `0x416283` | `Core_FindFreeSlot50b`, `Core_FindFreeSlot100b`, `Core_FindFreeSlot200b` | `misc.c` | 80, 740 and 611 calls (carry = table full; named by capacity, like those in `pools.c`) |
 | `0x415d5c`, `0x415d7f`, `0x4233c9` | `Core_BoxOutside`, `Core_ScaledPos`, `Core_VectorOffset` | `misc.c` | 63 341, 5 986 and 30 845 calls |
 | `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |

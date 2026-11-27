@@ -7,7 +7,9 @@
 
 /*
  * A value at `cur` moves by the signed step at `step` towards the target at
- * `limit` and stops there (it is left alone once it has arrived).
+ * `limit` and stops there (it is left alone once it has arrived): the bosses'
+ * path speed and scale (Boss3_StepPathSpeed, Boss3_StepPathScale,
+ * Boss2_StepPathSpeed).
  */
 static void step_towards(uint32_t cur, uint32_t limit, uint32_t step)
 {

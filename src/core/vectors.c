@@ -166,7 +166,7 @@ HAND_FN(41b676)
 }
 
 /*
- * Core_FollowPath (0x42d318): a point on a path: the dword at 0x498494 is the
+ * Boss3_FollowPath (0x42d318): a point on a path: the dword at 0x498494 is the
  * path's offset (0 = none), 0x498498 the position in it. The point at that position
  * (two words, scaled by the dword at 0x4984a8 and offset by 0x4983a8 and 0x4983ac)
  * goes to 0x4983b0 / 0x4983b4, and the position advances by the step (the dword
@@ -204,7 +204,7 @@ HAND_FN(42d318)
 }
 
 /*
- * Core_FollowPath2 (0x4299b8): as Core_FollowPath for the path at 0x497c34 (position
+ * Boss2_FollowPath (0x4299b8): as Boss3_FollowPath for the path at 0x497c34 (position
  * 0x497c38, step 0x497c3c, point 0x497b00/0x497b04 from the words scaled by 1024
  * and offset by 0x497af8/0x497afc), and then the point drifts: a countdown at
  * 0x497aec; when it runs out, the next (countdown, dx, dy) triple of the list
@@ -256,7 +256,7 @@ HAND_FN(4299b8)
 }
 
 /*
- * Core_StepPoints (0x42aee4): four records 0xb0 apart (from 0x497db2: path
+ * Boss2_StepArmPaths_q (0x42aee4): four records 0xb0 apart (from 0x497db2: path
  * offset, +4 position, +8 scale, results at -0x18 and -0xc): for each record
  * with a path, the two dwords at the position are multiplied by the scale
  * (64-bit, >> 16) into the results and the position moves on by 8 (to 0 at a
@@ -300,7 +300,7 @@ HAND_FN(42aee4)
     x86_ret();
 }
 
-/* Core_StepPoints2 (0x42e495): the same for a record with one product (at
+/* Boss3_StepLimbPaths_q (0x42e495): the same for a record with one product (at
  * 0x4985fc, position step 4) and four with two (0x498686, 0x4986fe, 0x498776,
  * 0x4987ee). */
 HAND_FN(42e495)

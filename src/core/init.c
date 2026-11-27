@@ -221,7 +221,7 @@ HAND_FN(4422d6)
 }
 
 /*
- * Core_StoreFourEntries (0x42b030): four records at 0x497dbe, 0x497e6e, 0x497f1e and
+ * Boss2_StartArmMoves_q (0x42b030): four records at 0x497dbe, 0x497e6e, 0x497f1e and
  * 0x497fce (0xb0 apart) are initialised from
  * the four dwords at ESI: in use (word 1), word 0, the dword, then EBX and ECX.
  * ESI ends after the list, EAX = the last dword.
@@ -370,7 +370,7 @@ HAND_FN(41599f)
 }
 
 /*
- * Core_EnergyStep (0x42d1a0): the countdown dword at 0x4983cc drops by an amount
+ * Boss3_StepPhase_q (0x42d1a0): the countdown dword at 0x4983cc drops by an amount
  * chosen by the word at 0x498868 (a level: 4 below 0xe, 6 below 0xd ... 0x18 for
  * 0). When it runs out and none of five entries (words at 0x4984c4, 0x498550,
  * 0x4984d0, 0x498502, 0x498536) is in use, the next pair of dwords from the list

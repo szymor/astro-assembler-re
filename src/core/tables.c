@@ -161,9 +161,13 @@ HAND_FN(413849)
 }
 
 /*
- * Level tables (0x42d0fc, 0x42f888, 0x43029b: three copies of the same code): AX (a level 0..7) selects BX and CX: 1/0 for 7
- * and up, 0xa/1 for 6, 9/1 for 5, 8/1 for 4, 8/2 for 3, 8/3 for 2, 8/4 for 1,
- * 8/5 for 0. Flags: those of the last compare of AX.
+ * The bosses' damage flash. Each boss divides its health into stages (AX: 0 =
+ * nearly destroyed, 7 or 8 and up = untouched); the stage selects how its hit
+ * frames blink: every BX frames, for CX of them (1/0 = never). Three bosses
+ * share one table in three copies of the code: Boss3_DamageFlash (0x42d0fc,
+ * the level-3 robot), Boss4_DamageFlash (0x42f888) and Boss5_DamageFlash
+ * (0x43029b): 1/0 for 7 and up, 0xa/1 for 6, 9/1 for 5, 8/1 for 4, 8/2 for 3,
+ * 8/3 for 2, 8/4 for 1, 8/5 for 0. Flags: those of the last compare of AX.
  */
 static void level_table(const uint16_t *bx, const uint16_t *cx, unsigned n)
 {
@@ -188,8 +192,9 @@ HAND_FN(42d0fc) { level_effect(); }
 HAND_FN(42f888) { level_effect(); }
 HAND_FN(43029b) { level_effect(); }
 
-/* Two more of the same shape with eight thresholds (AX 8 and up gives 1/0):
- * 0x42975e (final 8/6) and 0x431c25. */
+/* Two more with eight stages (AX 8 and up gives 1/0): Boss2_DamageFlash
+ * (0x42975e, also for its four arms; 8/6 at stage 0) and Boss6Mid_DamageFlash
+ * (0x431c25, the level-6 boss before the final dome, and its parts). */
 HAND_FN(42975e)
 {
     static const uint16_t bx[9] = {1, 0xa, 9, 8, 8, 8, 8, 8, 8};
@@ -259,7 +264,7 @@ HAND_FN(4135ba)
 }
 
 /*
- * Core_StoreFiveEntries (0x42e61e): like Core_StoreFourEntries (init.c) for five
+ * Boss3_StartLimbMoves_q (0x42e61e): like Boss2_StartArmMoves_q (init.c) for five
  * records, at 0x498692, 0x49870a, 0x498782 and 0x4987fa (0x78 apart) and
  * 0x498608.
  */
@@ -490,7 +495,7 @@ HAND_FN(41ee75)
 }
 
 /*
- * Core_StepGauges (0x42ad07): four records 0xb0 apart from 0x497dba, each a dword
+ * Boss2_StepArmReach_q (0x42ad07): four records 0xb0 apart from 0x497dba, each a dword
  * value (+0) with a "falling" word (+4) and a "rising" word (+6), a step (+0xc)
  * and a limit (+0x10). Falling: the value drops by the step; at 0 or below it
  * stops falling and starts rising, and the dword at +8 is copied to the record's
@@ -498,7 +503,7 @@ HAND_FN(41ee75)
  * grows by the step up to the limit, where rising ends. EAX = the last dword
  * read. Flags: those of the last compare or arithmetic.
  */
-/* One gauge record at `b` (see Core_StepGauges); returns the updated EAX. */
+/* One gauge record at `b` (see Boss2_StepArmReach_q); returns the updated EAX. */
 static uint32_t step_gauge(uint32_t b, uint32_t eax)
 {
     cmp16(rd16(b + 4), 0);
@@ -536,7 +541,7 @@ HAND_FN(42ad07)
     x86_ret();
 }
 
-/* Core_StepGauges2 (0x42e241): the same for five records at 0x498604, 0x49868e,
+/* Boss3_StepLimbReach_q (0x42e241): the same for five records at 0x498604, 0x49868e,
  * 0x498706, 0x49877e and 0x4987f6. */
 HAND_FN(42e241)
 {

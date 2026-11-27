@@ -289,7 +289,7 @@ static void in_follow_path2(void)
 
 /* 437c3a: EDI is an object; a used one (word 0) adds +0x2c to the dword the
  * pointer at 0x46ffe8 names and calls its handler (+0x30), here a one-store
- * setter (Core_Set_0047009e). */
+ * setter (Script_ProtectLevel_47019e). */
 static void in_object_exit(void)
 {
     WR_REG(R_EDI, 4, SCRATCH);
@@ -366,11 +366,11 @@ static const target k_targets[] = {
     {"Core_FillRandomPairs", f_41cd6f, in_random_fill, 50},
     {"Core_FillRandomFlags", f_41cae3, in_random_fill, 50},
     {"Palette_StartFade", f_4135ba, in_palette_fade, 20},
-    {"Core_FollowPath", f_42d318, in_follow_path, 100},
-    {"Core_FollowPath2", f_4299b8, in_follow_path2, 100},
+    {"Boss3_FollowPath", f_42d318, in_follow_path, 100},
+    {"Boss2_FollowPath", f_4299b8, in_follow_path2, 100},
     {"Core_RunObjectExit", f_437c3a, in_object_exit, 20},
-    {"Core_StepPoints", f_42aee4, in_step_points, 100},
-    {"Core_StepPoints2", f_42e495, in_step_points2, 100},
+    {"Boss2_StepArmPaths_q", f_42aee4, in_step_points, 100},
+    {"Boss3_StepLimbPaths_q", f_42e495, in_step_points2, 100},
 };
 
 static bool listed(const char *list, const char *name)
