@@ -208,9 +208,9 @@ static void in_slot100(void) { free_slot(0x4b04c8, 0, 100, 0x521a9c, 0x20, 4); }
 static void in_slot50(void) { free_slot(0x4abba8, 0, 50, 0x52271c, 0x5e, 4); }
 static void in_slot25(void) { free_slot(0x4ab678, 0x4ab67a, 25, 0x523ef4, 0x2c, 2); }
 static void in_slot10(void) { free_slot(0x4acb64, 0x4acb66, 10, 0x525c90, 0x1a0, 2); }
-static void in_slot28(void) { free_slot(0x4acccc, 0, 0x32, 0x526cd0, 0x28, 2); }
-static void in_slot30b(void) { free_slot(0x4b37a8, 0, 0x64, 0x519d88, 0x30, 2); }
-static void in_slot14(void) { free_slot(0x4b3b7c, 0, 0xc8, 0x51b048, 0x14, 2); }
+static void in_slot50b(void) { free_slot(0x4acccc, 0, 0x32, 0x526cd0, 0x28, 2); }
+static void in_slot100b(void) { free_slot(0x4b37a8, 0, 0x64, 0x519d88, 0x30, 2); }
+static void in_slot200b(void) { free_slot(0x4b3b7c, 0, 0xc8, 0x51b048, 0x14, 2); }
 static void in_add_entry18a(void) { free_slot(0x497c8e, 0, 0x32, 0x52c3a8, 0x12, 2); }
 static void in_add_entry18b(void) { free_slot(0x4984c6, 0, 0x32, 0x52c9e8, 0x12, 2); }
 static void in_add_entry14a(void) { free_slot(0x497c90, 0, 0x32, 0x52c72c, 0xe, 2); }
@@ -351,9 +351,9 @@ static const target k_targets[] = {
     {"Core_FindFreeSlot50", f_41c49a, in_slot50, 50},
     {"Core_FindFreeSlot25", f_41c9b2, in_slot25, 50},
     {"Core_FindFreeSlot10", f_41cdb2, in_slot10, 50},
-    {"Core_FindFreeSlot28", f_41cf17, in_slot28, 50},
-    {"Core_FindFreeSlot30b", f_415fe8, in_slot30b, 50},
-    {"Core_FindFreeSlot14", f_416283, in_slot14, 50},
+    {"Core_FindFreeSlot50b", f_41cf17, in_slot50b, 50},
+    {"Core_FindFreeSlot100b", f_415fe8, in_slot100b, 50},
+    {"Core_FindFreeSlot200b", f_416283, in_slot200b, 50},
     {"Core_AddListEntry18a", f_429b26, in_add_entry18a, 50},
     {"Core_AddListEntry18b", f_42d48f, in_add_entry18b, 50},
     {"Core_AddListEntry14a", f_429bc4, in_add_entry14a, 50},

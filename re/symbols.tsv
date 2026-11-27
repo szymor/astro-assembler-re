@@ -224,3 +224,145 @@
 004234be	f	Capsules_Update	Capsules (table 0x51f3b8, 8 bytes: state, x, y, contents): when opened, contents high byte 1-27 releases that ship part, low byte an item (0xff: chosen from the player's state).
 0044705b	f	Sound_PlayFromList	Plays a random sound of the current group (list 0x5188ec: count, ids).
 00441eaf	f	Impact_Spawn	Impact spark at a hit, plays an impact sound (Impacto01-04).
+
+# ---- Core functions rewritten by hand (src/core, listed in replaced.h; docs/recompiler.md) --
+00409639	f	Core_ApplyCdVolume	The CD-volume setting at 0x46ec0c is copied to both volume fields, then applied through the callback 0x401235.
+00409658	f	Core_StoreFrameConstants	EAX is stored as the immediate of 11 instructions in the 8-bpp/16-bpp blitting code (0x413a8a...), EBX in two in the menu code, and (EAX, EBX, ECX, EDX) at 0x46ffd4.
+004096ae	f	Core_CopyRecord1	Player 1's ship record: the 0x20-byte record for the ship type at 0x4700f2 (g_ship1Type) is copied from the table at 0x4702fc to 0x470168.
+004096df	f	Core_CopyRecord2	Player 2's ship record: the 0x20-byte record for the ship type at 0x47024a is copied from the table at 0x4702fc to 0x4702c0.
+00409791	f	Core_FillMarkerPairs	0x1054 pairs of (0xffffffff, 0) are stored from EDI + the arena base.
+004097d9	f	Core_CopyTiles	Copies 3 x 3 x 2 blocks of 32 bytes from ESI to EDI (plus the arena offset at 0x556ac8): the two blocks of a pair go 0x350 bytes past each other's end, the same source row is repeated for three destination rows (0xb0 further each), then the source moves on by 0x40.
+00409818	f	Core_CopyRows	CX rows (a count of 0 means 65536) of 16 dwords each are copied from ESI to EDI; EDI skips 0x330 bytes after each row.
+0040982e	f	Core_FillZeroThenOnes	At EDI plus the arena offset (the dword at 0x556ac8), ECX dwords of 0 and then EDX dwords of 0xffffffff.
+00409e91	f	Core_InitPlayer1Ship	If player 1 takes part, sets the fields of its ship (0x4700a4.., 0x470164 = x, 0x470166 = y): x = 0x120 (0xa2 when player 2 takes part too), y = BX; the other fields fixed.
+00409f04	f	Core_InitPlayer2Ship	The same for player 2 (fields +0x158 from player 1's): x = 0x120, or 0x19e when player 1 takes part too.
+0040b81c	f	Core_ClearBlock55cab0	0x40 dwords from 0x55cab0 cleared.
+004137f4	f	Core_AddEntry8	Unless the table is full (count at 0x4ba908 = 25), the first free 8-byte entry from 0x519c40 receives EBX and ECX and the count goes up.
+00413849	f	Core_NextFrames	16 animation records of 8 bytes at the pointer in 0x4bcb10 (dword = frame data, word = frame counter and count, word = frame size): each steps its frame (wrapping to 0 at the count) and copies the frame's pixels (size bytes) to the buffer from the pointer at 0x4be944 + 0x2d0.
+004138f9	f	Core_StepBytes10	ECX records of 10 bytes from EDI: byte 0 is decremented, then ANDed with BL.
+00413953	f	Core_StepWords10	ECX records of 10 bytes from EDI: word 0 += BX, and reduced by DX if that reaches it.
+004139d0	f	Core_PlotMaskedB	ECX 10-byte records (x, y, colour index): where the mask at EBP+pos (OR DH) is clear, plot BL.
+004139e8	f	Core_PlotMaskedTable	As Core_PlotMaskedB, plotting the colour-table entry (table at EDI) of each record's index.
+00413a79	f	Core_RemapLayer	The layer byte at EDI+pos is remapped through the table at EDX (page in DH).
+00413a95	f	Core_RemapPair	The layer byte (as AH) and a byte from the table at EBP (AL, index in the record) select a byte through EAX.
+00413b94	f	Core_RemapMask400	Where the mask byte at EBP (400-byte pitch) is set, remap the layer byte through the table at EDX.
+00413cbb	f	Core_RemapMaskAnd	As Core_RemapMask400, but the plot also needs the source byte at EBX to be set (AND with the mask byte).
+00413da1	f	Core_RemapMask320	As Core_RemapMask400 with the mask plane at EBP indexed like the layer (320-byte pitch).
+00414a91	f	Core_StepTimerPairs	Eight pairs (counter word, flag word) at ESI: a nonzero counter counts down and the flag toggles whenever it reaches a multiple of 8.
+0041599f	f	Core_MaskBlitRows	CX rows of 10 dword pairs (AND mask, OR bits; the data at ESI) combined into the screen at EDI, the pairs 4 bytes apart; after a row ESI skips 0x324 bytes and EDI 0x11c (counted from the last pair).
+00415a58	f	Core_MaskBlit	CX rows (the word at 0x4b0630) of 4 dword pairs (AND mask, OR bits: the sprite masks at the pointer in 0x4b0632) are combined into the screen at EAX + the row table entry (word index at 0x4b0624) + the arena offset; pairs are 8 bytes apart, rows 0x370.
+00415b51	f	Core_MaskRows8	Eight rows of three dwords at EDI are masked (AND, OR) with six dwords per row from ESI; EDI moves down 0x140 bytes per row.
+00415d5c	f	Core_BoxOutside	Carry set if the point (AX, CX) is outside the box around (BX, DX).
+00415d7f	f	Core_ScaledPos	X and y of the object at ESI from two scaled word sources (offsets and divisors in the object).
+00415e97	f	Core_FindEntryOrFree	Searches the 10 entries of 48 bytes from 0x519a60 (count 0x4ba740) for one whose dword at +0xe equals EDI (CF = 1, ESI = it), else ESI = the first free one (CF = 0); a full table gives CF = 1 with ESI unchanged.
+00415fe8	f	Core_FindFreeSlot100b	First free slot (EBP) of a table of 100 entries of 0x30 bytes from 0x519d88, used count 0x4b37a8; CF = full.
+00416283	f	Core_FindFreeSlot200b	First free slot (EBP) of a table of 200 entries of 0x14 bytes from 0x51b048, used count 0x4b3b7c; CF = full.
+00416ba1	f	Core_BindKeysP1a	Player 1's keys: the six codes of the list at 0x46f450 looked up in the table at 0x55cab0 and stored as words at 0x55c980-0x55c994.
+00416ba8	f	Core_BindKeysP1b	Player 1's keys: the six codes of the list at 0x46f456 looked up in the table at 0x55cab0 and stored as words at 0x55c980-0x55c994.
+00416baf	f	Core_BindKeysP1c	Player 1's keys: the six codes of the list at 0x46f45c looked up in the table at 0x55cab0 and stored as words at 0x55c980-0x55c994.
+00416bb6	f	Core_BindKeysP1d	Player 1's keys: the six codes of the list at 0x46f462 looked up in the table at 0x55cab0 and stored as words at 0x55c980-0x55c994.
+00416bff	f	Core_BindKeysP2a	Player 2's keys: the six codes of the list at 0x46f450 looked up in the table at 0x55cab0 and stored as words at 0x55c998-0x55c9ac.
+00416c06	f	Core_BindKeysP2b	Player 2's keys: the six codes of the list at 0x46f456 looked up in the table at 0x55cab0 and stored as words at 0x55c998-0x55c9ac.
+00416c0d	f	Core_BindKeysP2c	Player 2's keys: the six codes of the list at 0x46f45c looked up in the table at 0x55cab0 and stored as words at 0x55c998-0x55c9ac.
+00416c14	f	Core_BindKeysP2d	Player 2's keys: the six codes of the list at 0x46f462 looked up in the table at 0x55cab0 and stored as words at 0x55c998-0x55c9ac.
+00416c5d	f	Core_PollJoy00	The first joystick poll: stick 0, slot 0 go into 0x556aec / 0x556af0, then the shell callback 0x40108c runs.
+0041851f	f	Core_SetBestTime1	Player 1's best time (0x470058) set from AX or lowered, depending on the mode word; drops the caller's return address too.
+00418559	f	Core_SetBestTime2	Player 2's best time (0x4701b0) set from AX or lowered, depending on the mode word; drops the caller's return address too.
+00419446	f	Core_StepEntriesA	Live entries (stride 0xc, from 0x51db34): +4 falls by 4 (not below 0), the life at +0 by 10; at 0 or below the entry is freed.
+00419819	f	Core_StepEntries24	Per-frame step of the 24-byte entries from 0x51e070 (count 0x4b0a10): position += speed (the entry ends at 0 or below, or from 0x1b60000 on), and the frame word advances every few frames.
+00419971	f	Core_StepEntriesB	Live entries (stride 0xc, from 0x51e3c4): life +0 falls by 12; at 0 the entry is freed and so ends the loop if it was the last; below 0 it is cleared too; +4 grows by 4 for the others.
+0041a93d	f	Core_ClearFinishedA	Per-frame step of the 12-byte entries from 0x51e700 (count 0x4b0c60): each loses 10 from its life word and is freed at 0 or below; in even frames the dword at +4 drops by 4.
+0041aa6d	f	Core_StepEntries14	Per-frame step of the 14-byte entries from 0x51ed90 (count 0x4b0c94): the life word drops by 8 (freed at 0 or below); tick-based countdown (+4) and blink (+6) words.
+0041abba	f	Core_StepEntriesC	Live entries (stride 0x24, from 0x51ef10): +4 falls by 10; below -132 the entry is freed, and the loop ends when no live entries are left.
+0041b026	f	Core_ClearFinishedB	Per-frame step of the 14-byte entries from 0x51f354 (count 0x4b0dc8): a countdown word frees the entry at 0; above 10 the entry also moves.
+0041b494	f	Core_PlayerDistance	The distance from the point (AX, BX) to the player Core_PickNearerPlayer chooses (its position words at 0x46fffc/0x46fffe, offset by 0x1a and 0x24, and the word at 0x4b1f9a): returns CF = 1 when the point is outside the visible area (AX outside -0x14..0x15e, BX above 0x320 as an unsigned value) or has no distance; otherwise EBX = the distance in 16.16 fixed point (a square root by 12 Newton steps) and CF = 0 if it is above 0x100000.
+0041b54b	f	Core_WrapAngle16	BX wrapped once into [0, 0x2d0) (720 = 360 * 2), 16-bit arithmetic; flags of the last compare or subtraction.
+0041b676	f	Core_SpawnShot	Takes the first free entry (first word zero, 12 bytes, from ESI + 0xc on) and fills it in: word 2 at +0, the dword at 0x46ff64 at +2, DI at +0xa, and the two components of a velocity at +6 and +8: the sine/cosine table at 0x1f4f74 (indexed by the angle BP, advanced by 16, masked to 0xffe0, wrapped at 0x5a00 and divided by 8, plus the arena offset) scaled by the dwords at 0x46ffc4 and 0x4b104c.
+0041b710	f	Core_ReloadEntries1	The first count active entries of a list get word 0 reloaded from the frame their field selects in a frame table.
+0041b740	f	Core_LookupSigned	Bits 0-2 of the table row (ECX) from the signs of 0x46ffc8 and of the quotient (0x46ffcc:0 / EBX, rounded and scaled by 256); BX = a distance looked up with the quotient's magnitude, taken from the row.
+0041b944	f	Core_AddPhaseEntry	A new entry (stride 0x18, from 0x51fb94) is added to a list: kind DX, a position from ECX/EAX (in 17.15 fixed point), a phase from the table at EDI and BX wrapped into 0..0xb3f.
+0041b9b6	f	Core_ReloadEntries2	The first count active entries of a list get word 0 reloaded from the frame their field selects in a frame table.
+0041bd40	f	Core_StepDeadlines	Live entries (stride 0x1e, from 0x51fd6e) whose deadline at +1a is not above the limit of their kind (the record at +16 of the table at 0x4b16b8) get a new deadline (limit + step) and the state 1.
+0041be2a	f	Core_ProjectPoints	CX points (word pairs at EDI) are transformed by the factors in the object at EBP (+0xa, +0xe multipliers; +2 and +6 offsets; +0x12 added to the second coordinate, which is set to 0 when the sum is not positive) and written as screen words to the table at 0x4b1b2a (x halved, adjusted by the word at 0x4b1f9a when the byte at +0x1a is set).
+0041bea9	f	Core_StartObject28	Takes the first free entry (first word zero) of the table of 28-byte entries after 0x520220 and fills it in: in-use word 1; ECX and EAX as dwords at +2 and +6; zero at +0x12; the words at 0x46ff42, BX, DX and 0x46ff44 at +0x14..+0x1a; and from the table at 0x1f4f74 (indexed by EDI plus the dword at 0x556ac8) two sign-extended words at +0xe and +0xa.
+0041c033	f	Core_FindFreeSlot200	First free slot (EBP) of a table of 200 entries of 0x14 bytes from 0x520afc, used count 0x4accce + 0x4accd0; CF = full.
+0041c27d	f	Core_FindFreeSlot100	First free slot (EBP) of a table of 100 entries of 0x20 bytes from 0x521a9c, used count 0x4b04c8; CF = full.
+0041c49a	f	Core_FindFreeSlot50	First free slot (EBP) of a table of 50 entries of 0x5e bytes from 0x52271c, used count 0x4abba8; CF = full.
+0041c9b2	f	Core_FindFreeSlot25	First free slot (EBP) of a table of 25 entries of 0x2c bytes from 0x523ef4, used count 0x4ab678 + 0x4ab67a; CF = full.
+0041cae3	f	Core_FillRandomFlags	As Core_FillRandomPairs with one byte per step: (level time | 1) stepped as above and masked with 0xf, OR'ed with DL when bit 2 of it is set and with DH otherwise.
+0041cb30	f	Core_FindFreeSlot30	First free slot (EBP) of a table of 30 entries of 0xd8 bytes from 0x524340, used count 0x4acab0 + 0x4acab2; CF = full.
+0041cd6f	f	Core_FillRandomPairs	EBP points to an object with a count word at +0xa; if it is below 200, a random number (Core_Random) mod (200 - count), times 4, is added to the dword at +6.
+0041cdb2	f	Core_FindFreeSlot10	First free slot (EBP) of a table of 10 entries of 0x1a0 bytes from 0x525c90, used count 0x4acb64 + 0x4acb66; CF = full.
+0041cf17	f	Core_FindFreeSlot50b	First free slot (EBP) of a table of 50 entries of 0x28 bytes from 0x526cd0, used count 0x4acccc; CF = full.
+0041cf6b	f	Core_WrapIndex	ESI += EAX, wrapped once into [0, 0xb40) (a single step each way, unlike Core_WrapPosition).
+0041d1e9	f	Core_LayerOffset0	Screen offset of a scrolling layer: the arena base plus two offsets, less a row per 60 units of a counter plus half the width.
+0041d226	f	Core_LayerOffset1	Screen offset of a scrolling layer: the arena base plus two offsets, less a row per 60 units of a counter.
+0041d257	f	Core_LayerOffset2	Screen offset of a scrolling layer: the arena base plus two offsets, less a row per 60 units of a counter.
+0041d288	f	Core_ClearBlock3e80	0x3e80 dwords from EDI cleared.
+0041d292	f	Core_CopyRowsSkip	200 rows of 80 dwords copied from ESI to EDI; ESI skips 80 bytes after each row.
+0041ed70	f	Core_CopyStripA	Copies a strip of 20 blocks of a picture in the arena (offset 0x4b1f74) into the work buffer, the block rows picked by the words at EBP.
+0041ee75	f	Core_CopyStripB	As Core_CopyStripA for 16 blocks from 0x4b1fa4 (the second block only when bit 4 of 0x4b3ba0 is set).
+0041ef8b	f	Core_CopyBlock16x20	A 16 by 20 block of 20-byte pieces is copied from the arena (rows picked by the words at EBP) to the screen at EDI, 0x140 bytes per row.
+0041f0e1	f	Core_SetScrollWindow	0x4b1f88 = 0x4b1fb8 + 0x4b1fc2; 0x4b1f9a = 0x50; 0x4b1f9c = 0.
+004233c9	f	Core_VectorOffset	AX, BX = the position (0x46ff50, 0x46ff52) moved by the table vector at index EDX (times the radius at EBP+0x48).
+00423f3f	f	Core_StartTimedEntry	Adds EBX to the dword the pointer at 0x46ffe8 points to (clamped at 0 if the sum is negative), then takes the first free entry (first word zero) of the table of 10-byte entries after 0x51f436 and fills it in: 0x78 (the time to live, 120 frames), BP, 0, DI, AX.
+00424030	f	Core_NextRecord18	The next 18-byte record of the table at 0x519a00 is copied to 0x519a38; the index at 0x47005b counts 0..2 and then moves the stage at 0x47005a on.
+004240e1	f	Core_CountUp1	The byte at 0x47004e (g_energy1) goes up by one (not below 0), at most to the byte at 0x47004c.
+00424120	f	Core_GrowSlot1	Player 1's slot counter at 0x47004c grows (at most 0x20); the slot it names in the table at 0x519d08 gets the lifetime 0x48 and the value 1.
+0042414a	f	Core_Set_0047009e	Script command handler: sets the word at 0x47009e to 1.
+00424154	f	Core_Set_004700a0	Script command handler: sets the word at 0x4700a0 to 1.
+0042415e	f	Core_Set_004700a2	Script command handler: sets the word at 0x4700a2 to 1.
+0042975e	f	Core_LevelEffectD	Level table with eight thresholds: AX selects BX/CX, from 8/6 for 0 to 1/0 for 8 and up.
+004299b8	f	Core_FollowPath2	As Core_FollowPath for the path at 0x497c34 (position 0x497c38, step 0x497c3c, point 0x497b00/0x497b04 from the words scaled by 1024 and offset by 0x497af8/0x497afc), and then the point drifts: a countdown at 0x497aec; when it runs out, the next (countdown, dx, dy) triple of the list pointed to by 0x497ae8 is loaded.
+00429a5f	f	Core_StepTowards3	The value at 0x497c3c moves by the signed step at 0x497c44 towards the target at 0x497c40 and stops there.
+00429b26	f	Core_AddListEntry18a	Adds an entry (EAX, EBX, ECX + arena, EDX) to the list of 0x32 0x12-byte entries from 0x52c3a8 (count 0x497c8e) unless it is full.
+00429bc4	f	Core_AddListEntry14a	Adds an entry (EBX, ECX + arena, EDX) to the list of 0x32 0xe-byte entries from 0x52c72c (count 0x497c90) unless it is full.
+0042abf9	f	Core_StepTimers4	On every fourth tick four timers count down by 12, wrapping to 204.
+0042ac52	f	Core_StepShotTable	The stepper of the shot table: every 4th tick of 0x49810c the next value is taken from the table at 0x498110 + 0x498114 (the cursor falls by 4; below 0 the tick restarts); then five timers count down by 4 to 0.
+0042ad07	f	Core_StepGauges	Four gauge records 0xb0 apart from 0x497dba: a falling value drops by its step to 0, then rises again up to its limit.
+0042aee4	f	Core_StepPoints	Four point records 0xb0 apart from 0x497db2: two products of the scale with the path values at the position; the position steps by 8 (to 0 at a 0x80000000 end marker).
+0042b030	f	Core_StoreFourEntries	Four records at 0x497dbe, 0x497e6e, 0x497f1e and 0x497fce (0xb0 apart) are initialised from the four dwords at ESI: in use (word 1), word 0, the dword, then EBX and ECX.
+0042be54	f	Core_SplitFixed	ECX and EBX (16.16 fixed point) are split: the rounded integer parts go to 0x4b3bb8 (from ECX) and 0x4b3bb4 (from EBX); EAX and EDX are left holding them shifted back (<< 16); the remainders (below one unit, plus 2, divided by 4) to 0x4b3bc0 (ECX) and 0x4b3bbc (EBX).
+0042be97	f	Core_WrapPosition	ESI += EAX, then wrapped into [0, 0x1680000) (0x168 = 360 in 16.16 fixed point, presumably an angle in degrees).
+0042beb7	f	Core_FineToIndex	ESI = (ESI + 0x4000) >> 15 << 2, reduced by 0xb40 if that is not below it (the fixed-point position in 1/32768 steps, rounded, as a multiple of 4).
+0042d0fc	f	Core_LevelEffectA	Level table (three identical copies): AX (a level 0..7) selects BX/CX, from 8/5 for 0 to 1/0 for 7 and up.
+0042d1a0	f	Core_EnergyStep	The countdown dword at 0x4983cc drops by an amount the level word at 0x498868 chooses; when it runs out and five entries are unused, the next pair from the list at 0x4983c8 is loaded and a timer of 180 started.
+0042d318	f	Core_FollowPath	A point on the path at offset 0x498494 (0 = none), position 0x498498: scaled and offset into 0x4983b0/0x4983b4; the position advances by the rounded speed at 0x49849c (at most 0x20 bytes), to 0 at a 0x8000 end marker.
+0042d38b	f	Core_StepTowards1	The value at 0x49849c moves by the signed step at 0x4984a4 towards the target at 0x4984a0 and stops there.
+0042d3c8	f	Core_StepTowards2	The value at 0x4984a8 moves by the signed step at 0x4984b0 towards the target at 0x4984ac and stops there.
+0042d48f	f	Core_AddListEntry18b	Adds an entry (EAX, EBX, ECX + arena, EDX) to the list of 0x32 0x12-byte entries from 0x52c9e8 (count 0x4984c6) unless it is full.
+0042e241	f	Core_StepGauges2	As Core_StepGauges for five records (0x498604, 0x49868e, 0x498706, 0x49877e, 0x4987f6).
+0042e495	f	Core_StepPoints2	As Core_StepPoints for a record with one product (0x4985fc, position step 4) and four with two (0x498686, 0x4986fe, 0x498776, 0x4987ee).
+0042e61e	f	Core_StoreFiveEntries	Like Core_StoreFourEntries (init.c) for five records, at 0x498692, 0x49870a, 0x498782 and 0x4987fa (0x78 apart) and 0x498608.
+0042f888	f	Core_LevelEffectB	Level table (three identical copies): AX (a level 0..7) selects BX/CX, from 8/5 for 0 to 1/0 for 7 and up.
+0043029b	f	Core_LevelEffectC	Level table (three identical copies): AX (a level 0..7) selects BX/CX, from 8/5 for 0 to 1/0 for 7 and up.
+00430874	f	Core_SetRecordFields	The dword at 0x4a95d0 (0..3) selects which record of a table at 0x4a9604 gets its fixed fields.
+00431c25	f	Core_LevelEffectE	Level table with eight thresholds: AX selects BX/CX, from 6/2 for 0 to 1/0 for 8 and up.
+00433acd	f	Core_Cross4	Which side of the line through (EAX, EBX) and (EBP, EDI) the four corners made of the words at 0x470888/0x47088a (x) and 0x47088c/0x47088e (y) lie on: the byte at 0x46ffa8 collects a bit per corner that is on the non-negative side (cross product, 32 bits).
+004342e0	f	Core_Box1	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +4/+6 (the second >> 5) and box offsets 0x22-0x28 (CX less the scroll at 0x4b1f9a).
+0043430a	f	Core_Box2	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +4/+2 (doubled) and box offsets 0x7e-0x84.
+00434338	f	Core_Box3	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +4/+2 and box offsets 0x56-0x5c (CX less the scroll at 0x4b1f9a).
+0043435e	f	Core_Box4	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +4 (doubled)/+2 (>> 5) and box offsets 0x28-0x2e (CX less the scroll at 0x4b1f9a).
+0043438b	f	Core_Box5	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +4/+2 and box offsets 0x24-0x2a (CX less the scroll at 0x4b1f9a).
+004343d4	f	Core_Box6	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +0x10/+0xe (doubled) and box offsets 0x62-0x68.
+004343f9	f	Core_Box7	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +0xc/+0xa (doubled) and box offsets 0x3a, 0x58-0x5e (CX less the scroll at 0x4b1f9a).
+00434429	f	Core_Box8	Bounding box of the object at EDI: AX-BX and CX-DX from its position words +0x12/+0xe and box offsets 0x64-0x6a (CX less the scroll at 0x4b1f9a).
+0043444f	f	Core_FixedBox1	Box of half size 0xe x 0xc around the 17.15 fixed-point position at EDI+0xc/+0x10: AX-CX and BX-DX.
+00434472	f	Core_FixedBox2	Box of half size 0xc x 0xa around the 17.15 fixed-point position at EDI+0x14/+0x18: AX-CX and BX-DX.
+00434495	f	Core_FixedBox3	Box of half size 0xc x 0xa around the 17.15 fixed-point position at EDI+0x1c/+0x20: AX-CX and BX-DX.
+004344b8	f	Core_FixedBox4	Box of half size 0xc x 0xa around the 17.15 fixed-point position at EDI+0x24/+0x28: AX-CX and BX-DX.
+004344db	f	Core_FixedBox5	Box of half size 0x8 x 0x7 around the 17.15 fixed-point position at EDI+0x2c/+0x30: AX-CX and BX-DX.
+0043457c	f	Core_Box9	Bounding box of the object at EDI from its 17.15 position (+8, +4; the second less the scroll at 0x4b1f9a) and box offsets 0x36-0x3c.
+00437c3a	f	Core_RunObjectExit	A live record (EDI) has its running total (through the pointer at 0x46ffe8) advanced by its field 2c, calls the handler stored at field 30 (a core function or a shell callback), then is marked free.
+00437ea0	f	Core_ObjectStart1	A record (EDI) in state 1 advances the running total by its field 0x36, calls the handler in field 0x3a and moves to state 2.
+004384b7	f	Core_ObjectStart2	A record (EDI) in state 1 advances the running total by its field 0x36, calls the handler in field 0x3a and moves to state 2.
+004422d6	f	Core_PickNearerPlayer	Decides which player a pointer-using routine follows.
+00442758	f	Core_DrawSpriteRemap	Core_DrawSprite, but every pixel goes through a colour table (a blend with what is already on the screen).
+00443554	f	Core_NormaliseVectors	EBX vectors (x, y, z dwords) at ESI: each one's 16.16 length squared goes to a dword at EBP, and x / n and z / n * 0xd5 >> 8 (n = that sum >> 6) to EDI.
+0044359c	f	Core_StepAngles	Three angles (words at ESI, +4 and +8; the steps are the words after them) advance by their step and wrap into [0, 0xb40) (0xb40 = 2880 = 360 * 8).
+004435ec	f	Core_AddVectors	ECX vectors of three dwords at ESI each get (EAX, EBX, EDX) added.
+00444a7c	f	Core_InsertRank	The first of eight 8-byte entries (at 0x46f498) whose second dword is below EAX (unsigned): the entries from there on move down by one (backward copy).
+00445a93	f	Core_ClearTables	Four dwords cleared, then 150 dwords from 0x517c70.
+0044688f	f	Core_CopyRun	EAX is a row offset and ECX the length; copy a run from the source (row * pitch + EAX) to the frame buffer.
+00446bc6	f	Core_AddEntry5	The first free entry (stride 0x14, from 0x517c5c) of a list is filled with the state 1 and four values from 0x517ec8..0x517ed4; its counter grows.
+00446c99	f	Core_CopyScreen	If the flag at 0x55c804 is set, copy the 480 rows from 0x55b610 to the frame buffer and clear the flag.

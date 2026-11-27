@@ -20,7 +20,7 @@ HAND_FN(408cb5)
 }
 
 /*
- * Core_CallCommand (0x408c44): the same around a command routine picked by the
+ * Core_Dispatch (0x408c44): the same around a command routine picked by the
  * index at 0x556ae4 from the table at 0x408c59, with the direction flag clear.
  */
 HAND_FN(408c44)
