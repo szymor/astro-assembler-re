@@ -173,7 +173,14 @@ Decoded while teaching `astro-bot` to finish the game (names in
 energy `0x47004e`, score `0x470050`, ship type `0x4700f2` (0 main ship, 1-9
 ALPHA, SEEKER, CANNON, ARMOR, PLASMA, STORM, ATOMIC, POWER, RAIDEN), "in game"
 `0x46ffe4` (cleared by the last death), respawn invulnerability `0x4700a4`
-(140 frames; fire 2 is ignored meanwhile).
+(140 frames; fire 2 is ignored meanwhile), ship speed `0x47019e` (2-4 half
+pixels per frame), main weapon power `0x47005a` (1-3, every third pickup
+raises it; steps `0x47005b`), second weapon level `0x47005c` (0-4, fired with
+the same button, every `0x470060` frames: 75 at the start, 25 at best). A hit
+on the main ship lowers speed, weapon power and second weapon by one each
+(down to 2, 1 and 0) and adds 25 to the second weapon's delay, unless level
+script entries 23-25 protected them (`0x47009e`, `0x4700a0`, `0x4700a2`).
+Controls (`g_inputP1`, dwords): right, left, up, down, fire, fire 2.
 
 **Special-ship parts.** `0x47008c` holds 3 bits per ship (ship n: bits
 3(n-1)..3(n-1)+2); `0x470090` records completed sets. Capsules (table

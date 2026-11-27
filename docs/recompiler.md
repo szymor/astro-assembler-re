@@ -237,9 +237,9 @@ those inside the checks of other replaced functions):
 | `0x445a93` | `Core_ClearTables` | `init.c` | 52 calls in the full-game recording |
 | `0x40982e` | `Core_FillZeroThenOnes` | `init.c` | 17 calls in the full-game recording |
 | `0x409818` | `Core_CopyRows` | `init.c` | 21 calls in the full-game recording |
-| `0x41851f` / `0x418559` | `Core_SetBestTime1` / `2` | `init.c` | 129 991 calls in the full-game recording (player 1); 3 403 in the two-player recording (player 2). They drop the caller's return address too (`ADD ESP, 4; RET`) |
+| `0x41851f` / `0x418559` | `Player1_CanFire` / `Player2_CanFire` | `init.c` | 129 991 calls in the full-game recording (player 1); 3 403 in the two-player recording (player 2). They drop the caller's return address too (`ADD ESP, 4; RET`) |
 | `0x4422d6` | `Core_PickNearerPlayer` | `init.c` | 384 489 calls in the full-game recording, 8 640 in the two-player one |
-| `0x416ba1`, `0x416ba8`, `0x416baf`, `0x416bb6` / `0x416bff`, `0x416c06`, `0x416c0d`, `0x416c14` | `Core_BindKeysP1a`-`d` / `P2a`-`d` | `keys.c` | `P1a` 163 657 calls, `P2b` 3 403 (all recordings). The other six are **not called by any recording**: they share the checked body and differ only in the start of the key list; the fuzz check calls them |
+| `0x416ba1`, `0x416ba8`, `0x416baf`, `0x416bb6` / `0x416bff`, `0x416c06`, `0x416c0d`, `0x416c14` | `Input_KeyboardP1_Layout1`-`4` / `Input_KeyboardP2_Layout1`-`4` | `keys.c` | P1 layout 1: 163 657 calls, P2 layout 2: 3 403 (all recordings). The other six are **not called by any recording**: they share the checked body and differ only in the start of the key list; the fuzz check calls them |
 | `0x41a93d` | `Core_ClearFinishedA` | `tables.c` | 130 092 calls in the full-game recording |
 | `0x41b026` | `Core_ClearFinishedB` | `tables.c` | 130 092 calls in the full-game recording |
 | `0x415e97` | `Core_FindEntryOrFree` | `tables.c` | 3 318 calls in the full-game recording |
@@ -272,7 +272,7 @@ those inside the checks of other replaced functions):
 | `0x437c3a` | `Core_RunObjectExit` | `spawn.c` | 10 calls in the full-game recording (calls a handler through a pointer) |
 | `0x437ea0` | `Core_ObjectStart1` | `spawn.c` | 74 calls in the full-game recording |
 | `0x4384b7` | `Core_ObjectStart2` | `spawn.c` | 128 calls in the full-game recording |
-| `0x42414a`, `0x424154`, `0x42415e` | `Script_ProtectLevel_47019e`, `_47005a`, `_47005c` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
+| `0x42414a`, `0x424154`, `0x42415e` | `Script_ProtectSpeed`, `Script_ProtectWeapon`, `Script_ProtectWeapon2` | `setters.c` | 2, 1 and 1 calls (one-store script handlers) |
 | `0x408cb5` | `Core_CallShell` | `shellcall.c` | 455 182 calls in the full-game recording (454 962 checked on their own); the shell callbacks it makes are recorded and replayed |
 | `0x408c44` | `Core_Dispatch` | `shellcall.c` | not checked itself (`HAND_UNCHECKED`): one call runs a whole command, 4 to 12 per recording; what it calls is checked per call |
 | `0x409639` | `Core_ApplyCdVolume` | `shellcall.c` | 1 to 8 calls |
@@ -283,7 +283,7 @@ those inside the checks of other replaced functions):
 | `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 calls |
 | `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
 | `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 call |
-| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `EnemyClass1_Box`-`EnemyClass9_Box` | `hitbox.c` | 5 371 to 67 776 calls each (bounding boxes of objects) |
+| `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `Enemy1_TwinPod_Box_q`, `Enemy2_Orb_…`, `Enemy3_Dome_…`, `Enemy4_Claw_…`, `Enemy5_Gunship_…`, `Enemy6_Mech_…`, `Enemy7_Cruiser_…`, `Enemy8_Bomber_…`, `Enemy9_Turner_Box_q` | `hitbox.c` | 5 371 to 67 776 calls each (bounding boxes of objects) |
 | `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `BossArm_SegmentBox1_q`-`5_q` | `hitbox.c` | about 31 000 calls each |
 | `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 calls (`0x42d529` is not called by any recording) |
 | `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 calls |

@@ -2,8 +2,8 @@
  * Hitboxes and list entries. The box routines read an object (EDI) and leave
  * its box in 16-bit words: CX..DX the x range (less the horizontal scroll at
  * 0x4b1f9a where the object lives in the 400-wide playfield), AX..BX the y
- * range; the upper halves of the registers are kept. EnemyClass1_Box to
- * EnemyClass9_Box serve the nine enemy classes (each with its own table), in
+ * range; the upper halves of the registers are kept. Enemy1_TwinPod_Box_q to
+ * Enemy9_Turner_Box_q serve the nine enemy classes (each with its own table), in
  * the order the collision routines check them; BossArm_SegmentBox1_q to 5 the
  * five segments of a boss part (the level-2 and level-3 bosses). Each step
  * keeps the flags of the instruction it is, so the last one decides what the

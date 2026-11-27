@@ -229,8 +229,8 @@ static void in_count_up(void)
 }
 static void in_next_record(void)
 {
-    wr8(P1_LEVEL_B, (uint8_t)below(4));
-    wr8(P1_LEVEL_B_STEP, (uint8_t)below(3));
+    wr8(P1_WEAPON, (uint8_t)below(4));
+    wr8(P1_WEAPON_STEP, (uint8_t)below(3));
     rand_bytes(0x519a00, 0x36);
 }
 static void in_timed_entry(void)
@@ -288,7 +288,7 @@ static void in_follow_path2(void)
 
 /* 437c3a: EDI is an object; a used one (word 0) adds +0x2c to the dword the
  * pointer at 0x46ffe8 names and calls its handler (+0x30), here a one-store
- * setter (Script_ProtectLevel_47019e). */
+ * setter (Script_ProtectSpeed). */
 static void in_object_exit(void)
 {
     WR_REG(R_EDI, 4, SCRATCH);
@@ -336,12 +336,12 @@ static const target k_targets[] = {
     {"Core_StepDeadlines", f_41bd40, in_step_deadlines, 100},
     {"Core_CopyScreen", f_446c99, in_copy_screen, 5},
     {"Core_SetRecordFields", f_430874, in_set_record_fields, 10},
-    {"Core_BindKeysP1b", f_416ba8, in_bind_keys, 10},
-    {"Core_BindKeysP1c", f_416baf, in_bind_keys, 10},
-    {"Core_BindKeysP1d", f_416bb6, in_bind_keys, 10},
-    {"Core_BindKeysP2a", f_416bff, in_bind_keys, 10},
-    {"Core_BindKeysP2c", f_416c0d, in_bind_keys, 10},
-    {"Core_BindKeysP2d", f_416c14, in_bind_keys, 10},
+    {"Input_KeyboardP1_Layout2", f_416ba8, in_bind_keys, 10},
+    {"Input_KeyboardP1_Layout3", f_416baf, in_bind_keys, 10},
+    {"Input_KeyboardP1_Layout4", f_416bb6, in_bind_keys, 10},
+    {"Input_KeyboardP2_Layout1", f_416bff, in_bind_keys, 10},
+    {"Input_KeyboardP2_Layout3", f_416c0d, in_bind_keys, 10},
+    {"Input_KeyboardP2_Layout4", f_416c14, in_bind_keys, 10},
     {"Core_InsertRank", f_444a7c, in_insert_rank, 100},
     {"Core_FindFreeSlot200", f_41c033, in_slot200, 50},
     {"Core_FindFreeSlot30", f_41cb30, in_slot30, 50},

@@ -53,11 +53,11 @@ HAND_FN(409639)
  * Core_CopyRecord1 / 2 (0x4096ae, 0x4096df): the player's ship record
  * (P1_SHIP_RECORD) is copied from the table of 0x20-byte records at 0x4702fc,
  * slot P1_SHIP_TYPE. Slot 0 (the main ship) is filled in first: its first dword
- * from the dword at P1_LEVEL_A, its pointer field (0x470304) = `tail`.
+ * from the dword at P1_SPEED, its pointer field (0x470304) = `tail`.
  */
 static void copy_record(unsigned player, uint32_t tail)
 {
-    const uint32_t first = player_field(player, P1_LEVEL_A), index_at = player_field(player, P1_SHIP_TYPE);
+    const uint32_t first = player_field(player, P1_SPEED), index_at = player_field(player, P1_SHIP_TYPE);
     const uint32_t dest = player_field(player, P1_SHIP_RECORD);
     const uint32_t v = rd32(first);
     WR_REG(R_EAX, 4, v);

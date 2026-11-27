@@ -122,17 +122,17 @@ HAND_FN(409818)
 }
 
 /*
- * Core_SetBestTime1 / 2 (0x41851f, 0x418559): the player's word at 0x470058
- * (player 2's 0x4701b0; the name is Sonnet's guess, the meaning is unclear) is
- * set from AX if it is 0 and the player's control at +0x10 (the fifth of its
- * layout list) is held; or, if it is non-zero and that control was just released (history 2),
- * lowered to BX when BX is below it. Only the first case returns to the caller; the others
- * drop the caller's return address as well (ADD ESP, 4; RET), returning to its
- * caller. Flags: those of the last compare, or of that ADD.
+ * Player1_CanFire / Player2_CanFire (0x41851f, 0x418559): the gate at the start
+ * of every weapon routine. With the fire cooldown at 0 and the fire button
+ * held, the cooldown is set to AX and it returns to the weapon routine, which
+ * fires. Otherwise it returns to that routine's caller (ADD ESP, 4; RET), so
+ * nothing is fired; releasing the button shortens a running cooldown to BX, so
+ * tapping fires faster than holding. Flags: those of the last compare, or of
+ * that ADD.
  */
-static void set_best(unsigned player)
+static void can_fire(unsigned player)
 {
-    const uint32_t field = player_field(player, 0x470058u), mode = (player ? P2_CONTROLS : P1_CONTROLS) + 0x10;
+    const uint32_t field = player_field(player, P1_FIRE_COOLDOWN), mode = (player ? P2_CONTROLS : P1_CONTROLS) + CTRL_FIRE;
     cmp16(rd16(field), 0);
     if (flag(R_ZF)) {
         test16m(rd16(mode), 1);
@@ -151,8 +151,8 @@ static void set_best(unsigned player)
     WR_REG(R_ESP, 4, add32(ESP, 4));
     x86_ret();
 }
-HAND_FN(41851f) { set_best(0); }
-HAND_FN(418559) { set_best(1); }
+HAND_FN(41851f) { can_fire(0); }
+HAND_FN(418559) { can_fire(1); }
 
 /*
  * Core_PickNearerPlayer (0x4422d6): decides which player a pointer-using

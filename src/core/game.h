@@ -23,26 +23,35 @@
 #define PLAYER_STRIDE   0x158u
 static inline uint32_t player_field(unsigned player, uint32_t p1_field) { return p1_field + player * PLAYER_STRIDE; }
 
-#define P1_ENERGY_MAX   0x47004cu   /* byte: energy cap, grows by one per pickup up to 0x20 (tentative) */
-#define P1_ENERGY       0x47004eu   /* byte: energy (8/16/24 assemble the special ships) */
-#define P1_LIVES        0x47004fu   /* byte */
-#define P1_SCORE        0x470050u   /* dword */
-#define P1_LEVEL_B      0x47005au   /* byte: an upgrade level (1..), raised every third pickup */
-#define P1_LEVEL_B_STEP 0x47005bu   /* byte: pickups towards the next P1_LEVEL_B (0..2) */
-#define P1_LEVEL_C      0x47005cu   /* byte: an upgrade level (0..) */
-#define P1_PROTECT_A    0x47009eu   /* word: keep P1_LEVEL_A on the next hit (script command 23) */
-#define P1_PROTECT_B    0x4700a0u   /* word: keep P1_LEVEL_B (command 24) */
-#define P1_PROTECT_C    0x4700a2u   /* word: keep P1_LEVEL_C (command 25) */
-#define P1_INVULNERABLE 0x4700a4u   /* word: frames of invulnerability left (140 after a hit) */
-#define P1_SHIP_TYPE    0x4700f2u   /* byte: 0 main ship, 1-9 ALPHA .. RAIDEN */
-#define P1_X            0x470164u   /* word */
-#define P1_Y            0x470166u   /* word */
-#define P1_SHIP_RECORD  0x470168u   /* 0x20 bytes: the current ship type's record (Core_CopyRecord1) */
-#define P1_LEVEL_A      0x47019eu   /* byte: an upgrade level (2..) */
-#define P1_CONTROLS     0x55c980u   /* six words 4 bytes apart: player 1's controls (Core_BindKeys*) */
-#define P2_CONTROLS     0x55c998u
-#define G_KEY_HISTORY   0x55cab0u   /* 256 bytes: per key, the 2-bit history (previous, current) */
-#define G_KEY_LAYOUTS   0x46f450u   /* four lists of six key codes, one per control layout */
+#define P1_ENERGY_MAX       0x47004cu   /* byte: energy cap, grows by one per pickup up to 0x20 (tentative) */
+#define P1_ENERGY           0x47004eu   /* byte: energy (8/16/24 assemble the special ships) */
+#define P1_LIVES            0x47004fu   /* byte */
+#define P1_SCORE            0x470050u   /* dword */
+#define P1_FIRE_COOLDOWN    0x470058u   /* word: frames until the main weapon may fire again (Player1_CanFire) */
+#define P1_WEAPON           0x47005au   /* byte: main weapon power (1-3), raised every third pickup */
+#define P1_WEAPON_STEP      0x47005bu   /* byte: pickups towards the next P1_WEAPON (0-2) */
+#define P1_WEAPON2          0x47005cu   /* byte: second weapon level (0 = none, up to 4), fired with the same button */
+#define P1_WEAPON2_DELAY    0x470060u   /* byte: frames between its shots (75 at the start, 25 at best; a hit adds 25) */
+#define P1_WEAPON2_COOLDOWN 0x470061u   /* byte: frames until it fires again */
+#define P1_PROTECT_SPEED    0x47009eu   /* word: keep P1_SPEED on the next hit (script command 23) */
+#define P1_PROTECT_WEAPON   0x4700a0u   /* word: keep P1_WEAPON (command 24) */
+#define P1_PROTECT_WEAPON2  0x4700a2u   /* word: keep P1_WEAPON2 (command 25) */
+#define P1_INVULNERABLE     0x4700a4u   /* word: frames of invulnerability left (140 after a hit) */
+#define P1_SHIP_TYPE        0x4700f2u   /* byte: 0 main ship, 1-9 ALPHA .. RAIDEN */
+#define P1_X                0x470164u   /* word */
+#define P1_Y                0x470166u   /* word */
+#define P1_SHIP_RECORD      0x470168u   /* 0x20 bytes: the current ship type's record (Core_CopyRecord1) */
+#define P1_SPEED            0x47019eu   /* byte: ship speed (half pixels per frame, 2-4); the main ship's record takes it */
+#define P1_CONTROLS         0x55c980u   /* six words 4 bytes apart: player 1's controls (2-bit history), in this order: */
+#define CTRL_RIGHT          0x00u
+#define CTRL_LEFT           0x04u
+#define CTRL_UP             0x08u
+#define CTRL_DOWN           0x0cu
+#define CTRL_FIRE           0x10u
+#define CTRL_FIRE2          0x14u       /* opens the ship window / assembles */
+#define P2_CONTROLS         0x55c998u
+#define G_KEY_HISTORY       0x55cab0u   /* 256 bytes: per key, the 2-bit history (previous, current) */
+#define G_KEY_LAYOUTS       0x46f450u   /* four lists of six key codes, one per control layout */
 
 /* The player the enemies aim at (Core_PickNearerPlayer). */
 #define G_TARGET_X      0x46fffcu   /* word */

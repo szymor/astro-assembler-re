@@ -1,5 +1,6 @@
 /*
- * Reading the controls from the keyboard (Core_BindKeys*): each of the six
+ * Reading the controls from the keyboard (Input_KeyboardP1/P2_Layout1-4, the
+ * keyboard sets of the control reader table at 0x4700ac): each of the six
  * keys of one of the four layouts (G_KEY_LAYOUTS, six key codes each) has its
  * 2-bit history looked up in G_KEY_HISTORY and stored in the player's control
  * words (P1_CONTROLS / P2_CONTROLS). Eight entry points share the body: they
@@ -27,9 +28,10 @@ static void bind_keys(uint32_t esi, const uint32_t dest[6])
     x86_ret();
 }
 
-/* Where the six keys of a layout list go: the second and first controls swap. */
-static const uint32_t k_dest_p1[6] = {P1_CONTROLS + 4, P1_CONTROLS, P1_CONTROLS + 8, P1_CONTROLS + 0xc, P1_CONTROLS + 0x10, P1_CONTROLS + 0x14};
-static const uint32_t k_dest_p2[6] = {P2_CONTROLS + 4, P2_CONTROLS, P2_CONTROLS + 8, P2_CONTROLS + 0xc, P2_CONTROLS + 0x10, P2_CONTROLS + 0x14};
+/* A layout lists its keys as left, right, up, down, fire, fire 2. */
+#define LAYOUT_ORDER(c) {c + CTRL_LEFT, c + CTRL_RIGHT, c + CTRL_UP, c + CTRL_DOWN, c + CTRL_FIRE, c + CTRL_FIRE2}
+static const uint32_t k_dest_p1[6] = LAYOUT_ORDER(P1_CONTROLS);
+static const uint32_t k_dest_p2[6] = LAYOUT_ORDER(P2_CONTROLS);
 
 /* Player 1's keys from the lists at 0x46f450, 0x46f456, 0x46f45c and 0x46f462
  * (0x416ba1, 0x416ba8, 0x416baf, 0x416bb6) and player 2's (0x416bff, 0x416c06,

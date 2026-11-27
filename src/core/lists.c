@@ -242,14 +242,14 @@ HAND_FN(42ac52)
     x86_ret();
 }
 
-/* Core_NextRecord18 (0x424030): one pickup towards player 1's P1_LEVEL_B (up
+/* Core_NextRecord18 (0x424030): one pickup towards player 1's P1_WEAPON (up
  * to 3): the 18-byte record for the current step is copied from the table at
  * 0x519a00 to 0x519a38, and every third step raises the level. */
 HAND_FN(424030)
 {
-    cmp8(rd8(P1_LEVEL_B), 3);
+    cmp8(rd8(P1_WEAPON), 3);
     if (!flag(R_ZF)) {
-        uint8_t bl = rd8(P1_LEVEL_B_STEP);
+        uint8_t bl = rd8(P1_WEAPON_STEP);
         WR_REG(R_EBX, 1, bl);
         const uint32_t eax = 0x12u * bl;
         WR_REG(R_EAX, 4, eax);
@@ -261,13 +261,13 @@ HAND_FN(424030)
         bl = inc8(bl);
         cmp8(bl, 3);
         if (flag(R_ZF)) {
-            wr8(P1_LEVEL_B, inc8(rd8(P1_LEVEL_B)));
+            wr8(P1_WEAPON, inc8(rd8(P1_WEAPON)));
             bl = 0;
             set_flag(R_CF, false); set_flag(R_OF, false); set_flag(R_SF, false);
             set_flag(R_ZF, true); set_flag(0x202, true);          /* XOR BL, BL */
         }
         WR_REG(R_EBX, 1, bl);
-        wr8(P1_LEVEL_B_STEP, bl);
+        wr8(P1_WEAPON_STEP, bl);
     }
     x86_ret();
 }
