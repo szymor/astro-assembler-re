@@ -64,24 +64,101 @@ converted or renamed. Sprite PNG export (`tools/datview.py`) is for viewing only
 
 ## Phase 3 — Game logic
 
-### Strategy: hybrid (decided)
+### Strategy
 
-Static recompilation of the core first, hand-written SDL3 shell, then gradual
-replacement of generated functions with readable C. See
-[recompiler.md](recompiler.md).
+Three stages; the first two are done, the third is the way to plain C.
+
+- **A. Static recompilation (done).** The core is translated from Ghidra's
+  p-code into C at build time (bit-exact by construction), with a hand-written
+  SDL3 shell around it. See [recompiler.md](recompiler.md).
+- **B. Register-exact replacements (done, stopped 2026-11-28).** 166 generated
+  functions rewritten by hand (`src/core/`, listed in `replaced.h`), each
+  leaving exactly the x86 state its original leaves and checked against it on
+  every call (differential build `--preset diff`, plus the fuzz check). That is
+  about 4 100 of the core's ~60 500 instructions. The approach works but yields
+  C shaped like the x86 (registers, flags, an emulated stack) that would need a
+  second rewrite to become plain C, so it is not continued. Its functions stay
+  as checked helpers until their subsystems are rewritten (stage C).
+- **C. Subsystem rewrite into plain C (now).** Top down, a whole subsystem at
+  a time, straight into ordinary C: inside a subsystem there are no registers,
+  flags or emulated stack, just C functions with parameters and return values.
+  The check changes from "the same x86 state after every call" to "the same
+  game state after every subsystem call": the generated version and the new C
+  run from the same state and all game memory must match afterwards (scratch
+  and the stack aside); the replay hashes remain the end-to-end check. Game
+  state stays in emulated memory, read through typed views (`src/core/game.h`),
+  until nothing compares against the generated code any more. Ghidra remains
+  the tool for understanding the code, but no longer a build input at the end.
+
+### Stage C tasks
+
+- [ ] **Game-state check mode** in the differential harness: compare memory
+      only (no registers or flags) after a subsystem call, with the scratch
+      areas and the stack excluded; a list of which subsystems are checked
+      this way
+- [ ] **Boundary audit** for each subsystem: confirm from the callers' code that
+      no register or flag is used after the call (where one is, it becomes the
+      subsystem's return value)
+- [ ] **Frame loop in C**: the level's per-frame loop (`Core_RunLevel`)
+      rewritten, still calling the generated per-frame steps
+- [ ] **Subsystems**, roughly in this order (each: rewrite, game-state check
+      on all recordings, delete its entries from `replaced.h` and its
+      generated functions from the default build):
+  - [ ] Background and scrolling (`Level_ScrollAndDraw`, the layer drawing
+        `0x41cfaf` and its copy routines): the first one, to prove the approach
+  - [ ] Renderer: sprites, silhouettes, remapped sprites, polygons, the
+        texture mapper and the polygon fillers (`0x44392c`, `0x443d40`)
+  - [ ] The nine enemy classes (update, collision, drawing)
+  - [ ] Player: controls, movement, weapons, special ships, assembling, hits,
+        lives and the two-player rules
+  - [ ] Bosses of levels 1-6
+  - [ ] Capsules, ship parts, items and other pickups
+  - [ ] Level script interpreter (`Script_Run`) and the wave spawner
+  - [ ] HUD, score, lives, hall of fame
+  - [ ] Commands outside gameplay: logos, title, menu and options, ending
+  - [ ] Start-up and per-level set-up commands
+- [ ] **Coverage**: more recordings, since a check only covers what is played:
+      two-player playthroughs, the menus and every option, all control
+      layouts (four keyboard sets, joysticks), difficulty settings, rare
+      situations (the bot can produce many of these)
+- [ ] **Unreachable code**: functions that cannot run in the port are not
+      rewritten; each is confirmed unreachable and listed with the reason
+      (the 16/24/32 bpp blitters and their set-up, the DOS VGA palette path,
+      the debug routine `0x40b866`, ...)
+- [ ] **Embedded data**: jump tables and the constants the game patches into
+      its own code become C tables and variables, so the code image
+      (`ASTRO_TEXT.BIN`) is no longer needed
+- [ ] **Game state in C structs** (Ghidra ⇄ C headers), once the subsystems
+      no longer compare against the generated code
+- [ ] **Build without the recompiler**: the generated code moves to an
+      optional reference build (kept as the oracle for checks); the default
+      build needs neither the Ghidra export nor `recomp.py`
+
+### Other tasks
+
+- [x] Timing model: no refresh rate is requested (driver default, typically
+      60 Hz on Win98/2000 with DX7); logic runs once per frame. Decided: 60 Hz
+- [x] Resolution option: the mechanism is known (see modules.md, "Display").
+      Decided: 4:3 scaling with sharp/nearest/smooth filters, plus reduced
+      320x240 resolution and 16:10 gameplay aspect (port.md, "Resolution and
+      gameplay aspect")
+- [ ] Flag-liveness optimisation of the generated code (only matters while it
+      is still built by default)
+
+### Done so far (stages A and B)
 
 - [x] p-code export, translator, runtime; whole core translates and links
 - [x] Prototype tests pass (RNG, sprite blitter, dispatcher)
 - [x] Self-modifying instructions read their immediates from memory (texture mapper test passes)
-- [ ] Flag-liveness optimisation
-- [x] Replacing generated functions by hand-written C: `src/core/`, listed
-      in `replaced.h`; differential build (`--preset diff`) checks each one
-      against the generated version on every call in the regression
-      recordings (recompiler.md, "Replacing generated functions")
-- [x] Replaced so far: `Core_Random`, the sprite blitter (`Core_DrawSprite`,
-      `Core_DrawSpriteClipped`) and its one-colour variant (`Core_DrawSilhouette`), and the pool helpers in `pools.c`; 151 functions in all (`src/core/`: sprites, pools, vectors, tables, init, spawn, keys, setters, shellcall, small, hitbox, counters, lists, misc, recs, stage), listed in recompiler.md
+- [x] Differential build: each hand-written function checked against the
+      generated version on every call in the regression recordings
+      (recompiler.md, "Replacing generated functions"); fuzz check for paths
+      the recordings miss; coverage build (gcov) of the hand-written code;
+      profiling build counting the calls of every generated function
+- [x] 166 functions replaced (recompiler.md lists them), including ones with
+      self-modifying code, the x87 square root and recursion
 - [x] SDL3 host layer (`src/`, see [port.md](port.md)): logos, title, menus
-      and level 1 gameplay run on the recompiled core
+      and gameplay run on the recompiled core
 - [x] Sound effects and CD music from FLAC (see port.md, "Audio")
 - [x] Configuration (original format), quitting, ending
 - [x] Gamepads as DirectInput joysticks; keyboard uses the game's own redefinable sets
@@ -94,7 +171,7 @@ replacement of generated functions with readable C. See
 - [x] Windows: MinGW-w64 cross-build tested under Wine (hashes identical to
       Linux); MSVC + vcpkg preset prepared, untested
 
-### Survey that led to the decision
+### Survey that led to the hybrid decision (2026-11-23)
 
 The core is 58 272 instructions of hand-written x86. Survey results:
 
@@ -107,7 +184,7 @@ The core is 58 272 instructions of hand-written x86. Survey results:
 - no OS calls; everything platform-related goes through the shell callbacks
 - data pointers are 32-bit absolute addresses into `.data` and the arena
 
-Options:
+Options then:
 
 1. **Static recompilation**: a translator turns each core function into C
    (registers and flags as variables, memory as a flat array laid out like the
@@ -117,24 +194,9 @@ Options:
    understanding. Readable, but very slow for this size and hard to keep
    bit-exact (RNG inputs, fixed-point math, quirks).
 3. **Hybrid (chosen)**: start with 1, rewrite the shell by hand on SDL3,
-   then replace generated functions one by one with readable C, each checked
-   against the generated version (same input state → same output state).
-
-### Tasks
-
-- [x] Timing model: no refresh rate is requested (driver default, typically
-      60 Hz on Win98/2000 with DX7); logic runs once per frame. Decided: 60 Hz
-- [ ] Remaining generated functions (1 106; recompiler.md, "What is left"): none is blocked by its features any more; still generated with such features: `0x413616`, `0x443d40`, `0x44413a`, `0x442b14`, `Script_Run` and the menu's jump-table functions
-- [ ] Wave spawner (default script handler `41f757–4227e1`) and remaining opcodes
-- [ ] Game states: intro, logos, menu, play, pause, game over, ending
-- [ ] Entities: player, ship combining, energy, shields, enemies, bullets,
-      capsules/power-ups, ground units, collision
-- [ ] Scrolling, levels, scoring, lives, 2-player rules, input mapping
-- [x] Resolution option: the mechanism is known (see modules.md, "Display").
-      Decided: 4:3 scaling with sharp/nearest/smooth filters, plus reduced
-      320x240 resolution and 16:10 gameplay aspect (port.md, "Resolution and
-      gameplay aspect")
-- [ ] Shared struct definitions (Ghidra ⇄ C headers)
+   then replace generated functions with readable C, each checked against the
+   generated version (same input state → same output state). Stage C above
+   is how this ends: the check is the same idea, applied per subsystem.
 
 ## Phase 4 — Port (C + SDL3) ✅
 

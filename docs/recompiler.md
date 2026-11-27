@@ -114,6 +114,12 @@ build/recomp/test_full assets
 The second half of the hybrid plan: generated functions are replaced one by
 one with readable C, each checked against the generated version.
 
+This section describes stage B of the plan ([plan.md](plan.md), Phase 3):
+register-exact replacements, checked on every call. It stopped on 2026-11-28
+in favour of stage C, rewriting whole subsystems into plain C checked by the
+game state after each subsystem call; the machinery below (differential
+build, fuzz check, coverage and profiling builds) carries over.
+
 - **Where**: `src/core/`. `replaced.h` lists the replaced functions
   (`HAND(<hex>, <name>)`); each is written as `HAND_FN(<hex>) { ... }`
   (`core.h`) in a source file of its own subject (`random.c`, ...), and the
