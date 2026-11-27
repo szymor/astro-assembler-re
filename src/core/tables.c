@@ -93,16 +93,18 @@ HAND_FN(41b026)
 /*
  * Core_FindEntryOrFree (0x415e97): the word at 0x4ba740 counts the used
  * entries of a table of 10 (48 bytes each, from 0x519a60; a zero first word =
- * free). With the table full, CF = 1. Otherwise the used entries are searched
- * for one whose dword at +0xe equals EDI: found, CF = 1 and ESI is that entry.
- * Not found: ESI = the first free entry and CF = 0. CX = the entries left.
+ * free). With the table full, CF = 1 and ESI is left as it was. Otherwise the
+ * used entries are searched for one whose dword at +0xe equals EDI: found,
+ * CF = 1 and ESI is that entry. Not found: ESI = the first free entry and
+ * CF = 0. CX = the entries left.
  */
 HAND_FN(415e97)
 {
     uint16_t cx = rd16(0x4ba740u);
-    uint32_t esi = 0x519a30u;
+    uint32_t esi = ESI;
     cmp16(cx, 0xa);
-    if (flag(R_ZF)) goto found;
+    if (flag(R_ZF)) goto found;                           /* before ESI is set */
+    esi = 0x519a30u;
     test16(cx);
     if (!flag(R_ZF)) {
         for (;;) {

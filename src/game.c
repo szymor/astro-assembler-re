@@ -1,6 +1,7 @@
 /* Common entry point; each frontend's main() calls astro_main(). */
 #include "astro.h"
 #include "core.h"
+#include "fuzz.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,6 +39,12 @@ int astro_main(int argc, char **argv)
                    "with tools/package_assets.py).");
         plat_shutdown();
         return 1;
+    }
+    const char *fuzz = getenv("ASTRO_FUZZ");
+    if (fuzz && *fuzz) {                    /* fuzz check of core functions (fuzz.c) */
+        const int rc = fuzz_run(fuzz);
+        plat_shutdown();
+        return rc;
     }
 #ifdef RT_WATCH
     /* Debug builds: ASTRO_WATCH=<byte-hex> watches writes of that byte into the

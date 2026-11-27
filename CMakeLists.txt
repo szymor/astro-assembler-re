@@ -16,6 +16,7 @@ option(ASTRO_HEADLESS "Build the headless test frontend (astro-headless)" ON)
 option(ASTRO_BOT "Build astro-bot, which plays the game by search (POSIX only)" ON)
 
 option(ASTRO_DIFF "Differential build: check every hand-written core function against its generated version on each call (slow)" OFF)
+option(ASTRO_COVERAGE "Line and branch coverage (gcov) of the hand-written core functions (GCC/Clang)" OFF)
 
 # Functions rewritten by hand replace generated ones (src/core/replaced.h).
 # With Ghidra's p-code export at hand (docs/recompiler.md, step 2), the core
@@ -89,7 +90,14 @@ else()
     set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-w")
     target_link_libraries(astro_core PUBLIC m)
 endif()
-set_source_files_properties(${ASTRO_HAND_SOURCES} PROPERTIES COMPILE_OPTIONS "${ASTRO_WARNINGS}")
+if(ASTRO_COVERAGE)
+    # Only the hand-written functions: which of their branches the recordings
+    # reach (gcov; see docs/recompiler.md).
+    set_source_files_properties(${ASTRO_HAND_SOURCES} PROPERTIES COMPILE_OPTIONS "${ASTRO_WARNINGS};--coverage;-O0")
+    target_link_options(astro_core PUBLIC --coverage)
+else()
+    set_source_files_properties(${ASTRO_HAND_SOURCES} PROPERTIES COMPILE_OPTIONS "${ASTRO_WARNINGS}")
+endif()
 if(ASTRO_DIFF)
     target_compile_definitions(astro_core PUBLIC RT_DIFF)
 endif()
@@ -110,6 +118,7 @@ add_library(astro_common OBJECT
     src/util.c
     src/png.c
     src/scale.c
+    src/fuzz.c
 )
 target_include_directories(astro_common PUBLIC src third_party/dr_flac)
 target_link_libraries(astro_common PUBLIC astro_core ZLIB::ZLIB)

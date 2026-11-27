@@ -166,9 +166,35 @@ one with readable C, each checked against the generated version.
   differential builds run its hand-written version without a check of its own
   (`rt_diff_pass`), so everything it reaches is checked per call.
 - **Limits**: a function nobody calls in any recording cannot be checked, so
-  it is not kept (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
+  it is not kept unless the fuzz check below calls it (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
   in the `0x4240xx`-`0x4244xx` range). Functions that patch their own code, use
   the FPU, recurse or share tails with their neighbours are still generated.
+- **Coverage**: a check only covers the paths that get run. The coverage
+  build (`cmake --preset coverage && cmake --build --preset coverage -j`, then
+  `ctest` in `build/coverage` and `gcov -b` on the `.gcda` files in
+  `build/coverage/CMakeFiles/astro_core.dir/src/core`) instruments only the
+  hand-written sources. The 14 recordings alone (measured 2026-11-26) reach
+  every line and branch of 145 of the 189 functions and helpers: some lists
+  are always empty (eight per-frame steps only ever took their early exit),
+  some tables never full, some pointers never null.
+- **Fuzz check** (`src/fuzz.c`, test `fuzz-core`): `ASTRO_FUZZ=all` (or a
+  comma-separated list of names) calls 42 hand-written functions on random but
+  consistent inputs after the shell's start-up and exits: their tables are
+  filled with edge values (counts matching the live entries, a free slot where
+  the code scans for one, full tables, null path offsets, non-zero divisors).
+  In the differential build every call is compared with the generated version;
+  `ASTRO_FUZZ_ITER` (default 2000, the test uses 5000) and `ASTRO_FUZZ_SEED`
+  vary the run. It found two differences no recording reaches:
+  `Core_FindEntryOrFree` overwrote ESI when the table is full (the original
+  jumps out before setting it), and `Core_FillRandomPairs` left the carry of
+  its `ADD AX, BX` instead of that of `ADD EBP, 2`. With it, 175 of the 189
+  are fully covered (measured 2026-11-27). Still not reached: three edge cases
+  of the blitters (a silhouette entirely right of the screen, zero-length lines
+  and runs in `Core_DrawSpriteRemap`), one condition that cannot be true
+  (`Core_InsertRank`: the count after the DEC is never negative), and paths not
+  expected to run: the unwinding after a call whose callee returned elsewhere
+  (`HAND_CALL`), the divide-overflow abort in `Core_PlayerDistance`, and the
+  startup list mismatch.
 
 Replaced so far (counts are of the hand-written side's calls, including
 those inside the checks of other replaced functions):
@@ -204,7 +230,7 @@ those inside the checks of other replaced functions):
 | `0x409818` | `Core_CopyRows` | `init.c` | 21 calls in the full-game recording |
 | `0x41851f` / `0x418559` | `Core_SetBestTime1` / `2` | `init.c` | 129 991 calls in the full-game recording (player 1); 3 403 in the two-player recording (player 2). They drop the caller's return address too (`ADD ESP, 4; RET`) |
 | `0x4422d6` | `Core_PickNearerPlayer` | `init.c` | 384 489 calls in the full-game recording, 8 640 in the two-player one |
-| `0x416ba1`, `0x416ba8`, `0x416baf`, `0x416bb6` / `0x416bff`, `0x416c06`, `0x416c0d`, `0x416c14` | `Core_BindKeysP1a`-`d` / `P2a`-`d` | `keys.c` | `P1a` 163 657 calls, `P2b` 3 403 (all recordings). The other six are **not called by any recording**: they share the checked body and differ only in the start of the key list |
+| `0x416ba1`, `0x416ba8`, `0x416baf`, `0x416bb6` / `0x416bff`, `0x416c06`, `0x416c0d`, `0x416c14` | `Core_BindKeysP1a`-`d` / `P2a`-`d` | `keys.c` | `P1a` 163 657 calls, `P2b` 3 403 (all recordings). The other six are **not called by any recording**: they share the checked body and differ only in the start of the key list; the fuzz check calls them |
 | `0x41a93d` | `Core_ClearFinishedA` | `tables.c` | 130 092 calls in the full-game recording |
 | `0x41b026` | `Core_ClearFinishedB` | `tables.c` | 130 092 calls in the full-game recording |
 | `0x415e97` | `Core_FindEntryOrFree` | `tables.c` | 3 318 calls in the full-game recording |

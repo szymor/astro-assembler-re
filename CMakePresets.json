@@ -23,6 +23,19 @@
       }
     },
     {
+      "name": "coverage",
+      "displayName": "Linux, gcov coverage of the hand-written core functions (headless only)",
+      "binaryDir": "${sourceDir}/build/coverage",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "ASTRO_COVERAGE": "ON",
+        "ASTRO_SDL3": "OFF",
+        "ASTRO_SDL2": "OFF",
+        "ASTRO_SDL1": "OFF",
+        "ASTRO_BOT": "OFF"
+      }
+    },
+    {
       "name": "mingw",
       "displayName": "Windows x64, cross-compiled with MinGW-w64 (SDL3 + headless)",
       "binaryDir": "${sourceDir}/build/mingw",
@@ -54,6 +67,10 @@
     {
       "name": "diff",
       "configurePreset": "diff"
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage"
     },
     {
       "name": "mingw",

@@ -119,7 +119,7 @@ HAND_FN(41cd6f)
         ax &= 0x3f;
         wr8(ebp, (uint8_t)ax);
         wr8(ebp + 1, 0);
-        ebp += 2;
+        ebp = add32(ebp, 2);                          /* ADD: its CF survives the DEC */
         cx = dec16(cx);
     } while (!flag(R_ZF));
     set_ax(ax);

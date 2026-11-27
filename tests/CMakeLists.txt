@@ -46,6 +46,12 @@ foreach(n 2 3 4 5 6)
 endforeach()
 astro_regression(replay-ending REPLAY ending.rec)
 
+# Paths no recording reaches (empty lists, full tables, null pointers), on
+# random inputs: compared with the generated versions in the differential build.
+add_test(NAME fuzz-core COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:astro-headless>
+         -DASSETS=${ASTRO_TEST_ASSETS} -P ${_dir}/run_fuzz.cmake)
+set_tests_properties(fuzz-core PROPERTIES SKIP_RETURN_CODE 77 LABELS regression)
+
 # Every *.rec dropped into replays/full/ (e.g. whole playthroughs recorded with
 # ASTRO_RECORD, or astro-bot runs) becomes a test of its own, labelled "long"
 # (minutes each; `ctest -LE long` skips them); bless it once to record its
