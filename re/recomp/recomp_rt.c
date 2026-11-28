@@ -257,7 +257,29 @@ void rt_diff_pass(rt_func ref, rt_func hand, uint32_t addr, const char *name)
     hand();
 }
 
-void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
+/* Memory the game-state checks ignore (scratch whose old value no one reads). */
+static struct { uint32_t lo, hi; } diff_scratch[64];
+static unsigned diff_nscratch;
+void rt_diff_add_scratch(uint32_t lo, uint32_t hi)
+{
+    if (diff_nscratch < sizeof diff_scratch / sizeof diff_scratch[0]) {
+        diff_scratch[diff_nscratch].lo = lo;
+        diff_scratch[diff_nscratch].hi = hi;
+        diff_nscratch++;
+    }
+}
+static int diff_is_scratch(uint32_t a)
+{
+    for (unsigned i = 0; i < diff_nscratch; i++)
+        if (a >= diff_scratch[i].lo && a < diff_scratch[i].hi) return 1;
+    return 0;
+}
+
+static void diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name, int state_only);
+void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name) { diff_check(ref, hand, addr, name, 0); }
+void rt_diff_check_state(rt_func ref, rt_func hand, uint32_t addr, const char *name) { diff_check(ref, hand, addr, name, 1); }
+
+static void diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name, int state_only)
 {
     if (rt_diff_active) {                    /* nested: same side as the outer call */
         struct diff_stat *n = diff_stat_for(addr, name);
@@ -294,6 +316,7 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
     int bad = 0;
     for (unsigned off = 0; off < sizeof cpu.r; off++) {
         if (cpu.r[off] == after_ref.r[off]) continue;
+        if (state_only && !(off >= R_ESP && off < R_ESP + 4)) continue;   /* only ESP counts */
         if (bad++ < 16)
             fprintf(stderr, "diff: %s call %lu: register byte %#x (%s): generated %02x, hand-written %02x\n",
                     name, call, off, reg_name(off), after_ref.r[off], cpu.r[off]);
@@ -307,6 +330,7 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
     for (size_t i = 0; i < diff_len; i++) {
         const uint32_t a = diff_log[i].addr;
         if (a < esp && a >= esp - 0x10000u) continue;        /* dead stack */
+        if (state_only && diff_is_scratch(a)) continue;
         const uint8_t want = i < nref ? diff_log[i].ref : diff_log[i].old;
         if (mem[a] == want) continue;
         if (bad++ < 32)
@@ -318,6 +342,19 @@ void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name)
      * entries were written by the hand-written version only: they must still
      * hold their old value. */
     diff_forget(0);
+    if (state_only) {
+        /* The callers must not use what the subsystem leaves in registers or
+         * flags: poison them, so a caller that does diverges (and the replay
+         * hashes show it). ESP and the EIP slot stay. */
+        static uint32_t poison = 0x9e3779b9u;
+        static const unsigned regs[] = {0x00, 0x04, 0x08, 0x0c, 0x14, 0x18, 0x1c};
+        for (unsigned i = 0; i < sizeof regs / sizeof regs[0]; i++) {
+            poison = poison * 1664525u + 1013904223u;
+            WR_REG(regs[i], 4, poison);
+        }
+        static const unsigned flags[] = {0x200, 0x202, 0x204, 0x206, 0x207, 0x20b};
+        for (unsigned i = 0; i < sizeof flags / sizeof flags[0]; i++) WR_REG(flags[i], 1, (poison >> i) & 1);
+    }
     if (bad) {
         fprintf(stderr, "diff: %s (%06x) differs from the generated version (call %lu)\n", name, addr, call);
         abort();

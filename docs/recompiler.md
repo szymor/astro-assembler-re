@@ -180,6 +180,18 @@ build, fuzz check, coverage and profiling builds) carries over.
   hand-written side at all. It is listed as `HAND_UNCHECKED` in `replaced.h`:
   differential builds run its hand-written version without a check of its own
   (`rt_diff_pass`), so everything it reaches is checked per call.
+- **Game-state check** (stage C, `HAND_STATE` in `replaced.h`): for a
+  subsystem rewritten in plain C, `rt_diff_check_state` compares only memory
+  (minus scratch registered with `rt_diff_add_scratch`), ESP and the return
+  address, not registers or flags. Afterwards it fills every register except
+  ESP, and every flag, with garbage, so a caller that uses what the subsystem
+  leaves in them makes the game diverge and the replay hashes fail (checked:
+  `Core_Random` marked this way fails both level-1 tests at once, because its
+  callers use AX). `re/scripts/boundary_audit.py <address>` lists, per call
+  site, the registers and flags the caller reads after the call before
+  writing them (callees counted by what they read first and write on every
+  path); it is a reading aid, since partial registers and cycles make it
+  over-report, and the poisoning is the test.
 - **Limits**: a function nobody calls in any recording cannot be checked, so
   it is not kept unless the fuzz check below calls it (`0x40b866`, `0x4422c2`, and 15 of the 18 one-store setters
   in the `0x4240xx`-`0x4244xx` range).

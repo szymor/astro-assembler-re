@@ -163,6 +163,13 @@ rt_func rt_lookup(uint32_t addr);
  * callbacks reached during a check are made once and replayed to the
  * hand-written side (rt_diff_shell). */
 void rt_diff_check(rt_func ref, rt_func hand, uint32_t addr, const char *name);
+/* The game-state check (HAND_STATE in src/core/replaced.h), for whole
+ * subsystems rewritten in plain C: as rt_diff_check, but only memory (scratch
+ * registered with rt_diff_add_scratch aside), ESP and the return address must
+ * match; the callers must not use the registers or flags the call leaves
+ * (re/scripts/boundary_audit.py checks that). */
+void rt_diff_check_state(rt_func ref, rt_func hand, uint32_t addr, const char *name);
+void rt_diff_add_scratch(uint32_t lo, uint32_t hi);
 /* A replaced dispatcher (HAND_UNCHECKED in src/core/replaced.h): outside a
  * check it runs the hand-written version only, so what it calls is checked
  * per call; inside a check it follows that check's side. */

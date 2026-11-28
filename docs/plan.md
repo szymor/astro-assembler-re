@@ -92,20 +92,29 @@ Three stages; the first two are done, the third is the way to plain C.
 
 ### Stage C tasks
 
-- [ ] **Game-state check mode** in the differential harness: compare memory
-      only (no registers or flags) after a subsystem call, with the scratch
-      areas and the stack excluded; a list of which subsystems are checked
-      this way
-- [ ] **Boundary audit** for each subsystem: confirm from the callers' code that
-      no register or flag is used after the call (where one is, it becomes the
+- [x] **Game-state check mode** in the differential harness (`HAND_STATE`):
+      memory only (no registers or flags) after a subsystem call, scratch and
+      the stack excluded; the registers and flags are poisoned afterwards, so a
+      caller that depends on them fails the replay hashes (recompiler.md,
+      "Game-state check"). Proven on `Level_ScrollAndDraw`: all 15 tests pass
+      with it poisoned; `Core_Random` poisoned fails them, as it must
+- [x] **Boundary audit** tooling: `re/scripts/boundary_audit.py` (static,
+      a reading aid) and the poisoning (the test); each subsystem is audited
+      when it is rewritten (where a register is used, it becomes the
       subsystem's return value)
 - [ ] **Frame loop in C**: the level's per-frame loop (`Core_RunLevel`)
       rewritten, still calling the generated per-frame steps
 - [ ] **Subsystems**, roughly in this order (each: rewrite, game-state check
       on all recordings, delete its entries from `replaced.h` and its
       generated functions from the default build):
-  - [ ] Background and scrolling (`Level_ScrollAndDraw`, the layer drawing
-        `0x41cfaf` and its copy routines): the first one, to prove the approach
+  - [ ] Background and scrolling, from `Level_ScrollAndDraw` (`0x41cf84`):
+        the first one, to prove the approach. 14 generated functions (2 853
+        instructions) plus 13 already hand-written; `Script_Run` is the one
+        call out. The layer drawing `0x41cfaf` and its routines `0x41e284`
+        (970 instructions), `0x41d60d` (647), `0x41dcb5` (570), `0x41d2ad`
+        (327), `0x41d2a5`; the overlay sprites `0x413dc3` / `0x413e50`;
+        the animated tiles `0x413887`, `0x4138aa`, `0x413904`; the strip
+        copies `0x41ed18`, `0x41ede7`, `0x41eefd`
   - [ ] Renderer: sprites, silhouettes, remapped sprites, polygons, the
         texture mapper and the polygon fillers (`0x44392c`, `0x443d40`)
   - [ ] The nine enemy classes (update, collision, drawing)

@@ -16,9 +16,13 @@
 #define HAND_UNCHECKED(addr, name)                                          \
     void hand_##addr(void);                                                 \
     void f_##addr(void) { rt_diff_pass(ref_##addr, hand_##addr, 0x##addr, #name); }
+#define HAND_STATE(addr, name)                                              \
+    void hand_##addr(void);                                                 \
+    void f_##addr(void) { rt_diff_check_state(ref_##addr, hand_##addr, 0x##addr, #name); }
 #include "replaced.h"
 #undef HAND
 #undef HAND_UNCHECKED
+#undef HAND_STATE
 #endif
 
 static int cmp_u32(const void *a, const void *b)
@@ -32,9 +36,11 @@ bool core_check_replaced(void)
     uint32_t list[] = {
 #define HAND(addr, name) 0x##addr,
 #define HAND_UNCHECKED(addr, name) 0x##addr,
+#define HAND_STATE(addr, name) 0x##addr,
 #include "replaced.h"
 #undef HAND
 #undef HAND_UNCHECKED
+#undef HAND_STATE
         0};
     size_t n = sizeof list / sizeof list[0] - 1;
     qsort(list, n, sizeof list[0], cmp_u32);

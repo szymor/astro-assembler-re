@@ -17,6 +17,13 @@
  * own, so the functions it reaches are each checked per call. (Checking it
  * would compare once per level and, in recordings that end inside a level,
  * never run the hand-written side at all.)
+ *
+ *   HAND_STATE(<address>, <name>)
+ *
+ * marks the entry of a subsystem rewritten in plain C (stage C, docs/plan.md):
+ * differential builds compare only the game state after the call (memory,
+ * minus registered scratch, plus ESP and the return address), not registers
+ * or flags; re/scripts/boundary_audit.py confirms its callers do not use them.
  */
 HAND(408f8c, Core_Random)
 HAND(442454, Core_DrawSprite)
@@ -173,7 +180,7 @@ HAND(42aab2, Math_VectorAngle)
 HAND(4438bc, Core_SortDescending)
 HAND(44360c, Render_DrawFaces)
 HAND(41ec5f, Level_Scroll)
-HAND(41cf84, Level_ScrollAndDraw)
+HAND_STATE(41cf84, Level_ScrollAndDraw)
 HAND(41f0d0, Level_SkipAhead)
 HAND(4273e3, Obj_NextPathPoint_q)
 HAND(427312, Obj_PickPath_q)
