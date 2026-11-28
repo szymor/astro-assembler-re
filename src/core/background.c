@@ -216,20 +216,233 @@ static void plot_stars(unsigned way, uint32_t ebx, uint32_t ebp)
     }
 }
 
-/* Background_Stars (0x413887): with layer bit 0 set, the stars move, their
- * colours cycle and they are plotted the way EAX says (EBX and EBP: the
- * masks, see plot_stars). */
-HAND_FN(413887)
+/* The starfield (0x413887): with layer bit 0 set, the stars move, their
+ * colours cycle and they are plotted in the given way (the masks: see
+ * plot_stars). */
+static void draw_stars(unsigned way, uint32_t mask400, uint32_t src320)
 {
-    const uint32_t way = EAX, ebx = EBX, ebp = EBP;
-    if (rd16(G_LAYERS) & 1) {
-        cycle_star_colours();
-        move_stars();
-        if (way > STARS_BLEND_MASK320) {
-            fprintf(stderr, "Background_Stars: plotting way %u\n", way);
-            abort();
-        }
-        plot_stars(way, ebx, ebp);
-    }
-    x86_ret();
+    if (!(rd16(G_LAYERS) & 1)) return;
+    cycle_star_colours();
+    move_stars();
+    plot_stars(way, mask400, src320);
 }
+
+/* ---- composing the frame ---------------------------------------------------
+ * Each layer is a colour plane and, for the layers drawn over others, a mask
+ * plane further on (layer A: 0x29040 bytes, 400-pixel rows; layer B: 0x20d00
+ * bytes, 320-pixel rows): where the mask is 0xff the layer is transparent. The
+ * frame is composed dword by dword: lower & mask | colour. */
+#define FRAME_BYTES   64000u
+#define A_MASK        0x29040u
+#define B_MASK        0x20d00u
+
+/* The top-left of each layer's visible part (0x41d1e9, 0x41d226, 0x41d257):
+ * its ring position plus the scroll within the current strip (a row per 60
+ * units); layer A, 400 pixels wide, also moves with the horizontal scroll. */
+static uint32_t layer_a_view(void)
+{
+    const uint32_t n = rd16(0x4b1f88u);
+    return rd32(G_ARENA_BASE) + rd32(0x4b1f70u) + 0x1f40 + rd32(0x4b1f84u) - n / 60 * 400
+         + (((uint32_t)rd16(G_SCROLL_X) + 1) >> 1);
+}
+static uint32_t layer_view(const layer *l)
+{
+    const uint32_t n = rd16(l->counter);
+    return rd32(G_ARENA_BASE) + rd32(l->ring_base) + l->strip_bytes + rd32(l->ring_pos) - n / 60 * l->pitch;
+}
+#define layer_b_view() layer_view(&k_layer_b)
+#define layer_c_view() layer_view(&k_layer_c)
+
+/* One layer alone into the frame (0x41d2a5: 320-pixel rows; 0x41d292: layer
+ * A, 320 of its 400 pixels per row), or nothing (0x41d288: cleared). */
+static void copy_layer(uint32_t src) { copy_forward(rd32(G_FRAME), src, FRAME_BYTES); }
+static void copy_layer_a(uint32_t src)
+{
+    uint32_t dst = rd32(G_FRAME);
+    for (unsigned row = 0; row < 200; row++, src += 400, dst += 320) copy_forward(dst, src, 320);
+}
+static void clear_frame(void) { fill_dwords(rd32(G_FRAME), 0, FRAME_BYTES / 4); }
+
+/* `lower` (320-pixel rows) under one layer: B (0x41d2ad) or A (0x41d60d). */
+static void compose(uint32_t lower, uint32_t over, uint32_t over_pitch, uint32_t mask_offset)
+{
+    uint32_t dst = rd32(G_FRAME);
+    for (unsigned row = 0; row < 200; row++, over += over_pitch - 320)
+        for (unsigned x = 0; x < 320; x += 4, lower += 4, over += 4, dst += 4)
+            wr32(dst, (rd32(lower) & rd32(over + mask_offset)) | rd32(over));
+}
+/* Layer C under B under A (0x41e284). */
+static void compose3(uint32_t c, uint32_t b, uint32_t a)
+{
+    uint32_t dst = rd32(G_FRAME);
+    for (unsigned row = 0; row < 200; row++, a += 80)
+        for (unsigned x = 0; x < 320; x += 4, c += 4, b += 4, a += 4, dst += 4) {
+            const uint32_t under = (rd32(c) & rd32(b + B_MASK)) | rd32(b);
+            wr32(dst, (under & rd32(a + A_MASK)) | rd32(a));
+        }
+    wr32(0x46ff8cu, 0);                                        /* its row counter, left at 0 */
+}
+/* Layer A over what the frame holds (0x41dcb5), with layer bit 2: drawn after
+ * the decorations, so it passes in front of them. */
+static void layer_a_in_front(void)
+{
+    if (!(rd16(G_LAYERS) & 4)) return;
+    uint32_t a = layer_a_view(), dst = rd32(G_FRAME);
+    for (unsigned row = 0; row < 200; row++, a += 80)
+        for (unsigned x = 0; x < 320; x += 4, a += 4, dst += 4)
+            wr32(dst, (rd32(a + A_MASK) & rd32(dst)) | rd32(a));
+}
+
+/* ---- decorations -----------------------------------------------------------
+ * Sprites drawn between the background and the front layer (0x413dc3): a list
+ * of 0x4a9ad0 entries of 0x14 bytes (arena + 0x4a9ad8): kind (a descriptor
+ * offset from 0x4a9ad4), dx (+2), dy (+4), frame (+6), frame step (+8),
+ * frame period (+0xa), start position (+0xc), position (+0x10, x and y words in
+ * 1/64 pixels). The first 0x4a9adc entries are active (the number moves one
+ * step towards 0x4a9ade every 0x4a9ae0 frames): they restart at their start
+ * position (x jittered by the random seed) once they leave the bottom; the
+ * others finish their way and stop. Descriptor: frame count (+4), size (+6
+ * height, +8 width), frame table (+0, dword), sprite data offset (+0xa). */
+#define DECO_COUNT  0x4a9ad0u
+#define DECO_KINDS  0x4a9ad2u
+#define DECO_DESCS  0x4a9ad4u
+#define DECO_LIST   0x4a9ad8u
+#define DECO_ACTIVE 0x4a9adcu
+#define DECO_TARGET 0x4a9adeu
+#define DECO_PERIOD 0x4a9ae0u
+
+static uint16_t div16(uint16_t a, uint16_t d)                  /* DIV r/m16 with DX = 0: the remainder */
+{
+    if (!d) rt_divide_error();
+    return (uint16_t)(a % d);
+}
+
+static void step_decorations(void)                             /* 0x413e50 */
+{
+    if (div16(rd16(G_GAME_TIME), rd16(DECO_PERIOD)) == 0) {
+        const int16_t to_go = (int16_t)(rd16(DECO_TARGET) - rd16(DECO_ACTIVE));
+        if (to_go) wr16(DECO_ACTIVE, (uint16_t)(rd16(DECO_ACTIVE) + (to_go < 0 ? -1 : 1)));
+    }
+    uint32_t e = rd32(DECO_LIST) + rd32(G_ARENA_BASE);
+    uint16_t i = 0;
+    do {
+        const uint32_t desc = rd16(e) + rd32(DECO_DESCS);
+        bool move;
+        if ((int16_t)i < (int16_t)rd16(DECO_ACTIVE)) {
+            if ((int16_t)rd16(e + 0x12) >= 0x3200) {           /* gone: back to the start */
+                wr32(e + 0x10, rd32(e + 0xc));
+                wr8(e + 0x11, (uint8_t)(rd8(e + 0x11) ^ (rd16(G_RANDOM_SEED) & 0x3f)));
+            }
+            move = true;
+        } else {
+            move = (int16_t)rd16(e + 0x12) < 0x3200 &&
+                   (int16_t)(uint16_t)((uint16_t)(rd16(desc + 8) << 6) + rd16(e + 0x12)) >= 0;
+        }
+        if (move) {
+            wr16(e + 0x10, (uint16_t)(rd16(e + 0x10) + rd16(e + 2)));
+            wr16(e + 0x12, (uint16_t)(rd16(e + 0x12) + rd16(e + 4)));
+        }
+        const uint16_t period = rd16(e + 0xa);
+        if (period && div16(rd16(G_GAME_TIME), period) == 0) {  /* the next animation frame */
+            const uint16_t frames = rd16(desc + 4);
+            uint16_t f = (uint16_t)(rd16(e + 6) + rd16(e + 8));
+            if ((int16_t)f < 0) f = (uint16_t)(f + frames);
+            if ((int16_t)f >= (int16_t)frames) f = (uint16_t)(f - frames);
+            wr16(e + 6, f);
+        }
+        e += 0x14;
+        i++;
+    } while (i != rd16(DECO_COUNT));
+}
+
+/* Core_DrawSprite (0x442454, register level): the sprite data at ESI, the
+ * screen position in DX (x) and BX (y), the size in CX and BP. */
+static void draw_sprite(uint32_t data, uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+    WR_REG(R_ESI, 4, data);
+    WR_REG(R_EDX, 2, x); WR_REG(R_EBX, 2, y);
+    WR_REG(R_ECX, 2, w); WR_REG(R_EBP, 2, h);
+    core_call(f_442454, 0x413e37u);
+}
+
+static void draw_decorations(void)                             /* 0x413dc3 */
+{
+    step_decorations();
+    wr16(0x46ff4au, rd16(DECO_KINDS));
+    do {                                                       /* kind by kind, the highest first */
+        uint32_t e = rd32(DECO_LIST) + rd32(G_ARENA_BASE);
+        wr16(0x46ffa4u, rd16(DECO_COUNT));
+        do {
+            if (rd16(e) == rd16(0x46ff4au)) {
+                const uint32_t desc = rd16(e) + rd32(DECO_DESCS);
+                const uint32_t data = rd32(rd16(e + 6) + rd32(desc)) + rd32(desc + 0xa) + rd32(G_ARENA_BASE);
+                const uint16_t x = (uint16_t)((int16_t)(uint16_t)(rd16(e + 0x10) + 0x20) >> 6);
+                const uint16_t y = (uint16_t)((int16_t)(uint16_t)(rd16(e + 0x12) + 0x20) >> 6);
+                draw_sprite(data, x, y, rd16(desc + 8), rd16(desc + 6));
+            }
+            e += 0x14;
+            wr16(0x46ffa4u, (uint16_t)(rd16(0x46ffa4u) - 1));
+        } while (rd16(0x46ffa4u));
+        wr16(0x46ff4au, (uint16_t)(rd16(0x46ff4au) - 0xe));
+    } while ((int16_t)rd16(0x46ff4au) >= 0);
+}
+
+/*
+ * Background_DrawLayers (0x41cfaf): composes the frame from the layers the
+ * set-up word enables (bit 4: layer C, bit 1: layer B, bit 2: layer A, bit 3:
+ * decorations and a front copy of layer A after them; with layer C the stars
+ * are plotted in a way that respects the layers above, without it they go on
+ * empty pixels, last).
+ */
+static void draw_layers(void)
+{
+    const uint16_t l = rd16(G_LAYERS);
+    const bool c = l & 0x10, deco = l & 8, b = l & 2, a = l & 4;
+    if (c) {
+        if (deco) {
+            if (b) {
+                const uint32_t bv = layer_b_view();
+                compose(layer_c_view(), bv, 320, B_MASK);
+                draw_stars(STARS_BLEND_MASK320, 0, bv + B_MASK);
+            } else {
+                copy_layer(layer_c_view());
+                draw_stars(STARS_BLEND, 0, 0);
+            }
+            draw_decorations();
+            layer_a_in_front();
+        } else if (b && a) {
+            const uint32_t av = layer_a_view(), bv = layer_b_view();
+            compose3(layer_c_view(), bv, av);
+            draw_stars(STARS_BLEND_MASK_AND, av + A_MASK, bv + B_MASK);
+        } else if (b) {
+            const uint32_t bv = layer_b_view();
+            compose(layer_c_view(), bv, 320, B_MASK);
+            draw_stars(STARS_BLEND_MASK320, 0, bv + B_MASK);
+        } else if (a) {
+            const uint32_t av = layer_a_view();
+            compose(layer_c_view(), av, 400, A_MASK);
+            draw_stars(STARS_BLEND_MASK400, av + A_MASK, 0);
+        } else {
+            copy_layer(layer_c_view());
+            draw_stars(STARS_BLEND, 0, 0);
+        }
+        return;
+    }
+    if (deco) {
+        if (b) copy_layer(layer_b_view()); else clear_frame();
+        draw_decorations();
+        layer_a_in_front();
+    } else if (b && a) {
+        const uint32_t av = layer_a_view();
+        compose(layer_b_view(), av, 400, A_MASK);
+    } else if (b) {
+        copy_layer(layer_b_view());
+    } else if (a) {
+        copy_layer_a(layer_a_view());
+    } else {
+        clear_frame();
+    }
+    draw_stars(STARS_ON_EMPTY, 0, 0);
+}
+HAND_FN(41cfaf) { draw_layers(); x86_ret(); }
+

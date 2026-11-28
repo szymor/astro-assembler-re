@@ -118,8 +118,12 @@ Three stages; the first two are done, the third is the way to plain C.
     - [x] In plain C (`src/core/background.c`): the three layers' strips and
           scrolling, and the starfield (`0x413887` with its five plotting
           ways); the 15 register-exact functions they superseded are removed
-    - [ ] The layer drawing `0x41cfaf` and its four big routines, the overlay
-          sprites, then `Level_ScrollAndDraw` / `Level_Scroll` themselves
+    - [x] The layer drawing `0x41cfaf` with its four composing routines,
+          the layer views, the decoration sprites (`0x413dc3` / `0x413e50`)
+          and the starfield as an internal call; 5 more register-exact
+          functions removed
+    - [ ] `Level_ScrollAndDraw` / `Level_Scroll` themselves (the jump into
+          `Script_Run` stays a register-level call)
   - [ ] Renderer: sprites, silhouettes, remapped sprites, polygons, the
         texture mapper and the polygon fillers (`0x44392c`, `0x443d40`)
   - [ ] The nine enemy classes (update, collision, drawing)

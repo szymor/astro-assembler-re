@@ -295,11 +295,6 @@
 0041cdb2	f	Core_FindFreeSlot10	First free slot (EBP) of a table of 10 entries of 0x1a0 bytes from 0x525c90, used count 0x4acb64 + 0x4acb66; CF = full.
 0041cf17	f	Core_FindFreeSlot50b	First free slot (EBP) of a table of 50 entries of 0x28 bytes from 0x526cd0, used count 0x4acccc; CF = full.
 0041cf6b	f	Core_WrapIndex	ESI += EAX, wrapped once into [0, 0xb40) (a single step each way, unlike Core_WrapPosition).
-0041d1e9	f	Core_LayerOffset0	Screen offset of a scrolling layer: the arena base plus two offsets, less a row per 60 units of a counter plus half the width.
-0041d226	f	Core_LayerOffset1	Screen offset of a scrolling layer: the arena base plus two offsets, less a row per 60 units of a counter.
-0041d257	f	Core_LayerOffset2	Screen offset of a scrolling layer: the arena base plus two offsets, less a row per 60 units of a counter.
-0041d288	f	Core_ClearBlock3e80	0x3e80 dwords from EDI cleared.
-0041d292	f	Core_CopyRowsSkip	200 rows of 80 dwords copied from ESI to EDI; ESI skips 80 bytes after each row.
 0041ed70	f	Core_CopyStripA	Copies a strip of 20 blocks of a picture in the arena (offset 0x4b1f74) into the work buffer, the block rows picked by the words at EBP.
 0041ee75	f	Core_CopyStripB	As Core_CopyStripA for 16 blocks from 0x4b1fa4 (the second block only when bit 4 of 0x4b3ba0 is set).
 0041ef8b	f	Core_CopyBlock16x20	A 16 by 20 block of 20-byte pieces is copied from the arena (rows picked by the words at EBP) to the screen at EDI, 0x140 bytes per row.
@@ -400,4 +395,17 @@
 0041ed18	f	Background_LayerANewStrip	Layer A's ring moves back a strip; the strip of 20 tiles (two planes) is drawn, twice near the ring's end, and the map steps on.
 0041ede7	f	Background_ScrollLayerB	Layer B's parallax scroll (its speed scaled by this frame's speed-list step over the scroll speed); a new strip every 0x4b0 units.
 0041eefd	f	Background_ScrollLayerC	As Background_ScrollLayerB for layer C (one plane).
-00413887	f	Background_Stars	With layer bit 0: the four star sets move, two cycle their colours, and they are plotted in one of five ways (EAX; masks in EBX/EBP).
+00413887	f	Background_Stars	With layer bit 0: the four star sets move, two cycle their colours, and they are plotted in one of five ways (EAX; masks in EBX/EBP). Plain C inside Background_DrawLayers.
+0041cfaf	f	Background_DrawLayers	Composes the frame from the layers word 0x4b3ba0 enables (C, B, A, decorations), then the stars.
+0041d1e9	f	Background_LayerAView	ESI = layer A's visible top-left: ring position less a row per 60 scroll units, plus half the horizontal scroll.
+0041d226	f	Background_LayerBView	ESI = layer B's visible top-left: ring position less a row per 60 units of its counter.
+0041d257	f	Background_LayerCView	ESI = layer C's visible top-left: ring position less a row per 60 units of its counter.
+0041d288	f	Background_ClearFrame	The 64000-byte frame at EDI cleared.
+0041d292	f	Background_CopyLayerA	Layer A alone into the frame: 200 rows of 320 of its 400 pixels.
+0041d2a5	f	Background_CopyLayer	A 320-pixel layer alone into the frame (64000 bytes).
+0041d2ad	f	Background_ComposeB	Frame = lower layer & layer B's mask | layer B (320-pixel rows).
+0041d60d	f	Background_ComposeA	Frame = lower layer & layer A's mask | layer A (400-pixel rows).
+0041dcb5	f	Background_LayerAInFront	With layer bit 2: layer A drawn again over the frame (in front of the decorations).
+0041e284	f	Background_Compose3	Frame = layer C under layer B under layer A.
+00413dc3	f	Background_DrawDecorations	The decoration sprites stepped, then drawn kind by kind (Core_DrawSprite).
+00413e50	f	Background_StepDecorations	The active decoration count moves towards its target; decorations move, restart at the bottom and animate.

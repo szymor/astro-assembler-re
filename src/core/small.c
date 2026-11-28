@@ -31,36 +31,6 @@ HAND_FN(40b81c)
     x86_ret();
 }
 
-/* 41d288: 0x3e80 dwords from EDI cleared. */
-HAND_FN(41d288)
-{
-    const uint32_t edi = EDI;
-    WR_REG(R_EAX, 4, 0);
-    flags_xor_self();
-    fill_dwords(edi, 0, 0x3e80);
-    WR_REG(R_ECX, 4, 0);
-    WR_REG(R_EDI, 4, edi + 0x3e80 * 4);
-    x86_ret();
-}
-
-/* 41d292: 200 rows of 80 dwords copied from ESI to EDI; ESI skips 80 bytes
- * after each row. Flags: those of the last DEC EBX. */
-HAND_FN(41d292)
-{
-    uint32_t esi = ESI, edi = EDI, ebx = 0xc8;
-    do {
-        copy_forward(edi, esi, 0x140);
-        edi += 0x140;
-        esi = add32(esi + 0x140, 0x50);
-        ebx = dec32(ebx);
-    } while (!flag(R_ZF));
-    WR_REG(R_EBX, 4, ebx);
-    WR_REG(R_ECX, 4, 0);
-    WR_REG(R_ESI, 4, esi);
-    WR_REG(R_EDI, 4, edi);
-    x86_ret();
-}
-
 /* 416c5d: the first joystick poll: stick 0, slot 0 go into 556aec / 556af0,
  * then the shell callback 40108c runs. (The other three polls are not called
  * in any recording.) */

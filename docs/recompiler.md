@@ -316,14 +316,12 @@ those inside the checks of other replaced functions):
 | `0x4096ae`, `0x4096df` | `Core_CopyRecord1/2` | `shellcall.c` | 1 to 3 calls each |
 | `0x409791` | `Core_FillMarkerPairs` | `shellcall.c` | 2 calls |
 | `0x408cc2` | `Core_Cmd00_GetRanges` | `small.c` | 11 calls |
-| `0x40b81c`, `0x41d288` | `Core_ClearBlock55cab0`, `Core_ClearBlock3e80` | `small.c` | 19 and 278 calls |
-| `0x41d292` | `Core_CopyRowsSkip` | `small.c` | 57 629 calls |
+| `0x40b81c` | `Core_ClearBlock55cab0` | `small.c` | 19 calls |
 | `0x416c5d` | `Core_PollJoy00` | `small.c` | 1 128 calls (the other three joystick polls and six more small routines are not called by any recording, so they were left generated) |
 | `0x41f0e1` | `Core_SetScrollWindow` | `small.c` | 1 call |
 | `0x4342e0`, `0x43430a`, `0x434338`, `0x43435e`, `0x43438b`, `0x4343d4`, `0x4343f9`, `0x434429`, `0x43457c` | `Enemy1_TwinPod_Box_q`, `Enemy2_Orb_…`, `Enemy3_Dome_…`, `Enemy4_Claw_…`, `Enemy5_Gunship_…`, `Enemy6_Mech_…`, `Enemy7_Cruiser_…`, `Enemy8_Bomber_…`, `Enemy9_Turner_Box_q` | `hitbox.c` | 5 371 to 67 776 calls each (bounding boxes of objects) |
 | `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `BossArm_SegmentBox1_q`-`5_q` | `hitbox.c` | about 31 000 calls each |
 | `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 calls (`0x42d529` is not called by any recording) |
-| `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 calls |
 | `0x42abf9` | `Boss2_StepArmFrames` | `counters.c` | 3 495 calls |
 | `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
 | `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 calls each |
@@ -352,11 +350,16 @@ Whole subsystems in plain C, checked by the game state (`HAND_STATE`, see
 functions below them are plain C and no longer listed, and the register-exact
 functions they superseded were removed.
 
+Plain C calls a function that is still register-level (generated or
+register-exact) by setting the registers the callee reads and calling
+`core_call` (`core.h`), which pushes the original return address and stops if
+the callee returns anywhere else.
+
 | Entry | Name | File | What it covers | Checked on |
 |---|---|---|---|---|
 | `0x41ed18` | `Background_LayerANewStrip` | `background.c` | layer A's new strips (two planes; superseded `Core_CopyStripA`) | 2 514 calls in the full-game recording (inside `Level_ScrollAndDraw`'s checks) |
 | `0x41ede7`, `0x41eefd` | `Background_ScrollLayerB`, `Background_ScrollLayerC` | `background.c` | the parallax scroll of layers B and C and their new strips (superseded `Core_CopyStripB`, `Core_CopyBlock16x20`) | 46 797 and 69 621 calls (inside `Level_ScrollAndDraw`'s checks) |
-| `0x413887` | `Background_Stars` | `background.c` | the starfield: moves, colour cycling and the five plotting ways (superseded the seven record loops of `recs.c`, `Core_StepBytes10`, `Core_StepWords10` and the three record-set drivers) | 130 168 calls (inside `Level_ScrollAndDraw`'s checks) |
+| `0x41cfaf` | `Background_DrawLayers` | `background.c` | the frame composed from the layers: the layer views, plain copies and clears, the three composing routines and layer A in front, the decoration sprites (stepped and drawn through `Core_DrawSprite`, a register-level call), and the starfield `0x413887` (moves, colour cycling, five plotting ways) as an internal call (superseded `Core_LayerOffset0/1/2`, `Core_ClearBlock3e80`, `Core_CopyRowsSkip`, and earlier the seven record loops of `recs.c`, `Core_StepBytes10`, `Core_StepWords10` and the three record-set drivers) | 130 168 calls (inside `Level_ScrollAndDraw`'s checks) |
 
 ## Known gaps / next steps
 

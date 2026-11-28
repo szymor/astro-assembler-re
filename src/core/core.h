@@ -349,6 +349,20 @@ static inline uint32_t x87_isqrt(uint32_t at, int32_t v, uint32_t fistp)
     return r;
 }
 
+/*
+ * Stage C (plain C) calling a register-level core function (generated, or a
+ * register-exact replacement): the caller sets the registers the callee reads
+ * (WR_REG; re/scripts/boundary_audit.py lists them), then this pushes `ret`
+ * as a CALL would and runs it. Plain C cannot unwind, so a callee returning
+ * anywhere else is a fatal error.
+ */
+static inline void core_call(rt_func fn, uint32_t ret)
+{
+    x86_push(ret);
+    fn();
+    if (cpu.ret_addr != ret) rt_fail("register-level callee returned elsewhere", __FILE__, __LINE__);
+}
+
 /* Startup check that the generated core was made with the current list of
  * replacements (replaced.h); false with a message otherwise. */
 bool core_check_replaced(void);
