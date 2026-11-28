@@ -296,32 +296,3 @@ HAND_FN(415b51)
     x86_ret();
 }
 
-/* 41ef8b: a 16 by 20 block of 20-byte pieces is copied from the arena (rows
- * picked by the words at EBP) to the screen at EDI, 0x140 bytes per row. */
-HAND_FN(41ef8b)
-{
-    uint32_t edi = EDI, ebp = EBP, esi = 0, eax = 0, edx = 0x10, ebx = 0;
-    const uint32_t keep = edi;
-    do {
-        eax = (uint32_t)rd16(ebp) * 0x190;
-        esi = rd32(G_ARENA_BASE);
-        ebp += 2;
-        esi += rd32(0x4b1fc8);
-        ebx = 0x14;
-        esi += eax;
-        do {
-            copy_forward(edi, esi, 20);
-            esi += 20;
-            edi += 20;
-            edi = add32(edi, 0x12c);
-            ebx = dec32(ebx);
-        } while (!flag(R_ZF));
-        edi = sub32(edi, 0x18ec);
-        edx = dec32(edx);
-    } while (!flag(R_ZF));
-    (void)keep;
-    WR_REG(R_EAX, 4, eax); WR_REG(R_EBX, 4, 0); WR_REG(R_ECX, 4, 0); WR_REG(R_EDX, 4, 0);
-    WR_REG(R_ESI, 4, esi);
-    WR_REG(R_EBP, 4, ebp);
-    x86_ret();
-}

@@ -396,3 +396,8 @@
 00413cee	f	Core_RemapSetsMask320	As Core_RemapSetsMask400 with the mask plane at EBP indexed like the frame (Core_RemapMask320).
 00442e3d	f	Render_RemapSpan2_q	Remaps a clipped span of ECX pixels on one or two frame rows through the colour tables patched into 0x442e68 / 0x442e8d.
 00442ecc	f	Render_TextureAffine	The affine texture mapper: patches the texture's width shift, base and steps into its own loop and draws a colour-keyed textured quad.
+# ---- Stage C: the background (src/core/background.c) ------------------------------
+0041ed18	f	Background_LayerANewStrip	Layer A's ring moves back a strip; the strip of 20 tiles (two planes) is drawn, twice near the ring's end, and the map steps on.
+0041ede7	f	Background_ScrollLayerB	Layer B's parallax scroll (its speed scaled by this frame's speed-list step over the scroll speed); a new strip every 0x4b0 units.
+0041eefd	f	Background_ScrollLayerC	As Background_ScrollLayerB for layer C (one plane).
+00413887	f	Background_Stars	With layer bit 0: the four star sets move, two cycle their colours, and they are plotted in one of five ways (EAX; masks in EBX/EBP).

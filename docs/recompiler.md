@@ -295,7 +295,6 @@ those inside the checks of other replaced functions):
 | `0x415a58` | `Core_MaskBlit` | `init.c` | 3 calls in the full-game recording |
 | `0x433acd` | `Core_Cross4` | `init.c` | 151 974 calls in the full-game recording |
 | `0x4299b8` | `Boss2_FollowPath` | `vectors.c` | 3 495 calls in the full-game recording |
-| `0x41ed70`, `0x41ee75` | `Core_CopyStripA`, `B` | `tables.c` | up to 4 803 and 134 calls over the recordings (whether `B`'s optional second block is reached is not recorded) |
 | `0x41599f` | `Core_MaskBlitRows` | `init.c` | 974 calls in the full-game recording |
 | `0x42d1a0` | `Boss3_StepPhase_q` | `init.c` | 4 303 calls in the full-game recording |
 | `0x42ad07` | `Boss2_StepArmReach_q` | `tables.c` | 3 495 calls in the full-game recording |
@@ -325,7 +324,6 @@ those inside the checks of other replaced functions):
 | `0x43444f`, `0x434472`, `0x434495`, `0x4344b8`, `0x4344db` | `BossArm_SegmentBox1_q`-`5_q` | `hitbox.c` | about 31 000 calls each |
 | `0x429b26`, `0x42d48f`, `0x429bc4` | `Core_AddListEntry18a/18b/14a` | `hitbox.c` | 4, 1 and 1 calls (`0x42d529` is not called by any recording) |
 | `0x41d1e9`, `0x41d226`, `0x41d257` | `Core_LayerOffset0/1/2` | `hitbox.c` | 105 091, 46 797 and 76 382 calls |
-| `0x4138f9`, `0x413953` | `Core_StepBytes10`, `Core_StepWords10` | `counters.c` | 30 290 and 387 304 calls (loops over 10-byte records) |
 | `0x42abf9` | `Boss2_StepArmFrames` | `counters.c` | 3 495 calls |
 | `0x4240e1`, `0x424120` | `Core_CountUp1`, `Core_GrowSlot1` | `counters.c` | 9 and 1 calls (thin: the second player's counterparts `0x4243b6` and `0x4243f5` are not called by any recording) |
 | `0x41b710`, `0x41b9b6` | `Core_ReloadEntries1/2` | `counters.c` | 46 calls each |
@@ -333,12 +331,11 @@ those inside the checks of other replaced functions):
 | `0x446bc6`, `0x41b944` | `Core_AddEntry5`, `Core_AddPhaseEntry` | `lists.c` | 6 542 and 62 calls |
 | `0x42ac52` | `Boss2_StepFrames` | `lists.c` | 3 495 calls |
 | `0x424030` | `Core_NextRecord18` | `lists.c` | 7 calls |
-| `0x415b51`, `0x41ef8b` | `Core_MaskRows8`, `Core_CopyBlock16x20` | `lists.c` | 1 144 and 1 412 calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
+| `0x415b51` | `Core_MaskRows8` | `lists.c` | 1 144 calls (`0x4423b2` and `0x408fd2` are not called by any recording) |
 | `0x42d38b`, `0x42d3c8`, `0x429a5f` | `Boss3_StepPathSpeed`, `Boss3_StepPathScale`, `Boss2_StepPathSpeed` | `misc.c` | 4 303, 4 303 and 3 495 calls (clamped steppers) |
 | `0x41cf17`, `0x415fe8`, `0x416283` | `Core_FindFreeSlot50b`, `Core_FindFreeSlot100b`, `Core_FindFreeSlot200b` | `misc.c` | 80, 740 and 611 calls (carry = table full; named by capacity, like those in `pools.c`) |
 | `0x415d5c`, `0x415d7f`, `0x4233c9` | `Core_BoxOutside`, `Core_ScaledPos`, `Core_VectorOffset` | `misc.c` | 63 341, 5 986 and 30 845 calls |
 | `0x44688f`, `0x446c99` | `Core_CopyRun`, `Core_CopyScreen` | `misc.c` | 1 200 057 and 22 690 calls (`0x42d529`, `0x446e32` and `0x424320` are not called by any recording) |
-| `0x4139d0`, `0x4139e8`, `0x413a79`, `0x413a95`, `0x413b94`, `0x413cbb`, `0x413da1` | `Core_PlotMaskedB`, `Core_PlotMaskedTable`, `Core_RemapLayer`, `Core_RemapPair`, `Core_RemapMask400`, `Core_RemapMaskAnd`, `Core_RemapMask320` | `recs.c` | 42 168, 42 168, 42 996, 42 996, 21 058, 50 194 and 37 236 calls (loops over 10-byte records; five of them read a displacement patched into their own code, from the code bytes at `0x413a8a`, `0x413aac`, `0x413ba8`/`0x413bb4`, `0x413ccf`/`0x413cd8`/`0x413ce3`, `0x413db5`) |
 | `0x444a7c`, `0x41b740`, `0x414a91` | `Core_InsertRank`, `Core_LookupSigned`, `Core_StepTimerPairs` | `stage.c` | 1 (thin: the carry-set path with the backward copy), 1 530 and 274 074 calls |
 | `0x41faa8`, `0x42aab2` | `Math_PlanMove3D`, `Math_VectorAngle` | `math.c` | 226 calls (inside other checks) and 61 933 calls; the x87 square root through `x87_isqrt` |
 | `0x44360c` | `Render_DrawFaces` | `math.c` | 148 132 calls (the 3D renderer: culling, depth sort, shading with the x87 square root) |
@@ -346,8 +343,20 @@ those inside the checks of other replaced functions):
 | `0x4431db`, `0x44334b` | `Math_RotateVertices`, `Math_RotateVerticesScaled` | `math.c` | 165 637 and 71 443 calls in the full-game recording (they patch the rotation matrix into their own IMUL immediates) |
 | `0x41ec5f`, `0x41cf84`, `0x41f0d0` | `Level_Scroll`, `Level_ScrollAndDraw`, `Level_SkipAhead` | `level.c` | 130 168 calls (inside `Level_ScrollAndDraw`'s), 130 157 and 4; the scroll jumps into `Script_Run` |
 | `0x427312`, `0x4273e3` | `Obj_PickPath_q`, `Obj_NextPathPoint_q` | `level.c` | 4 and 253 calls (they fall into each other) |
-| `0x413ab7`, `0x413bc2`, `0x413cee` | `Core_RemapSetsMask400`, `Core_RemapSetsMaskAnd`, `Core_RemapSetsMask320` | `recs.c` | 10 529, 25 097 and 18 618 calls (inside other checks); patch their own mask bases, read the frame constants patched into them |
 | `0x442e3d`, `0x442ecc` | `Render_RemapSpan2_q`, `Render_TextureAffine` | `texture.c` | 2 716 226 and 233 515 calls; the texture mapper patches its shift, texture and steps into its own loop |
+
+### Stage C modules
+
+Whole subsystems in plain C, checked by the game state (`HAND_STATE`, see
+"Game-state check"). Their entry points are listed in `replaced.h`; the
+functions below them are plain C and no longer listed, and the register-exact
+functions they superseded were removed.
+
+| Entry | Name | File | What it covers | Checked on |
+|---|---|---|---|---|
+| `0x41ed18` | `Background_LayerANewStrip` | `background.c` | layer A's new strips (two planes; superseded `Core_CopyStripA`) | 2 514 calls in the full-game recording (inside `Level_ScrollAndDraw`'s checks) |
+| `0x41ede7`, `0x41eefd` | `Background_ScrollLayerB`, `Background_ScrollLayerC` | `background.c` | the parallax scroll of layers B and C and their new strips (superseded `Core_CopyStripB`, `Core_CopyBlock16x20`) | 46 797 and 69 621 calls (inside `Level_ScrollAndDraw`'s checks) |
+| `0x413887` | `Background_Stars` | `background.c` | the starfield: moves, colour cycling and the five plotting ways (superseded the seven record loops of `recs.c`, `Core_StepBytes10`, `Core_StepWords10` and the three record-set drivers) | 130 168 calls (inside `Level_ScrollAndDraw`'s checks) |
 
 ## Known gaps / next steps
 

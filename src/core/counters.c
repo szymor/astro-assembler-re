@@ -1,5 +1,5 @@
 /*
- * Loops over 10-byte records, per-player counters and set-up stores. Each step
+ * Per-player counters, timers and set-up stores. Each step
  * keeps the flags of the instruction it is (see core.h).
  */
 #include "core.h"
@@ -12,53 +12,10 @@ static uint8_t add8(uint8_t a, uint8_t b)
     flags_szp8(r);
     return r;
 }
-static uint8_t dec8(uint8_t a)
-{
-    const uint8_t r = (uint8_t)(a - 1);
-    set_flag(R_OF, a == 0x80);
-    flags_szp8(r);
-    return r;
-}
 static void flags_xor_self(void)
 {
     set_flag(R_CF, false); set_flag(R_OF, false); set_flag(R_SF, false);
     set_flag(R_ZF, true); set_flag(0x202, true);
-}
-
-/* 4138f9: ECX records of 10 bytes from EDI: byte 0 is decremented, then ANDed with BL. */
-HAND_FN(4138f9)
-{
-    uint32_t edi = EDI, ecx = ECX;
-    const uint8_t bl = (uint8_t)EBX;
-    do {
-        uint8_t b = dec8(rd8(edi));
-        b &= bl;
-        test8(b);
-        wr8(edi, b);
-        edi = add32(edi, 0xa);
-        ecx = dec32(ecx);
-    } while (!flag(R_ZF));
-    WR_REG(R_ECX, 4, ecx);
-    WR_REG(R_EDI, 4, edi);
-    x86_ret();
-}
-
-/* 413953: ECX records of 10 bytes from EDI: word 0 += BX, and reduced by DX if that reaches it. */
-HAND_FN(413953)
-{
-    uint32_t edi = EDI, ecx = ECX;
-    const uint16_t bx = (uint16_t)EBX, dx = (uint16_t)EDX;
-    do {
-        uint16_t w = add16(rd16(edi), bx);
-        wr16(edi, w);
-        cmp16(w, dx);
-        if (!flag(R_CF)) wr16(edi, sub16(w, dx));
-        edi = add32(edi, 0xa);
-        ecx = dec32(ecx);
-    } while (!flag(R_ZF));
-    WR_REG(R_ECX, 4, ecx);
-    WR_REG(R_EDI, 4, edi);
-    x86_ret();
 }
 
 /* Core_CountUp1 (0x4240e1; 0x4243b6, player 2's, is not called by any
