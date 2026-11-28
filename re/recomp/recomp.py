@@ -453,6 +453,8 @@ def main(argv=None) -> int:
     ap.add_argument("--smc", type=Path, help="runtime-patched code fields (output of SmcFields.java)")
     ap.add_argument("--tables", type=Path, help="inline tables (re/inline_tables.txt) for computed jump targets")
     ap.add_argument("--text", type=Path, help="code section image (assets/data/ASTRO_TEXT.BIN, VA 0x401000)")
+    ap.add_argument("--data", type=Path, help="data section image (assets/data/ASTRO_DATA.BIN): with --text, "
+                    "limits the default build's function table to functions whose address the images hold")
     ap.add_argument("--replaced", type=Path,
                     help="functions rewritten by hand (src/core/replaced.h): generated as ref_<addr>")
     args = ap.parse_args(argv)
@@ -522,11 +524,32 @@ def main(argv=None) -> int:
     listed = " ".join(f"{e:x}" for e in sorted(REPLACED))
     proto += f'\n#define GEN_REPLACED "{listed}"\n'
     write_if_changed(args.out / "gen_funcs.h", "/* generated - do not edit */\n#pragma once\n" + proto + "\n")
-    table = ",\n".join(f"  {{0x{e:x}u, f_{e:x}}}" for e in order)
-    write_if_changed(args.out / "gen_table.c", 
+    # The table serves computed calls (rt_callind). A function can be the
+    # target of one only if its address is stored somewhere: as a value in the
+    # code or data image (any byte offset, so a coincidence only keeps one
+    # function too many). The other rows are kept for the differential build
+    # alone; in the default build, the linker (--gc-sections) then drops the
+    # generated functions nothing reaches any more, among them the generated
+    # versions of the hand-written ones.
+    taken = set(order)
+    if args.text and args.data:
+        values = set()
+        for image in (args.text.read_bytes(), args.data.read_bytes()):
+            for k in range(4):
+                n = (len(image) - k) // 4
+                values.update(memoryview(image[k:k + 4 * n]).cast("I"))
+        taken = {e for e in order if e in values}
+        print(f"function table: {len(taken)} of {len(order)} functions have their address stored (computed-call targets)")
+    rows = []
+    for e in order:
+        row = f"  {{0x{e:x}u, f_{e:x}}},"
+        rows.append(row if e in taken else f"#ifdef RT_DIFF\n{row}\n#endif")
+    write_if_changed(args.out / "gen_table.c",
         '/* generated - do not edit */\n#include "recomp_rt.h"\n#include "gen_funcs.h"\n'
-        f"const rt_func_entry rt_func_table[] = {{\n{table}\n}};\n"
-        f"const unsigned rt_func_count = {len(order)};\n")
+        "/* Functions whose address the original stores (computed-call targets); the\n"
+        " * differential build lists every function. */\n"
+        "const rt_func_entry rt_func_table[] = {\n" + "\n".join(rows) + "\n};\n"
+        "const unsigned rt_func_count = sizeof rt_func_table / sizeof rt_func_table[0];\n")
     nfiles = max(1, min(args.files, len(order)))
     per = (len(order) + nfiles - 1) // nfiles
     for k in range(nfiles):

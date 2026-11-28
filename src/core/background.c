@@ -1,8 +1,10 @@
 /*
  * The background (stage C, docs/plan.md): plain C, no registers or flags.
- * Its entry points are listed as HAND_STATE in replaced.h, so the differential
- * build checks them by the game state they leave; the HAND_FN bodies below are
- * only the glue between the emulated calls and the C functions.
+ * Its two entry points, Level_ScrollAndDraw and Level_SkipAhead (at the end),
+ * are listed as HAND_STATE in replaced.h, so the differential build checks
+ * them by the game state they leave; their HAND_FN bodies are only the glue
+ * between the emulated calls and the C functions. The level script
+ * (Script_Run) is still register-level and is called through core_call.
  *
  * The background is up to three scrolling layers of 20x20-pixel tiles. Each
  * layer keeps a ring buffer of rows in the arena; when its scroll counter
@@ -110,12 +112,9 @@ static void scroll_layer(const layer *l)
     new_strip(l);
 }
 
-/* Layer A's new strip (0x41ed18; Level_Scroll calls it when the main scroll
- * passes a strip and layer bit 2 is set). */
-HAND_FN(41ed18) { new_strip(&k_layer_a); x86_ret(); }
-/* Layer B's scroll (0x41ede7) and layer C's (0x41eefd). */
-HAND_FN(41ede7) { scroll_layer(&k_layer_b); x86_ret(); }
-HAND_FN(41eefd) { scroll_layer(&k_layer_c); x86_ret(); }
+/* Layer A's new strip is 0x41ed18 (Level_Scroll draws it when the main
+ * scroll passes a strip and layer bit 2 is set); layer B's scroll is 0x41ede7
+ * and layer C's 0x41eefd. */
 
 /* ---- the starfield ---------------------------------------------------------
  * Four sets of stars (10-byte records: x word at +0, y in 8.8 fixed point at
@@ -444,5 +443,93 @@ static void draw_layers(void)
     }
     draw_stars(STARS_ON_EMPTY, 0, 0);
 }
-HAND_FN(41cfaf) { draw_layers(); x86_ret(); }
+
+/* ---- the scroll ------------------------------------------------------------
+ * The main (vertical) scroll moves by its speed each frame, plus the next word
+ * of a speed list while one runs; every 0x4b0 units the level script runs. */
+#define G_SCROLL_Y      0x4b1f88u   /* word: the scroll within the current 0x4b0 units */
+#define G_SCROLL_SPEED  0x4b1f94u   /* word */
+#define G_SCROLL_STEP   0x4b1f98u   /* word: this frame's scroll */
+#define G_SCROLL_EXTRA  0x4b1f96u   /* word: this frame's word from the speed list */
+#define G_SPEED_LIST_ON 0x4b3ba2u   /* word: a speed list is being followed */
+#define G_SPEED_LIST    0x46ffc0u   /* dword: its position (an arena offset); a negative word ends it */
+#define G_SKIP_AHEAD    0x4b1f68u   /* word: frames left to fast-forward (the script waits meanwhile) */
+#define G_IDLE_SCRIPT   0x4b1f6cu   /* dword: run the script while the scroll stands still */
+#define G_IDLE_COUNT    0x4b1f8au   /* word: 0x1e units a frame towards the next idle run */
+#define SCRIPT_RUN_RET  0x41cf89u   /* Level_ScrollAndDraw, after its call of Level_Scroll */
+
+/* Script_Run (0x41f109) is register-level and reads no registers. The
+ * original reaches it from Level_Scroll, called from Level_ScrollAndDraw: by a
+ * jump (it returns to 0x41cf89) or by a call (to 0x41ed17, under 0x41cf89). */
+static void run_script(void) { core_call(f_41f109, SCRIPT_RUN_RET); }
+static void run_script_idle(void)
+{
+    x86_push(SCRIPT_RUN_RET);
+    core_call(f_41f109, 0x41ed17u);
+    x86_pop();
+}
+
+/* Level_Scroll (0x41ec5f). */
+static void level_scroll(void)
+{
+    uint16_t step = rd16(G_SCROLL_SPEED), extra = 0;
+    if (rd16(G_SPEED_LIST_ON)) {
+        extra = rd16(rd32(G_SPEED_LIST) + rd32(G_ARENA_BASE));
+        if ((int16_t)extra < 0) {
+            wr16(G_SPEED_LIST_ON, 0);                          /* the end (the word is kept below) */
+        } else {
+            step = (uint16_t)(step + extra);
+            wr32(G_SPEED_LIST, rd32(G_SPEED_LIST) + 2);
+        }
+    }
+    wr16(G_SCROLL_EXTRA, extra);
+    wr16(G_SCROLL_Y, (uint16_t)(rd16(G_SCROLL_Y) + step));
+    wr16(G_SCROLL_STEP, step);
+    if ((int16_t)rd16(G_SCROLL_Y) >= 0x4b0) {                  /* a strip passed */
+        wr16(G_SCROLL_Y, (uint16_t)(rd16(G_SCROLL_Y) - 0x4b0));
+        if (rd16(G_LAYERS) & 4) new_strip(&k_layer_a);
+        run_script();
+        return;
+    }
+    /* Standing still (speed 0, 0x4b1f8c clear): the script runs every 40 frames. */
+    if (!rd32(G_IDLE_SCRIPT) || rd16(G_SCROLL_SPEED) || rd16(0x4b1f8cu)) return;
+    wr16(G_IDLE_COUNT, (uint16_t)(rd16(G_IDLE_COUNT) + 0x1e));
+    if ((int16_t)rd16(G_IDLE_COUNT) < 0x4b0) return;
+    wr16(G_IDLE_COUNT, (uint16_t)(rd16(G_IDLE_COUNT) - 0x4b0));
+    run_script_idle();
+}
+
+/* One frame of the background (0x41cf84): the scroll, the parallax layers B
+ * (layer bit 1) and C (bit 4), then the frame is composed. The layer bits are
+ * read afresh each time, since the script may change them. */
+static void scroll_and_draw(void)
+{
+    level_scroll();
+    if (rd16(G_LAYERS) & 2) scroll_layer(&k_layer_b);
+    if (rd16(G_LAYERS) & 0x10) scroll_layer(&k_layer_c);
+    draw_layers();
+}
+
+/* Level_ScrollAndDraw (0x41cf84): called by the level set-ups and the level's
+ * frame loop. */
+HAND_FN(41cf84) { scroll_and_draw(); x86_ret(); }
+
+/* Level_SkipAhead (0x41f0d0): a level-script command fast-forwarding the
+ * level: scroll_and_draw as many times as the word at 0x4b1f68 says (0 means
+ * 65536); the script itself waits until the count is over. The caller's EBP
+ * (its script position) is kept. */
+HAND_FN(41f0d0)
+{
+    const uint32_t ebp = EBP;
+    x86_push(ebp);
+    do {
+        x86_push(0x41f0d6u);                                   /* as the original's call */
+        scroll_and_draw();
+        x86_pop();
+        wr16(G_SKIP_AHEAD, (uint16_t)(rd16(G_SKIP_AHEAD) - 1));
+    } while (rd16(G_SKIP_AHEAD));
+    x86_pop();
+    WR_REG(R_EBP, 4, ebp);
+    x86_ret();
+}
 

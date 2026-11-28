@@ -27,7 +27,8 @@ option(ASTRO_PROFILE "Count the calls of every generated core function (ASTRO_PR
 set(ASTRO_PCODE "${CMAKE_SOURCE_DIR}/build/recomp/core.pcode" CACHE FILEPATH "Ghidra p-code export of the core (ExportPcode.java)")
 set(ASTRO_ENTRIES "${CMAKE_SOURCE_DIR}/build/recomp/entries.txt" CACHE FILEPATH "Extra core entry points (find_seeds.py)")
 set(ASTRO_TEXT_IMAGE "${CMAKE_SOURCE_DIR}/assets/data/ASTRO_TEXT.BIN" CACHE FILEPATH "Code section image (package_assets.py)")
-if(EXISTS "${ASTRO_PCODE}" AND EXISTS "${ASTRO_ENTRIES}" AND EXISTS "${ASTRO_TEXT_IMAGE}")
+set(ASTRO_DATA_IMAGE "${CMAKE_SOURCE_DIR}/assets/data/ASTRO_DATA.BIN" CACHE FILEPATH "Data section image (package_assets.py)")
+if(EXISTS "${ASTRO_PCODE}" AND EXISTS "${ASTRO_ENTRIES}" AND EXISTS "${ASTRO_TEXT_IMAGE}" AND EXISTS "${ASTRO_DATA_IMAGE}")
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     set(ASTRO_GEN_SOURCES "${ASTRO_GEN_DIR}/gen_table.c")
     foreach(i RANGE 0 31)
@@ -45,10 +46,11 @@ if(EXISTS "${ASTRO_PCODE}" AND EXISTS "${ASTRO_ENTRIES}" AND EXISTS "${ASTRO_TEX
         COMMAND Python3::Interpreter "${CMAKE_SOURCE_DIR}/re/recomp/recomp.py" "${ASTRO_PCODE}"
                 -o "${ASTRO_GEN_DIR}" --entries "${ASTRO_ENTRIES}"
                 --smc "${CMAKE_SOURCE_DIR}/re/smc_fields.txt" --tables "${CMAKE_SOURCE_DIR}/re/inline_tables.txt"
-                --text "${ASTRO_TEXT_IMAGE}" --replaced "${CMAKE_SOURCE_DIR}/src/core/replaced.h"
+                --text "${ASTRO_TEXT_IMAGE}" --data "${ASTRO_DATA_IMAGE}"
+                --replaced "${CMAKE_SOURCE_DIR}/src/core/replaced.h"
         COMMAND "${CMAKE_COMMAND}" -E touch "${CMAKE_CURRENT_BINARY_DIR}/recomp.stamp"
         DEPENDS "${CMAKE_SOURCE_DIR}/re/recomp/recomp.py" "${CMAKE_SOURCE_DIR}/src/core/replaced.h"
-                "${ASTRO_PCODE}" "${ASTRO_ENTRIES}" "${ASTRO_TEXT_IMAGE}"
+                "${ASTRO_PCODE}" "${ASTRO_ENTRIES}" "${ASTRO_TEXT_IMAGE}" "${ASTRO_DATA_IMAGE}"
                 "${CMAKE_SOURCE_DIR}/re/smc_fields.txt" "${CMAKE_SOURCE_DIR}/re/inline_tables.txt"
         COMMENT "Regenerating the recompiled core"
         VERBATIM)
@@ -85,11 +87,26 @@ endif()
 # optimisation, no warnings.
 add_library(astro_core STATIC ${ASTRO_GEN_SOURCES} re/recomp/recomp_rt.c ${ASTRO_HAND_SOURCES} ${ASTRO_GEN_STAMP})
 target_include_directories(astro_core PUBLIC re/recomp "${ASTRO_GEN_DIR}" src/core)
+# One section per function, so that the linker drops the generated functions
+# nothing reaches: the default build's function table lists only the
+# computed-call targets (recomp.py), so what the hand-written code replaced
+# goes, together with the generated versions of the hand-written functions,
+# which only the differential build calls.
 if(MSVC)
-    set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "/O1;/w;/bigobj")
+    set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "/O1;/w;/bigobj;/Gy")
+    target_link_options(astro_core INTERFACE /OPT:REF)
 else()
-    set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "-O1;-w")
+    set(gen_options "-O1;-w;-ffunction-sections")
+    if(MINGW)
+        # On 64-bit Windows every function's unwind entry (.pdata) refers to
+        # its code and keeps it from being collected. Nothing unwinds through
+        # the generated code (no exceptions, no longjmp); only a debugger's
+        # stack walk through it is lost.
+        list(APPEND gen_options -fno-asynchronous-unwind-tables)
+    endif()
+    set_source_files_properties(${ASTRO_GEN_SOURCES} PROPERTIES COMPILE_OPTIONS "${gen_options}")
     target_link_libraries(astro_core PUBLIC m)
+    target_link_options(astro_core INTERFACE -Wl,--gc-sections)
 endif()
 if(ASTRO_COVERAGE)
     # Only the hand-written functions: which of their branches the recordings

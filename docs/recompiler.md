@@ -127,6 +127,16 @@ build, fuzz check, coverage and profiling builds) carries over.
 - **How it is linked in**: the recompiler generates listed functions as
   `ref_<hex>` instead of `f_<hex>`, so every direct, tail and computed call
   reaches the hand-written `f_<hex>`.
+- **What the default build leaves out**: the function table for computed
+  calls (`gen_table.c`) lists, outside the differential build, only the
+  functions whose address the original stores (any 4-byte value in the code or
+  data image equal to an entry: 500 of 1 272). The generated code is compiled
+  one section per function and linked with `--gc-sections` (`/OPT:REF` with
+  MSVC), so the linker drops what nothing reaches: all `ref_` functions and
+  the generated functions only the replaced code called (25 so far, among them
+  the whole background but two starfield routines whose addresses sit in a
+  data table). On 64-bit Windows the generated code is compiled without
+  unwind tables, whose entries would otherwise keep every function.
 - **What it must do**: leave exactly what the original instructions left:
   registers (including the halves it does not use), the flags of the last
   flag-setting instruction (in p-code semantics: additions do not set AF),
@@ -339,7 +349,6 @@ those inside the checks of other replaced functions):
 | `0x44360c` | `Render_DrawFaces` | `math.c` | 148 132 calls (the 3D renderer: culling, depth sort, shading with the x87 square root) |
 | `0x4438bc` | `Core_SortDescending` | `math.c` | 22 420 calls and 9 104 765 recursive ones inside them (quicksort; registers pass through `cpu` around the recursive calls) |
 | `0x4431db`, `0x44334b` | `Math_RotateVertices`, `Math_RotateVerticesScaled` | `math.c` | 165 637 and 71 443 calls in the full-game recording (they patch the rotation matrix into their own IMUL immediates) |
-| `0x41ec5f`, `0x41cf84`, `0x41f0d0` | `Level_Scroll`, `Level_ScrollAndDraw`, `Level_SkipAhead` | `level.c` | 130 168 calls (inside `Level_ScrollAndDraw`'s), 130 157 and 4; the scroll jumps into `Script_Run` |
 | `0x427312`, `0x4273e3` | `Obj_PickPath_q`, `Obj_NextPathPoint_q` | `level.c` | 4 and 253 calls (they fall into each other) |
 | `0x442e3d`, `0x442ecc` | `Render_RemapSpan2_q`, `Render_TextureAffine` | `texture.c` | 2 716 226 and 233 515 calls; the texture mapper patches its shift, texture and steps into its own loop |
 
@@ -357,9 +366,8 @@ the callee returns anywhere else.
 
 | Entry | Name | File | What it covers | Checked on |
 |---|---|---|---|---|
-| `0x41ed18` | `Background_LayerANewStrip` | `background.c` | layer A's new strips (two planes; superseded `Core_CopyStripA`) | 2 514 calls in the full-game recording (inside `Level_ScrollAndDraw`'s checks) |
-| `0x41ede7`, `0x41eefd` | `Background_ScrollLayerB`, `Background_ScrollLayerC` | `background.c` | the parallax scroll of layers B and C and their new strips (superseded `Core_CopyStripB`, `Core_CopyBlock16x20`) | 46 797 and 69 621 calls (inside `Level_ScrollAndDraw`'s checks) |
-| `0x41cfaf` | `Background_DrawLayers` | `background.c` | the frame composed from the layers: the layer views, plain copies and clears, the three composing routines and layer A in front, the decoration sprites (stepped and drawn through `Core_DrawSprite`, a register-level call), and the starfield `0x413887` (moves, colour cycling, five plotting ways) as an internal call (superseded `Core_LayerOffset0/1/2`, `Core_ClearBlock3e80`, `Core_CopyRowsSkip`, and earlier the seven record loops of `recs.c`, `Core_StepBytes10`, `Core_StepWords10` and the three record-set drivers) | 130 168 calls (inside `Level_ScrollAndDraw`'s checks) |
+| `0x41cf84` | `Level_ScrollAndDraw` | `background.c` | the whole background, one frame: the main scroll (`Level_Scroll`, with the speed list and the level script through `core_call` of `Script_Run`), the parallax layers B and C and their new strips, layer A's new strips (two planes), and the frame composed from the layers: the layer views, plain copies and clears, the three composing routines and layer A in front, the decoration sprites (drawn through the register-level `Core_DrawSprite`) and the starfield (moves, colour cycling, five plotting ways). Superseded 20 register-exact functions (`Core_CopyStripA`, `Core_CopyStripB`, `Core_CopyBlock16x20`, the seven record loops of `recs.c`, `Core_StepBytes10`, `Core_StepWords10`, the three record-set drivers, `Core_LayerOffset0/1/2`, `Core_ClearBlock3e80`, `Core_CopyRowsSkip`) and the register-exact `Level_Scroll` and `Level_ScrollAndDraw` | 130 157 calls in the full-game recording, each checked |
+| `0x41f0d0` | `Level_SkipAhead` | `background.c` | the level-script command that fast-forwards the level (`Level_ScrollAndDraw` repeated; the script waits meanwhile; keeps EBP) | 4 calls (inside `Level_ScrollAndDraw`'s checks) |
 
 ## Known gaps / next steps
 

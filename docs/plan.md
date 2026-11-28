@@ -107,7 +107,7 @@ Three stages; the first two are done, the third is the way to plain C.
 - [ ] **Subsystems**, roughly in this order (each: rewrite, game-state check
       on all recordings, delete its entries from `replaced.h` and its
       generated functions from the default build):
-  - [ ] Background and scrolling, from `Level_ScrollAndDraw` (`0x41cf84`):
+  - [x] Background and scrolling, from `Level_ScrollAndDraw` (`0x41cf84`):
         the first one, to prove the approach. 14 generated functions (2 853
         instructions) plus 13 already hand-written; `Script_Run` is the one
         call out. The layer drawing `0x41cfaf` and its routines `0x41e284`
@@ -122,8 +122,14 @@ Three stages; the first two are done, the third is the way to plain C.
           the layer views, the decoration sprites (`0x413dc3` / `0x413e50`)
           and the starfield as an internal call; 5 more register-exact
           functions removed
-    - [ ] `Level_ScrollAndDraw` / `Level_Scroll` themselves (the jump into
-          `Script_Run` stays a register-level call)
+    - [x] `Level_ScrollAndDraw`, `Level_Scroll` and `Level_SkipAhead`
+          (the script command that fast-forwards the level): the subsystem's
+          two entries are now `Level_ScrollAndDraw` and `Level_SkipAhead`;
+          `Script_Run` is called through `core_call`
+    - [x] Its generated functions left the default build (the function table
+          lists only computed-call targets and the linker collects the rest;
+          recompiler.md, "What the default build leaves out"); two starfield
+          plotting ways stay, their addresses being in a data table
   - [ ] Renderer: sprites, silhouettes, remapped sprites, polygons, the
         texture mapper and the polygon fillers (`0x44392c`, `0x443d40`)
   - [ ] The nine enemy classes (update, collision, drawing)
